@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/diagnosis_api.dart';
 import '../../models/diagnosis_model.dart';
 import '../../routes/app_routes.dart';
+import '../../widgets/elite_loader.dart';
 
 class DiagnosisResultPage extends StatefulWidget {
   const DiagnosisResultPage({super.key});
@@ -132,6 +133,7 @@ class _DiagnosisResultPageState extends State<DiagnosisResultPage> {
               ],
             ),
           ),
+          if (_isSaving) ...[EliteLoader.top()],
         ],
       ),
     );

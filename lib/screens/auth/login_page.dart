@@ -89,9 +89,7 @@ class _LoginPageState extends State<LoginPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
       builder: (context) => Container(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -106,6 +104,12 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 24),
+            _buildDebugBtn(
+              'My Account',
+              'myname@gmail.com',
+              password: '123456789',
+            ),
+            const SizedBox(height: 12),
             _buildDebugBtn('Realtor One', 'realtorone@example.com'),
             const SizedBox(height: 12),
             _buildDebugBtn('Realtor Two', 'realtortwo@example.com'),
@@ -116,12 +120,16 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildDebugBtn(String name, String email) {
+  Widget _buildDebugBtn(
+    String name,
+    String email, {
+    String password = 'password123',
+  }) {
     return ElevatedButton(
       onPressed: () {
         Navigator.pop(context);
         _emailController.text = email;
-        _passwordController.text = 'password123';
+        _passwordController.text = password;
         _handleLogin();
       },
       style: ElevatedButton.styleFrom(
@@ -277,18 +285,67 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             elevation: 0,
                           ),
-                          child: _isLoading
-                              ? const SizedBox(width: 120, child: EliteLoader())
-                              : const Text(
-                                  'SIGN IN',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
-                                  ),
-                                ),
+                          child: const Text(
+                            'SIGN IN',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
                         ),
                       ).animate().fadeIn(delay: 900.ms).scale(),
+
+                      const SizedBox(height: 32),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: const Color(0xFFE2E8F0),
+                              thickness: 1.5,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'OR CONTINUE WITH',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: const Color(0xFFE2E8F0),
+                              thickness: 1.5,
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 1000.ms),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildSocialBtn(
+                            customIcon: Image.asset(
+                              'assets/images/google_logo.png',
+                              width: 24,
+                              height: 24,
+                            ),
+                            label: 'Google',
+                            color: const Color(0xFF4285F4),
+                          ),
+                          const SizedBox(width: 16),
+                          _buildSocialBtn(
+                            icon: Icons.apple_rounded,
+                            label: 'Apple',
+                            color: Colors.black,
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 1100.ms).slideY(begin: 0.2),
 
                       const SizedBox(height: 40),
 
@@ -441,6 +498,48 @@ class _LoginPageState extends State<LoginPage> {
           validator: validator,
         ),
       ],
+    );
+  }
+
+  Widget _buildSocialBtn({
+    IconData? icon,
+    Widget? customIcon,
+    required String label,
+    required Color color,
+  }) {
+    return Opacity(
+      opacity: 0.5, // Faded to show it's disabled
+      child: Container(
+        height: 60,
+        width: 130,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: null, // Disabled
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                customIcon ?? Icon(icon, color: color, size: 28),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

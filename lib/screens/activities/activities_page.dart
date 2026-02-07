@@ -279,6 +279,10 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }
 
   Widget _buildMindsetTab() {
+    final mindsetActivities = _todayActivities
+        .where((a) => a['category'] == 'subconscious')
+        .toList();
+
     return RefreshIndicator(
       onRefresh: _loadActivities,
       color: const Color(0xFF667eea),
@@ -289,26 +293,30 @@ class _ActivitiesPageState extends State<ActivitiesPage>
           _buildProgressStats(
             'Subconscious Recalibration',
             _mindsetCompleted,
-            _mindsetTotal > 0 ? _mindsetTotal : 3,
+            _mindsetTotal > 0
+                ? _mindsetTotal
+                : (mindsetActivities.isEmpty ? 3 : mindsetActivities.length),
             const Color(0xFFf093fb),
           ),
           const SizedBox(height: 32),
           if (_isLoading)
             const SkillSkeleton(itemCount: 3)
-          else ...[
+          else if (mindsetActivities.isEmpty) ...[
             _buildRitualCard(
               'Morning Priming',
               'Peak State Protocol • 10 min',
               Icons.wb_sunny_rounded,
               const Color(0xFFFFB347),
-              true,
+              false,
+              onTap: () => _handleRitualTap('Morning Priming'),
             ),
             _buildRitualCard(
               'Confidence Rewiring',
               'Neuro-Linguistic Audio • 8 min',
               Icons.psychology_rounded,
               const Color(0xFF4ECDC4),
-              true,
+              false,
+              onTap: () => _handleRitualTap('Confidence Rewiring'),
             ),
             _buildRitualCard(
               'Evening Reflection',
@@ -316,13 +324,69 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               Icons.nightlight_round,
               const Color(0xFF667eea),
               false,
+              onTap: () => _handleRitualTap('Evening Reflection'),
             ),
-            const SizedBox(height: 32),
-          ],
+          ] else
+            ...mindsetActivities.map(
+              (a) => _buildRitualCard(
+                a['title'],
+                '${a['duration_minutes'] ?? 10} min • ${a['type']?.toUpperCase() ?? 'MINDSET'}',
+                _getMindsetIcon(a['type']),
+                _getMindsetColor(a['type']),
+                a['is_completed'] == true || a['is_completed'] == 1,
+                onTap: () => _toggleActivityComplete(
+                  a['id'],
+                  a['is_completed'] == true || a['is_completed'] == 1,
+                ),
+              ),
+            ),
           const SizedBox(height: 32),
         ],
       ),
     );
+  }
+
+  IconData _getMindsetIcon(String? type) {
+    if (type == 'morningPriming') return Icons.wb_sunny_rounded;
+    if (type == 'focusDrill') return Icons.bolt_rounded;
+    if (type == 'eveningReflection') return Icons.nightlight_round;
+    return Icons.psychology_rounded;
+  }
+
+  Color _getMindsetColor(String? type) {
+    if (type == 'morningPriming') return const Color(0xFFFFB347);
+    if (type == 'focusDrill') return const Color(0xFF4ECDC4);
+    if (type == 'eveningReflection') return const Color(0xFF667eea);
+    return const Color(0xFFf093fb);
+  }
+
+  Future<void> _handleRitualTap(String ritualName) async {
+    // If it's a hardcoded one, we creates it in the backend first
+    setState(() => _isLoading = true);
+    try {
+      final type = ritualName.contains('Morning')
+          ? 'morningPriming'
+          : ritualName.contains('Confidence')
+          ? 'focusDrill'
+          : 'eveningReflection';
+
+      final response = await ActivitiesApi.createActivity(
+        title: ritualName,
+        type: type,
+        category: 'subconscious',
+        durationMinutes: 10,
+      );
+
+      if (response['success'] == true) {
+        final newId = response['data']['id'];
+        await ActivitiesApi.completeActivity(newId);
+        await _loadActivities();
+      }
+    } catch (e) {
+      debugPrint('Error creating ritual: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Widget _buildProgressStats(
@@ -452,8 +516,9 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     String sub,
     IconData icon,
     Color color,
-    bool done,
-  ) {
+    bool done, {
+    VoidCallback? onTap,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -461,6 +526,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         borderRadius: BorderRadius.circular(24),
       ),
       child: ListTile(
+        onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 24,
           vertical: 16,
@@ -588,24 +654,28 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                     'Outreach & Prospecting',
                     Icons.phone_rounded,
                     const Color(0xFF667eea),
+                    'leadOutreach',
                   ),
                   _buildQuickAddTile(
                     'Elite Meeting',
                     'Negotiation / Closing',
                     Icons.people_rounded,
                     const Color(0xFF4ECDC4),
+                    'meeting',
                   ),
                   _buildQuickAddTile(
                     'Field Analysis',
                     'Site Visit / Valuation',
                     Icons.location_on_rounded,
                     const Color(0xFFFFB347),
+                    'siteVisit',
                   ),
                   _buildQuickAddTile(
                     'Deal Prep',
                     'Contracting & Admin',
                     Icons.description_rounded,
                     const Color(0xFF764ba2),
+                    'followUp',
                   ),
                 ],
               ),
@@ -621,6 +691,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     String sub,
     IconData icon,
     Color color,
+    String type,
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -655,7 +726,26 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             color: Color(0xFF64748B),
           ),
         ),
-        onTap: () => Navigator.pop(context),
+        onTap: () async {
+          Navigator.pop(context);
+          setState(() => _isLoading = true);
+          try {
+            final response = await ActivitiesApi.createActivity(
+              title: title,
+              type: type,
+              category: 'task',
+              durationMinutes: 30,
+            );
+            if (response['success'] == true) {
+              await _loadActivities();
+              _showCompletionFeedback('Operation Logged Successfully!');
+            }
+          } catch (e) {
+            debugPrint('Error logging operation: $e');
+          } finally {
+            if (mounted) setState(() => _isLoading = false);
+          }
+        },
       ),
     );
   }

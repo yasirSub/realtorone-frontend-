@@ -198,7 +198,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         _buildTextField(
                           controller: _nameController,
                           label: 'FULL NAME',
-                          hint: 'Alexander Sterling',
+                          hint: 'Full Name',
                           icon: Icons.person_outline,
                           validator: (v) =>
                               (v == null || v.isEmpty) ? 'Required' : null,
@@ -249,19 +249,14 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               elevation: 0,
                             ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 120,
-                                    child: EliteLoader(),
-                                  )
-                                : const Text(
-                                    'SIGN UP',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1,
-                                    ),
-                                  ),
+                            child: const Text(
+                              'SIGN UP',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
                           ),
                         ).animate().fadeIn(delay: 900.ms).scale(),
 

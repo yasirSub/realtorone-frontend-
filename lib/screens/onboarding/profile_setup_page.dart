@@ -21,6 +21,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   bool _isLoading = false;
   bool _isSuccess = false;
   File? _profileImage;
+  String? _serverPhotoUrl;
 
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -78,35 +79,49 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   Future<void> _fetchInitialData() async {
     setState(() => _isLoading = true);
     try {
-      final response = await UserApi.getProfile();
+      debugPrint('🔍 [ONBOARDING] Fetching fresh profile data...');
+      final response = await UserApi.getProfile(useCache: false);
+
       if (mounted &&
           (response['status'] == 'ok' || response['success'] == true)) {
         final userData = response['data'] ?? response['user'] ?? response;
+        debugPrint('📦 Raw User Data: $userData');
 
         // Split name if exists
         final fullName = userData['name'] as String? ?? '';
-        if (fullName.isNotEmpty && _firstNameController.text.isEmpty) {
+        debugPrint('👤 Full Name from DB: "$fullName"');
+        if (fullName.isNotEmpty) {
           final parts = fullName.trim().split(RegExp(r'\s+'));
           _firstNameController.text = parts[0];
           if (parts.length > 1) {
             _lastNameController.text = parts.sublist(1).join(' ');
           }
+          debugPrint(
+            '✅ Parsed Name: First="${_firstNameController.text}", Last="${_lastNameController.text}"',
+          );
         }
 
-        if (_emailController.text.isEmpty) {
-          _emailController.text = userData['email'] ?? '';
+        if (userData['email'] != null) {
+          _emailController.text = userData['email'].toString();
         }
-        _mobileController.text = userData['mobile'] ?? '';
+
+        if (userData['mobile'] != null) {
+          _mobileController.text = userData['mobile'].toString();
+          debugPrint('📱 Mobile: "${_mobileController.text}"');
+        }
 
         // If they already have a city, set it
         final city = userData['city'] as String?;
-        if (city != null && _dubaiCities.contains(city)) {
+        if (city != null && city.isNotEmpty) {
           _cityController.text = city;
+          debugPrint('🌆 City: "$city"');
         }
 
         _brokerageController.text = userData['brokerage'] ?? '';
         _instagramController.text = userData['instagram'] ?? '';
         _linkedinController.text = userData['linkedin'] ?? '';
+        _serverPhotoUrl = userData['profile_photo']; // Set existing photo URL
+        debugPrint('🖼️ Photo URL: $_serverPhotoUrl');
 
         if (userData['years_experience'] != null) {
           _experienceController.text = userData['years_experience'].toString();
@@ -118,6 +133,13 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         if (userData['target_monthly_income'] != null) {
           _targetIncomeController.text = userData['target_monthly_income']
               .toString();
+        }
+
+        // Set current step based on saved progress
+        final savedStep = userData['onboarding_step'] as int? ?? 0;
+        if (savedStep > 0 && mounted) {
+          setState(() => _currentStep = savedStep);
+          _pageController.jumpToPage(savedStep);
         }
       }
     } catch (e) {
@@ -211,6 +233,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         yearsExperience: yearsExperience,
         currentMonthlyIncome: currentMonthlyIncome,
         targetMonthlyIncome: targetMonthlyIncome,
+        onboardingStep: 2, // Marks as ready for Diagnosis
+        isProfileComplete: true,
       );
 
       debugPrint('--- Profile Response ---');
@@ -248,7 +272,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
 
           await Future.delayed(const Duration(milliseconds: 3000));
           if (mounted) {
-            Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
           }
         } else {
           _showError(response['message'] ?? 'Failed to save profile');
@@ -274,15 +298,59 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     );
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
     if (_currentStep < 1) {
       if (_formKey.currentState!.validate()) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOutCubic,
-        );
+        debugPrint('🔵 [STEP 1] Starting Background Save...');
+        setState(() => _isLoading = true);
+        try {
+          final name =
+              '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}';
+          debugPrint(
+            '📝 Saving Data: $name, ${_mobileController.text}, ${_cityController.text}',
+          );
+
+          // 1. Save Basic Information text data
+          final response = await UserApi.setupProfile(
+            name: name,
+            email: _emailController.text.trim(),
+            mobile: _mobileController.text.trim(),
+            city: _cityController.text.trim(),
+            brokerage: _brokerageController.text.trim(),
+            onboardingStep: 1,
+            isProfileComplete: false,
+          );
+          debugPrint('✅ Server Response: ${response['status']}');
+
+          // 2. Upload Profile Picture immediately if selected
+          if (_profileImage != null) {
+            debugPrint('📸 Uploading Profile Photo...');
+            final photoResponse = await UserApi.uploadPhoto(_profileImage!);
+            debugPrint('📸 Photo Sync Result: ${photoResponse['success']}');
+          }
+
+          if (mounted) {
+            debugPrint('➡️ Moving to Step 2...');
+            _pageController.nextPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOutCubic,
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ CRITICAL ERROR in Onboarding Save: $e');
+          // Still proceed to next page even if photo fails, to avoid blocking user
+          if (mounted) {
+            _pageController.nextPage(
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeInOutCubic,
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
       }
     } else {
+      debugPrint('🔵 Final Step - Calling Submit Profile');
       _submitProfile();
     }
   }
@@ -468,9 +536,14 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                         image: FileImage(_profileImage!),
                         fit: BoxFit.cover,
                       )
-                    : null,
+                    : (_serverPhotoUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(_serverPhotoUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null),
               ),
-              child: _profileImage == null
+              child: (_profileImage == null && _serverPhotoUrl == null)
                   ? const Icon(
                       Icons.add_a_photo_rounded,
                       color: Color(0xFF667eea),
@@ -502,7 +575,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           _buildTextField(
             controller: _lastNameController,
             label: 'LAST NAME',
-            hint: 'Sterling',
+            hint: 'Last Name',
             icon: Icons.person_outline_rounded,
             validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
@@ -555,7 +628,11 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
             controller: _instagramController,
             label: 'INSTAGRAM',
             hint: '@username',
-            icon: Icons.camera_alt_outlined,
+            customIcon: Image.asset(
+              'assets/images/instagram_logo.png',
+              width: 20,
+              height: 20,
+            ),
             prefix: '@',
           ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.1),
           const SizedBox(height: 16),
@@ -563,7 +640,11 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
             controller: _linkedinController,
             label: 'LINKEDIN URL',
             hint: 'linkedin.com/in/username',
-            icon: Icons.link_rounded,
+            customIcon: Image.asset(
+              'assets/images/linkedin_logo.png',
+              width: 20,
+              height: 20,
+            ),
           ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
           const SizedBox(height: 16),
           _buildTextField(
@@ -633,7 +714,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     required TextEditingController controller,
     required String label,
     required String hint,
-    required IconData icon,
+    IconData? icon,
+    Widget? customIcon,
     String? prefix,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
@@ -676,7 +758,9 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                 color: const Color(0xFF667eea).withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: const Color(0xFF667eea), size: 18),
+              child:
+                  customIcon ??
+                  Icon(icon, color: const Color(0xFF667eea), size: 18),
             ),
             filled: true,
             fillColor: Colors.white,
@@ -812,23 +896,21 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                   elevation: 0,
                   shadowColor: const Color(0xFF1E293B).withValues(alpha: 0.3),
                 ),
-                child: _isLoading
-                    ? const SizedBox(width: 120, child: EliteLoader())
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _currentStep == 1 ? 'SAVE PROFILE' : 'CONTINUE',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 16,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Icon(Icons.arrow_forward_rounded, size: 18),
-                        ],
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _currentStep == 1 ? 'SAVE PROFILE' : 'CONTINUE',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 1.5,
                       ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.arrow_forward_rounded, size: 18),
+                  ],
+                ),
               ),
             ),
           ),

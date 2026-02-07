@@ -10,5 +10,6 @@ class AppRoutes {
   static const String main = '/main';
   static const String beliefRewiring = '/belief-rewiring';
   static const String reports = '/reports';
+  static const String settings = '/settings';
   static const String dashboard = '/dashboard'; // Legacy
 }

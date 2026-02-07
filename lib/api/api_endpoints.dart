@@ -1,6 +1,6 @@
 class ApiEndpoints {
   // Base URL
-  static const String baseUrl = 'http://192.168.31.129:8000/api';
+  static const String baseUrl = 'https://realtorone-backend.onrender.com/api';
 
   // Auth endpoints
   static const String login = '/login';

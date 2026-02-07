@@ -141,18 +141,22 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _logout() async {
+    setState(() => _isLoading = true);
     try {
+      // Small artificial delay for premium feel
+      await Future.delayed(const Duration(milliseconds: 1500));
+
       // Try to notify backend about logout (but don't block if it fails)
       try {
         await ApiClient.post('/auth/logout', {}, requiresAuth: true);
       } catch (e) {
-        debugPrint('Backend logout call failed (continuing anyway): $e');
+        debugPrint('Backend logout call failed: $e');
       }
 
       // Clear ALL local data
       await ApiClient.clearToken();
       final prefs = await SharedPreferences.getInstance();
-      await prefs.clear(); // Clear all SharedPreferences data
+      await prefs.clear();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -163,14 +167,9 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       debugPrint('Logout error: $e');
-      // Even if there's an error, still try to clear local data
-      try {
-        await ApiClient.clearToken();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
-      } catch (clearError) {
-        debugPrint('Failed to clear data: $clearError');
-      }
+      await ApiClient.clearToken();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -179,12 +178,18 @@ class _ProfilePageState extends State<ProfilePage> {
           (route) => false,
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF020617)
+          : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -198,7 +203,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   expandedHeight: 320,
                   pinned: true,
                   stretch: true,
-                  backgroundColor: const Color(0xFF1E293B),
+                  backgroundColor: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFF1E293B),
                   elevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
                     background: Stack(
@@ -368,7 +375,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildStatsRow(),
+                      _buildStatsRow(isDark),
                       const SizedBox(height: 32),
                       _buildMenuSection('Profile Settings', [
                         _MenuItem(
@@ -391,7 +398,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           subtitle: _userData?['city'] ?? 'Dubai Marina',
                           onTap: () {},
                         ),
-                      ]),
+                      ], isDark),
                       const SizedBox(height: 24),
                       _buildMenuSection('Performance', [
                         _MenuItem(
@@ -410,7 +417,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           onTap: () =>
                               Navigator.pushNamed(context, AppRoutes.diagnosis),
                         ),
-                      ]),
+                      ], isDark),
                       const SizedBox(height: 24),
                       _buildMenuSection('Account Settings', [
                         _MenuItem(
@@ -420,12 +427,13 @@ class _ProfilePageState extends State<ProfilePage> {
                           onTap: () {},
                         ),
                         _MenuItem(
-                          icon: Icons.shield_outlined,
-                          title: 'Security',
-                          subtitle: 'Password and privacy',
-                          onTap: () {},
+                          icon: Icons.settings_outlined,
+                          title: 'App Settings',
+                          subtitle: 'Security, Notifications, and more',
+                          onTap: () =>
+                              Navigator.pushNamed(context, AppRoutes.settings),
                         ),
-                      ]),
+                      ], isDark),
                       const SizedBox(height: 48),
                       SizedBox(
                         width: double.infinity,
@@ -458,22 +466,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
 
-          // Top Loading Indicator
-          if (_isLoading)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Container(
-                  height: 3,
-                  child: const LinearProgressIndicator(
-                    backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation(Color(0xFF667eea)),
-                  ),
-                ),
-              ),
-            ),
+          // Full Screen Loading Overlay
+          if (_isLoading) EliteLoader.top(),
         ],
       ),
     );
@@ -521,15 +515,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatsRow() {
+  Widget _buildStatsRow(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
             blurRadius: 20,
           ),
         ],
@@ -581,7 +575,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenuSection(String title, List<_MenuItem> items) {
+  Widget _buildMenuSection(String title, List<_MenuItem> items, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -599,14 +593,20 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             children: items
                 .asMap()
                 .entries
-                .map((e) => _buildMenuItem(e.value, e.key != items.length - 1))
+                .map(
+                  (e) => _buildMenuItem(
+                    e.value,
+                    e.key != items.length - 1,
+                    isDark,
+                  ),
+                )
                 .toList(),
           ),
         ),
@@ -614,7 +614,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenuItem(_MenuItem item, bool showDivider) {
+  Widget _buildMenuItem(_MenuItem item, bool showDivider, bool isDark) {
     return Column(
       children: [
         ListTile(
@@ -622,13 +622,17 @@ class _ProfilePageState extends State<ProfilePage> {
             horizontal: 20,
             vertical: 8,
           ),
-          leading: Icon(item.icon, color: const Color(0xFF1E293B), size: 22),
+          leading: Icon(
+            item.icon,
+            color: isDark ? Colors.white70 : const Color(0xFF1E293B),
+            size: 22,
+          ),
           title: Text(
             item.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 15,
-              color: Color(0xFF1E293B),
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
             ),
           ),
           subtitle: Text(

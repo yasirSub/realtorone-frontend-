@@ -5,8 +5,12 @@ import 'api_client.dart';
 import 'api_endpoints.dart';
 
 class UserApi {
-  static Future<Map<String, dynamic>> getProfile() async {
-    return await ApiClient.get(ApiEndpoints.userProfile, requiresAuth: true);
+  static Future<Map<String, dynamic>> getProfile({bool useCache = true}) async {
+    return await ApiClient.get(
+      ApiEndpoints.userProfile,
+      requiresAuth: true,
+      useCache: useCache,
+    );
   }
 
   static Future<Map<String, dynamic>> updateProfile({
@@ -20,6 +24,8 @@ class UserApi {
     int? yearsExperience,
     double? currentMonthlyIncome,
     double? targetMonthlyIncome,
+    int? onboardingStep,
+    bool? isProfileComplete,
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
@@ -36,12 +42,22 @@ class UserApi {
     if (targetMonthlyIncome != null) {
       data['target_monthly_income'] = targetMonthlyIncome;
     }
+    if (onboardingStep != null) data['onboarding_step'] = onboardingStep;
+    if (isProfileComplete != null)
+      data['is_profile_complete'] = isProfileComplete;
 
-    return await ApiClient.put(
+    final result = await ApiClient.put(
       ApiEndpoints.updateProfile,
       data,
       requiresAuth: true,
     );
+
+    // Clear cache after update to ensure fresh data on next fetch
+    if (result['success'] == true || result['status'] == 'ok') {
+      await ApiClient.clearCache();
+    }
+
+    return result;
   }
 
   static Future<Map<String, dynamic>> setupProfile({
@@ -55,6 +71,8 @@ class UserApi {
     int? yearsExperience,
     double? currentMonthlyIncome,
     double? targetMonthlyIncome,
+    int? onboardingStep,
+    bool? isProfileComplete,
   }) async {
     final data = <String, dynamic>{
       'name': name,
@@ -62,8 +80,10 @@ class UserApi {
       'mobile': mobile,
       'city': city,
       'brokerage': brokerage,
-      'is_profile_complete': true,
     };
+    if (isProfileComplete != null)
+      data['is_profile_complete'] = isProfileComplete;
+    if (onboardingStep != null) data['onboarding_step'] = onboardingStep;
     if (instagram != null) data['instagram'] = instagram;
     if (linkedin != null) data['linkedin'] = linkedin;
     if (yearsExperience != null) data['years_experience'] = yearsExperience;
@@ -74,11 +94,18 @@ class UserApi {
       data['target_monthly_income'] = targetMonthlyIncome;
     }
 
-    return await ApiClient.put(
+    final result = await ApiClient.put(
       ApiEndpoints.profileSetup,
       data,
       requiresAuth: true,
     );
+
+    // Clear cache after setup to ensure fresh data on next fetch
+    if (result['success'] == true || result['status'] == 'ok') {
+      await ApiClient.clearCache();
+    }
+
+    return result;
   }
 
   static Future<Map<String, dynamic>> changePassword(
@@ -108,8 +135,14 @@ class UserApi {
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+      final data = jsonDecode(response.body);
 
-      return jsonDecode(response.body);
+      // Clear cache after photo upload
+      if (data['success'] == true) {
+        await ApiClient.clearCache();
+      }
+
+      return data;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -119,10 +152,23 @@ class UserApi {
     return await ApiClient.get(
       '${ApiEndpoints.growthReport}?period=$period',
       requiresAuth: true,
+      useCache: true,
     );
   }
 
   static Future<Map<String, dynamic>> getTodayTasks() async {
-    return await ApiClient.get('/tasks/today', requiresAuth: true);
+    return await ApiClient.get(
+      '/tasks/today',
+      requiresAuth: true,
+      useCache: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> completeTask(int id) async {
+    return await ApiClient.put(
+      '/activities/$id/complete',
+      {},
+      requiresAuth: true,
+    );
   }
 }

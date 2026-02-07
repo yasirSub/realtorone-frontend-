@@ -20,7 +20,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       subtitle: 'OPERATING SYSTEM',
       description:
           'Calibrate your real estate career with military-grade diagnostics and AI-driven growth protocols.',
-      assetPath: 'assets/images/welcome.png',
+      assetPath: 'assets/images/onboarding_execution.png',
       gradient: [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
     ),
     OnboardingData(
@@ -28,7 +28,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       subtitle: 'DIAGNOSIS ENGINE',
       description:
           'Identify critical performance blockers: Lead Gen, Confidence, Closing, or Discipline.',
-      assetPath: 'assets/images/diagnosis.png',
+      assetPath: 'assets/images/onboarding_diagnosis.png',
       gradient: [const Color(0xFF10B981), const Color(0xFF059669)],
     ),
     OnboardingData(
@@ -36,7 +36,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       subtitle: 'INITIATE PROTOCOL',
       description:
           'Discover your elite profile and execute a personalized dominance path tailored to your market.',
-      assetPath: 'assets/images/growth.png',
+      assetPath: 'assets/images/onboarding_growth.png',
       gradient: [const Color(0xFFF43F5E), const Color(0xFFE11D48)],
     ),
   ];
@@ -57,7 +57,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     await prefs.setBool('hasSeenOnboarding', true);
 
     if (mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+      Navigator.pushReplacementNamed(context, AppRoutes.login);
     }
   }
 
@@ -72,10 +72,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Global Texture
+          // 1. Dynamic Texture Background
           Positioned.fill(
             child: Opacity(
-              opacity: 0.1,
+              opacity: 0.05,
               child: Image.asset(
                 'assets/images/welcome.png',
                 fit: BoxFit.cover,
@@ -83,7 +83,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
 
-          // Page View
+          // 2. Tactical Grid Overlay
+          IgnorePointer(
+            child: CustomPaint(
+              painter: GridPainter(color: Colors.white.withValues(alpha: 0.03)),
+            ),
+          ),
+
+          // 3. Page View Content
           PageView.builder(
             controller: _pageController,
             onPageChanged: (index) {
@@ -97,106 +104,213 @@ class _OnboardingPageState extends State<OnboardingPage> {
             },
           ),
 
-          // Tactical Header (Skip)
+          // 4. Mission Control Header
           Positioned(
             top: MediaQuery.of(context).padding.top + 20,
+            left: 24,
             right: 24,
-            child: InkWell(
-              onTap: _skip,
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'BRIEFING IN PROGRESS',
+                      style: TextStyle(
+                        color: Colors.white38,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'SEQUENCE 0${_currentPage + 1}',
+                      style: TextStyle(
+                        color: _pages[_currentPage].gradient[0],
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                 ),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white24),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'SKIP BRIEFING',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
+                TextButton(
+                  onPressed: _skip,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  child: const Text(
+                    'SKIP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-          ).animate().fadeIn(delay: 500.ms),
+          ).animate().fadeIn(delay: 500.ms).slideY(begin: -0.2),
 
-          // Bottom Command Center
+          // 5. Bottom Navigation Console
           Positioned(
-            bottom: 48,
-            left: 0,
-            right: 0,
+            bottom: 60,
+            left: 32,
+            right: 32,
             child: Column(
               children: [
-                // Tactical Indicators
+                // Premium Tactical Indicators (Slider)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
                     _pages.length,
-                    (index) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      width: _currentPage == index ? 32 : 8,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: _currentPage == index
-                            ? _pages[_currentPage].gradient[0]
-                            : Colors.white12,
-                        borderRadius: BorderRadius.circular(2),
-                        boxShadow: _currentPage == index
-                            ? [
-                                BoxShadow(
-                                  color: _pages[_currentPage].gradient[0]
-                                      .withValues(alpha: 0.5),
-                                  blurRadius: 10,
+                    (index) => Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 400),
+                          margin: const EdgeInsets.symmetric(horizontal: 6),
+                          width: _currentPage == index ? 48 : 12,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: _currentPage == index
+                                ? _pages[index].gradient[0]
+                                : Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(3),
+                            boxShadow: _currentPage == index
+                                ? [
+                                    BoxShadow(
+                                      color: _pages[index].gradient[0]
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 10,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : [],
+                          ),
+                        ),
+                        if (_currentPage == index)
+                          Container(
+                                width: 52,
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                    color: _pages[index].gradient[0].withValues(
+                                      alpha: 0.2,
+                                    ),
+                                  ),
                                 ),
-                              ]
-                            : [],
-                      ),
+                              )
+                              .animate(onPlay: (c) => c.repeat(reverse: true))
+                              .scale(
+                                begin: const Offset(1, 1),
+                                end: const Offset(1.1, 1.2),
+                              ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
-                // Primary Action Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: SizedBox(
+                // Strategic Action Button (Next Sequence)
+                GestureDetector(
+                  onTap: _nextPage,
+                  child: Container(
+                    height: 72,
                     width: double.infinity,
-                    height: 64,
-                    child: ElevatedButton(
-                      onPressed: _nextPage,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF020617),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        elevation: 10,
-                        shadowColor: Colors.white.withValues(alpha: 0.2),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _currentPage == _pages.length - 1
-                                ? 'INITIALIZE SYSTEM'
-                                : 'NEXT SEQUENCE',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2,
-                            ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        colors: [
+                          _pages[_currentPage].gradient[0],
+                          _pages[_currentPage].gradient[1].withValues(
+                            alpha: 0.8,
                           ),
-                          const SizedBox(width: 12),
-                          const Icon(Icons.arrow_forward_rounded, size: 20),
                         ],
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _pages[_currentPage].gradient[0].withValues(
+                            alpha: 0.3,
+                          ),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        // Button Inner Highlight
+                        Positioned(
+                          top: 2,
+                          left: 20,
+                          right: 20,
+                          child: Container(
+                            height: 1,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.white.withValues(alpha: 0),
+                                  Colors.white.withValues(alpha: 0.4),
+                                  Colors.white.withValues(alpha: 0),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Button Content
+                        Center(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                _currentPage == _pages.length - 1
+                                    ? 'INITIATE PLATFORM'
+                                    : 'NEXT SEQUENCE',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.black12,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  )
+                                  .animate(onPlay: (c) => c.repeat())
+                                  .moveX(
+                                    begin: -2,
+                                    end: 2,
+                                    duration: 1.seconds,
+                                    curve: Curves.easeInOut,
+                                  ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2),
@@ -217,52 +331,90 @@ class _OnboardingPageState extends State<OnboardingPage> {
         children: [
           // Visual Data Container
           Center(
-            child: Container(
-              width: 280,
-              height: 280,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    data.gradient[0].withValues(alpha: 0.2),
-                    Colors.transparent,
-                  ],
-                ),
-                border: Border.all(
-                  color: data.gradient[0].withValues(alpha: 0.3),
-                  width: 1,
-                ),
-              ),
-              child: Center(
-                child: Container(
-                  width: 200,
-                  height: 200,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: data.gradient[0].withValues(alpha: 0.2),
-                        blurRadius: 60,
-                        spreadRadius: 10,
-                      ),
+                child: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Atmospheric Outer Ring
+                      Container(
+                            width: 280,
+                            height: 280,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: data.gradient[0].withValues(alpha: 0.1),
+                                width: 1,
+                              ),
+                            ),
+                          )
+                          .animate(onPlay: (c) => c.repeat())
+                          .rotate(duration: 20.seconds),
+
+                      // The Illustration with specialized glow
+                      Container(
+                            width: 240,
+                            height: 240,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: data.gradient[0].withValues(
+                                    alpha: 0.15,
+                                  ),
+                                  blurRadius: 80,
+                                  spreadRadius: 20,
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(120),
+                              child: Image.asset(
+                                data.assetPath,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          )
+                          .animate(onPlay: (c) => c.repeat(reverse: true))
+                          .moveY(
+                            begin: -10,
+                            end: 10,
+                            duration: 3.seconds,
+                            curve: Curves.easeInOut,
+                          )
+                          .scale(
+                            begin: const Offset(1, 1),
+                            end: const Offset(1.05, 1.05),
+                            duration: 5.seconds,
+                          ),
+
+                      // Scanning Line Overlay
+                      Positioned(
+                            top: 0,
+                            child: Container(
+                              width: 240,
+                              height: 2,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    data.gradient[0].withValues(alpha: 0),
+                                    data.gradient[0].withValues(alpha: 0.5),
+                                    data.gradient[0].withValues(alpha: 0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                          .animate(onPlay: (c) => c.repeat())
+                          .moveY(begin: 30, end: 270, duration: 4.seconds),
                     ],
                   ),
-                  child: Image.asset(data.assetPath, fit: BoxFit.contain)
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .scale(
-                        begin: const Offset(0.95, 0.95),
-                        end: const Offset(1.05, 1.05),
-                        duration: 4.seconds,
-                      ),
                 ),
-              ),
-            ),
-          ).animate().fadeIn().scale(
-            duration: 800.ms,
-            curve: Curves.easeOutBack,
-          ),
+              )
+              .animate()
+              .fadeIn(duration: 1.seconds)
+              .scale(duration: 800.ms, curve: Curves.easeOutBack),
 
           const SizedBox(height: 60),
 
@@ -325,6 +477,30 @@ class _OnboardingPageState extends State<OnboardingPage> {
     _pageController.dispose();
     super.dispose();
   }
+}
+
+class GridPainter extends CustomPainter {
+  final Color color;
+  GridPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+
+    const double step = 40;
+
+    for (double i = 0; i < size.width; i += step) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+    for (double i = 0; i < size.height; i += step) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class OnboardingData {

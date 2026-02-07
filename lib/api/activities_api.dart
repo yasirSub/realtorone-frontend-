@@ -8,7 +8,7 @@ class ActivitiesApi {
     if (date != null) {
       endpoint += '?date=$date';
     }
-    return await ApiClient.get(endpoint, requiresAuth: true);
+    return await ApiClient.get(endpoint, requiresAuth: true, useCache: true);
   }
 
   /// Create a new activity
@@ -50,6 +50,7 @@ class ActivitiesApi {
     return await ApiClient.get(
       ApiEndpoints.activitiesProgress,
       requiresAuth: true,
+      useCache: true,
     );
   }
 }

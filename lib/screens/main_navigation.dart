@@ -25,8 +25,11 @@ class _MainNavigationState extends State<MainNavigation> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF020617)
+          : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           IndexedStack(index: _currentIndex, children: _pages),
@@ -42,9 +45,11 @@ class _MainNavigationState extends State<MainNavigation> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.white.withValues(alpha: 0.0),
-                    Colors.white.withValues(alpha: 0.8),
-                    Colors.white,
+                    (isDark ? const Color(0xFF020617) : Colors.white)
+                        .withValues(alpha: 0.0),
+                    (isDark ? const Color(0xFF020617) : Colors.white)
+                        .withValues(alpha: 0.8),
+                    (isDark ? const Color(0xFF020617) : Colors.white),
                   ],
                   stops: const [0.0, 0.4, 1.0],
                 ),
@@ -60,9 +65,11 @@ class _MainNavigationState extends State<MainNavigation> {
                       child: Container(
                         height: 72,
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF1E293B,
-                          ).withValues(alpha: 0.92),
+                          color:
+                              (isDark
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFF0F172A))
+                                  .withValues(alpha: 0.92),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.08),

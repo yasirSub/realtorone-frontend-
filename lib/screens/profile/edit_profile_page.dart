@@ -170,138 +170,144 @@ class _EditProfilePageState extends State<EditProfilePage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
-          ? const EliteLoader(
-              isFullPage: true,
-              message: 'Syncing Intelligence...',
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(28),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('BASIC INFORMATION'),
-                    const SizedBox(height: 20),
-                    _buildTextField(
-                      controller: _firstNameController,
-                      label: 'FIRST NAME',
-                      hint: 'Alexander',
-                      icon: Icons.person_outline_rounded,
-                      validator: (v) =>
-                          (v == null || v.isEmpty) ? 'Required' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _lastNameController,
-                      label: 'LAST NAME',
-                      hint: 'Sterling',
-                      icon: Icons.person_outline_rounded,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _emailController,
-                      label: 'EMAIL ADDRESS',
-                      hint: 'agent@example.com',
-                      icon: Icons.alternate_email_rounded,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (v) =>
-                          (v == null || !v.contains('@')) ? 'Invalid' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _mobileController,
-                      label: 'PHONE NUMBER',
-                      hint: '+971 50 123 4567',
-                      icon: Icons.phone_android_rounded,
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildCityDropdown(),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _brokerageController,
-                      label: 'BROKERAGE NAME',
-                      hint: 'E.g. Blue Chip Real Estate',
-                      icon: Icons.apartment_rounded,
-                    ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(28),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildSectionHeader('BASIC INFORMATION'),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                    controller: _firstNameController,
+                    label: 'FIRST NAME',
+                    hint: 'Alexander',
+                    icon: Icons.person_outline_rounded,
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _lastNameController,
+                    label: 'LAST NAME',
+                    hint: 'Last Name',
+                    icon: Icons.person_outline_rounded,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _emailController,
+                    label: 'EMAIL ADDRESS',
+                    hint: 'agent@example.com',
+                    icon: Icons.alternate_email_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) =>
+                        (v == null || !v.contains('@')) ? 'Invalid' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _mobileController,
+                    label: 'PHONE NUMBER',
+                    hint: '+971 50 123 4567',
+                    icon: Icons.phone_android_rounded,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCityDropdown(),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _brokerageController,
+                    label: 'BROKERAGE NAME',
+                    hint: 'E.g. Blue Chip Real Estate',
+                    icon: Icons.apartment_rounded,
+                  ),
 
-                    const SizedBox(height: 48),
-                    _buildSectionHeader('PROFESSIONAL DETAILS'),
-                    const SizedBox(height: 20),
-                    _buildTextField(
-                      controller: _instagramController,
-                      label: 'INSTAGRAM',
-                      hint: '@username',
-                      icon: Icons.camera_alt_outlined,
-                      prefix: '@',
+                  const SizedBox(height: 48),
+                  _buildSectionHeader('PROFESSIONAL DETAILS'),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                    controller: _instagramController,
+                    label: 'INSTAGRAM',
+                    hint: '@username',
+                    customIcon: Image.asset(
+                      'assets/images/instagram_logo.png',
+                      width: 20,
+                      height: 20,
                     ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _linkedinController,
-                      label: 'LINKEDIN URL',
-                      hint: 'linkedin.com/in/username',
-                      icon: Icons.link_rounded,
+                    prefix: '@',
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _linkedinController,
+                    label: 'LINKEDIN URL',
+                    hint: 'linkedin.com/in/username',
+                    customIcon: Image.asset(
+                      'assets/images/linkedin_logo.png',
+                      width: 20,
+                      height: 20,
                     ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _experienceController,
-                      label: 'YEARS OF EXPERIENCE',
-                      hint: '5',
-                      icon: Icons.military_tech_outlined,
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _currentIncomeController,
-                      label: 'CURRENT MONTHLY INCOME',
-                      hint: '50,000',
-                      icon: Icons.account_balance_wallet_outlined,
-                      prefix: 'AED ',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _targetIncomeController,
-                      label: 'TARGET MONTHLY INCOME',
-                      hint: '150,000',
-                      icon: Icons.auto_graph_rounded,
-                      prefix: 'AED ',
-                      keyboardType: TextInputType.number,
-                    ),
-                    const SizedBox(height: 60),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _experienceController,
+                    label: 'YEARS OF EXPERIENCE',
+                    hint: '5',
+                    icon: Icons.military_tech_outlined,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _currentIncomeController,
+                    label: 'CURRENT MONTHLY INCOME',
+                    hint: '50,000',
+                    icon: Icons.account_balance_wallet_outlined,
+                    prefix: 'AED ',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _targetIncomeController,
+                    label: 'TARGET MONTHLY INCOME',
+                    hint: '150,000',
+                    icon: Icons.auto_graph_rounded,
+                    prefix: 'AED ',
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 60),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 64,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _handleSave,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E293B),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          elevation: 0,
+                  SizedBox(
+                    width: double.infinity,
+                    height: 64,
+                    child: ElevatedButton(
+                      onPressed: _isSaving ? null : _handleSave,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E293B),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        child: _isSaving
-                            ? const SizedBox(width: 120, child: EliteLoader())
-                            : const Text(
-                                'SAVE CHANGES',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 16,
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'SAVE CHANGES',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 1.5,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
+          ),
+          if (_isLoading || _isSaving) EliteLoader.top(),
+        ],
+      ),
     );
   }
 
@@ -328,7 +334,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required TextEditingController controller,
     required String label,
     required String hint,
-    required IconData icon,
+    IconData? icon,
+    Widget? customIcon,
     String? prefix,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
@@ -371,7 +378,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 color: const Color(0xFF667eea).withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: const Color(0xFF667eea), size: 18),
+              child:
+                  customIcon ??
+                  Icon(icon, color: const Color(0xFF667eea), size: 18),
             ),
             filled: true,
             fillColor: Colors.white,

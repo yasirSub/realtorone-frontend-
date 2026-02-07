@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../routes/app_routes.dart';
 
-class DiagnosisPage extends StatefulWidget {
-  const DiagnosisPage({super.key});
+class DiagnosisQuestionsPage extends StatefulWidget {
+  const DiagnosisQuestionsPage({super.key});
 
   @override
-  State<DiagnosisPage> createState() => _DiagnosisPageState();
+  State<DiagnosisQuestionsPage> createState() => _DiagnosisQuestionsPageState();
 }
 
-class _DiagnosisPageState extends State<DiagnosisPage> {
+class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
   final PageController _pageController = PageController();
   int _currentQuestion = 0;
   final Map<int, int> _answers = {};

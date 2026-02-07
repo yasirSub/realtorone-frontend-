@@ -25,6 +25,7 @@ class EliteLoader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (!isFullPage) {
       return const LinearProgressIndicator(
         backgroundColor: Colors.transparent,
@@ -39,17 +40,19 @@ class EliteLoader extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const LinearProgressIndicator(
-              backgroundColor: Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation(Color(0xFF667eea)),
+            LinearProgressIndicator(
+              backgroundColor: isDark
+                  ? Colors.white10
+                  : const Color(0xFFE2E8F0),
+              valueColor: const AlwaysStoppedAnimation(Color(0xFF667eea)),
               minHeight: 3,
             ).animate().fadeIn().shimmer(duration: 1500.ms),
             if (message != null) ...[
               const SizedBox(height: 16),
               Text(
                 message!.toUpperCase(),
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
+                style: TextStyle(
+                  color: isDark ? Colors.white38 : const Color(0xFF64748B),
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 2,
