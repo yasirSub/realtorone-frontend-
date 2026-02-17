@@ -53,4 +53,34 @@ class ActivitiesApi {
       useCache: true,
     );
   }
+
+  /// Log an activity (Momentum Style)
+  static Future<Map<String, dynamic>> logActivity({
+    required String type,
+    required String category,
+    int? quantity,
+    double? value,
+    String? notes,
+  }) async {
+    final data = <String, dynamic>{'type': type, 'category': category};
+    if (quantity != null) data['quantity'] = quantity;
+    if (value != null) data['value'] = value;
+    if (notes != null) data['notes'] = notes;
+
+    return await ApiClient.post(
+      ApiEndpoints.logActivity,
+      data,
+      requiresAuth: true,
+    );
+  }
+
+  /// Get available activity types
+  static Future<Map<String, dynamic>> getActivityTypes() async {
+    return await ApiClient.get(ApiEndpoints.activityTypes, requiresAuth: true);
+  }
+
+  /// Get today's key tasks
+  static Future<Map<String, dynamic>> getTodayTasks() async {
+    return await ApiClient.get(ApiEndpoints.todayTasks, requiresAuth: true);
+  }
 }

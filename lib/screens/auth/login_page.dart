@@ -51,6 +51,9 @@ class _LoginPageState extends State<LoginPage> {
         await prefs.setString('user_email', response['user']['email']);
         await prefs.setBool('hasSeenOnboarding', true);
 
+        // Clear cache to ensure fresh data for the new session
+        await ApiClient.clearCache();
+
         final profile = await ApiClient.get(
           '/user/profile',
           requiresAuth: true,
@@ -89,31 +92,71 @@ class _LoginPageState extends State<LoginPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.fromLTRB(32, 24, 32, 40),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Debug Access',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 24),
+            const Text(
+              'DEBUG ACCESS HUB',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1E293B),
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            _buildDebugBtn(
+              'Iconic Leader',
+              'diamond@example.com',
+              icon: Icons.auto_awesome_rounded,
+              color: const Color(0xFF7C3AED),
+            ),
+            const SizedBox(height: 12),
+            _buildDebugBtn(
+              'Gold Executive',
+              'sarah.chen@example.com',
+              icon: Icons.workspace_premium_rounded,
+              color: const Color(0xFFFFD700),
+            ),
+            const SizedBox(height: 12),
+            _buildDebugBtn(
+              'Silver Member',
+              'james.rodriguez@example.com',
+              icon: Icons.stars_rounded,
+              color: const Color(0xFF94A3B8),
+            ),
+            const SizedBox(height: 12),
+            _buildDebugBtn(
+              'Free User',
+              'sophia.kim@example.com',
+              icon: Icons.person_outline_rounded,
+              color: const Color(0xFF64748B),
+            ),
+            const SizedBox(height: 24),
+            Divider(color: Colors.grey[100]),
+            const SizedBox(height: 12),
             _buildDebugBtn(
               'My Account',
               'myname@gmail.com',
               password: '123456789',
+              icon: Icons.account_circle_rounded,
+              color: const Color(0xFF667eea),
             ),
-            const SizedBox(height: 12),
-            _buildDebugBtn('Realtor One', 'realtorone@example.com'),
-            const SizedBox(height: 12),
-            _buildDebugBtn('Realtor Two', 'realtortwo@example.com'),
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -124,6 +167,8 @@ class _LoginPageState extends State<LoginPage> {
     String name,
     String email, {
     String password = 'password123',
+    IconData? icon,
+    Color? color,
   }) {
     return ElevatedButton(
       onPressed: () {
@@ -133,15 +178,38 @@ class _LoginPageState extends State<LoginPage> {
         _handleLogin();
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFF1F5F9),
-        foregroundColor: const Color(0xFF1E293B),
+        backgroundColor: (color ?? const Color(0xFFF1F5F9)).withValues(
+          alpha: 0.1,
+        ),
+        foregroundColor: color ?? const Color(0xFF1E293B),
         elevation: 0,
-        minimumSize: const Size(double.infinity, 56),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        minimumSize: const Size(double.infinity, 60),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: (color ?? const Color(0xFFE2E8F0)).withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+        ),
       ),
-      child: Text(
-        'Login as $name',
-        style: const TextStyle(fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 16),
+          ],
+          Expanded(
+            child: Text(
+              'LOG IN AS $name',
+              style: const TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+          const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+        ],
       ),
     );
   }

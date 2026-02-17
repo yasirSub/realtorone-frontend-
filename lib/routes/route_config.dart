@@ -12,7 +12,13 @@ import '../screens/profile/edit_profile_page.dart';
 import '../screens/profile/settings_page.dart';
 import '../screens/reports/reports_page.dart';
 import '../screens/splash/splash_screen.dart';
+import '../screens/subscription/subscription_plans_page.dart';
 import 'app_routes.dart';
+
+import '../screens/rewards/rewards_page.dart';
+import '../screens/results/results_tracker_page.dart';
+import '../screens/leaderboard/leaderboard_page.dart';
+import '../screens/badges/badges_page.dart';
 
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
@@ -30,6 +36,11 @@ class RouteConfig {
       AppRoutes.reports: (context) => const ReportsPage(),
       AppRoutes.settings: (context) => const SettingsPage(),
       AppRoutes.dashboard: (context) => const DashboardPage(), // Legacy
+      AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),
+      AppRoutes.rewards: (context) => const RewardsPage(),
+      AppRoutes.resultsTracker: (context) => const ResultsTrackerPage(),
+      AppRoutes.leaderboard: (context) => const LeaderboardPage(),
+      AppRoutes.badges: (context) => const BadgesPage(),
     };
   }
 }

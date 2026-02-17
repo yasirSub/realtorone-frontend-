@@ -28,11 +28,19 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final response = await UserApi.getProfile();
+      final response = await UserApi.getProfile(useCache: false);
+      debugPrint('PROFILE_DEBUG: Raw Response: $response');
       if (mounted) {
         setState(() {
           if (response['success'] == true) {
             _userData = response['data'];
+            debugPrint('PROFILE_DEBUG: User Email: ${_userData?['email']}');
+            debugPrint(
+              'PROFILE_DEBUG: Membership Tier: ${_userData?['membership_tier']} (Type: ${_userData?['membership_tier']?.runtimeType})',
+            );
+            debugPrint(
+              'PROFILE_DEBUG: Is Premium: ${_userData?['is_premium']} (Type: ${_userData?['is_premium']?.runtimeType})',
+            );
           }
           _isLoading = false;
         });
@@ -336,6 +344,26 @@ class _ProfilePageState extends State<ProfilePage> {
                                 curve: Curves.easeOutBack,
                               ),
                               const SizedBox(height: 20),
+                              if (true) // temporary visual debug
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 4,
+                                  ),
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'DEBUG: ${_userData?['email'] ?? 'No Email'} | Tier: ${_userData?['membership_tier'] ?? 'No Tier'}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                ),
                               Text(
                                     _userData?['name']?.toString() ??
                                         'Realtor Name',
@@ -419,6 +447,30 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ], isDark),
                       const SizedBox(height: 24),
+
+                      // My Plan Section
+                      _buildMenuSection('My Plan', [
+                        _MenuItem(
+                          icon: Icons.workspace_premium_rounded,
+                          title: _userData?['is_premium'] == true
+                              ? '${_userData?['membership_tier'] ?? 'Premium'} Plan'
+                              : 'Free Plan',
+                          subtitle: _userData?['is_premium'] == true
+                              ? 'Tap to manage your subscription'
+                              : 'Upgrade to unlock premium features',
+                          onTap: () async {
+                            final result = await Navigator.pushNamed(
+                              context,
+                              AppRoutes.subscriptionPlans,
+                            );
+                            if (result == true) {
+                              _loadUserData();
+                            }
+                          },
+                        ),
+                      ], isDark),
+                      const SizedBox(height: 24),
+
                       _buildMenuSection('Account Settings', [
                         _MenuItem(
                           icon: Icons.notifications_none,
@@ -467,7 +519,10 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
 
           // Full Screen Loading Overlay
-          if (_isLoading) EliteLoader.top(),
+          if (_isLoading)
+            EliteLoader.top(
+              color: _getTierColor(_userData?['membership_tier']),
+            ),
         ],
       ),
     );
@@ -532,9 +587,10 @@ class _ProfilePageState extends State<ProfilePage> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(
-            '${_userData?['growth_score'] ?? '72'}',
-            'GROWTH',
-            const Color(0xFF667eea),
+            '${_userData?['total_rewards'] ?? '0'}',
+            'REWARDS',
+            Colors.amber,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
           ),
           _buildStatItem(
             '${_userData?['execution_rate'] ?? '85'}%',
@@ -542,36 +598,62 @@ class _ProfilePageState extends State<ProfilePage> {
             const Color(0xFF4ECDC4),
           ),
           _buildStatItem(
-            _userData?['rank'] ?? 'ELITE',
-            'RANK',
-            const Color(0xFFFFB347),
+            (_userData?['membership_tier'] ?? 'Free').toString().toUpperCase(),
+            'PLAN',
+            _getTierColor(_userData?['membership_tier']),
+            onTap: () =>
+                Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String value, String label, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
+  Color _getTierColor(String? tier) {
+    switch (tier?.toLowerCase()) {
+      case 'diamond':
+        return const Color(0xFF7C3AED);
+      case 'platinum':
+        return const Color(0xFFD946EF);
+      case 'gold':
+        return const Color(0xFFF59E0B);
+      case 'silver':
+        return const Color(0xFF94A3B8);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  Widget _buildStatItem(
+    String value,
+    String label,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

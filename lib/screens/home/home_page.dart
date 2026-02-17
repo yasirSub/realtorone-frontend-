@@ -5,6 +5,8 @@ import '../../routes/app_routes.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import 'growth_report_widget.dart';
+import 'momentum_hub_widget.dart';
+import 'daily_tasks_widget.dart';
 import '../../api/activities_api.dart';
 import '../../widgets/elite_loader.dart';
 
@@ -17,17 +19,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
-  Map<String, dynamic>? _tasksData;
-  List<Map<String, dynamic>> _recentActivities = [];
-  bool _isLoadingTasks = true;
-  bool _isLoadingActivities = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadTodayTasks();
-    _loadRecentActivities();
   }
 
   Future<void> _loadUserData() async {
@@ -37,61 +34,15 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           if (response['success'] == true) {
             _userData = response['data'];
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _loadTodayTasks() async {
-    try {
-      final response = await UserApi.getTodayTasks();
-      if (mounted) {
-        setState(() {
-          if (response['success'] == true) {
-            _tasksData = response;
-          }
-          _isLoadingTasks = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingTasks = false);
-      }
-    }
-  }
-
-  Future<void> _toggleTask(int id, bool currentStatus) async {
-    if (currentStatus) return; // For now, only allow marking as complete
-    try {
-      final response = await UserApi.completeTask(id);
-      if (response['success'] == true) {
-        _loadTodayTasks();
-        _loadRecentActivities();
-        _loadUserData(); // Update XP/Streak if needed
-      }
-    } catch (e) {
-      debugPrint('Error toggling task: $e');
-    }
-  }
-
-  Future<void> _loadRecentActivities() async {
-    try {
-      final response = await ActivitiesApi.getActivities();
-      if (mounted) {
-        setState(() {
-          if (response['success'] == true) {
-            _recentActivities = List<Map<String, dynamic>>.from(
-              response['data'] ?? [],
+            debugPrint('HOME_DEBUG: User Email: ${_userData?['email']}');
+            debugPrint(
+              'HOME_DEBUG: Membership Tier: ${_userData?['membership_tier']}',
             );
           }
-          _isLoadingActivities = false;
         });
       }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingActivities = false);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -335,7 +286,7 @@ class _HomePageState extends State<HomePage> {
                                                 Icons
                                                     .local_fire_department_rounded,
                                                 'STREAK',
-                                                '12 DAYS',
+                                                '${_userData?['current_streak'] ?? 0} DAYS',
                                                 const Color(0xFFFFB347),
                                               ),
                                               Container(
@@ -349,8 +300,8 @@ class _HomePageState extends State<HomePage> {
                                               ),
                                               _buildHudItem(
                                                 Icons.auto_awesome_rounded,
-                                                'BALANCE',
-                                                '2,450 XP',
+                                                'SCORE',
+                                                '${_userData?['growth_score'] ?? 0}',
                                                 const Color(0xFF4ECDC4),
                                               ),
                                               const Spacer(),
@@ -376,29 +327,138 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
 
-                // Dashboard Content
+                // MISSION COMMAND CENTER CONTENT
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 32, 20, 120),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      const GrowthReportWidget(),
-                      const SizedBox(height: 40),
-                      _buildSectionHeader('Today\'s Priorities'),
-                      const SizedBox(height: 16),
-                      _buildPremiumFocusCard()
+                      // 1. MOMENTUM INTELLIGENCE HUB
+                      const MomentumHubWidget()
                           .animate()
-                          .fadeIn(delay: 400.ms)
+                          .fadeIn(delay: 300.ms)
                           .slideY(begin: 0.1),
-                      const SizedBox(height: 40),
-                      _buildSectionHeader('Quick Actions'),
-                      const SizedBox(height: 16),
-                      _buildQuickActionGrid(),
-                      const SizedBox(height: 40),
-                      _buildSectionHeader('Recent Activity'),
-                      const SizedBox(height: 16),
-                      _buildActivityTimeline()
+                      const SizedBox(height: 32),
+
+                      // 2. DAILY EXECUTION PRIORITIES
+                      DailyTasksWidget(
+                        onTaskUpdated: () {
+                          _loadUserData();
+                        },
+                      ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
+                      const SizedBox(height: 20),
+
+                      // QUICK ACTIONS ROW
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.resultsTracker,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(
+                                        0xFFFF6B35,
+                                      ).withValues(alpha: 0.15),
+                                      const Color(
+                                        0xFFFF6B35,
+                                      ).withValues(alpha: 0.05),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFFFF6B35,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Column(
+                                  children: [
+                                    Text('📊', style: TextStyle(fontSize: 28)),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Results',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Track & Log',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                AppRoutes.badges,
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(
+                                        0xFFFFD700,
+                                      ).withValues(alpha: 0.15),
+                                      const Color(
+                                        0xFFFFD700,
+                                      ).withValues(alpha: 0.05),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFFFFD700,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: const Column(
+                                  children: [
+                                    Text('🏆', style: TextStyle(fontSize: 28)),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      'Badges',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Collection',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.1),
+                      const SizedBox(height: 32),
+
+                      // 3. GROWTH PULSE & ANALYTICS
+                      const GrowthReportWidget()
                           .animate()
-                          .fadeIn(delay: 600.ms)
+                          .fadeIn(delay: 700.ms)
                           .slideY(begin: 0.1),
                     ]),
                   ),
@@ -406,7 +466,10 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          if (_isLoadingTasks || _isLoadingActivities) EliteLoader.top(),
+          if (_isLoading && _userData == null)
+            EliteLoader.top(
+              color: _getTierColor(_userData?['membership_tier']),
+            ),
         ],
       ),
     );
@@ -445,399 +508,18 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {String? tag}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            letterSpacing: -0.5,
-          ),
-        ),
-        if (tag != null)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              tag.toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPremiumFocusCard() {
-    if (_isLoadingTasks) {
-      return const SizedBox.shrink(); // Loading shown at top
-    }
-
-    final tasks = _tasksData?['tasks'] as List? ?? [];
-    final completionRate = (_tasksData?['completion_rate'] ?? 0) / 100.0;
-
-    if (tasks.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF1E293B), Color(0xFF334155)],
-          ),
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.check_circle_outline,
-              color: Color(0xFF4ECDC4),
-              size: 48,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No tasks for today',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'You\'re all caught up!',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E293B), Color(0xFF334155)],
-        ),
-        borderRadius: BorderRadius.circular(32),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1E293B).withValues(alpha: 0.2),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.star_rounded, color: Colors.amber, size: 24),
-              SizedBox(width: 10),
-              Text(
-                'HIGH ROI PROTOCOL',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          ...tasks.map((task) {
-            return _buildFocusListItem(
-              task['id'],
-              task['title'] ?? 'Untitled Task',
-              task['is_completed'] ?? false,
-            );
-          }),
-          const SizedBox(height: 24),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: completionRate,
-              minHeight: 8,
-              backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF4ECDC4)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFocusListItem(int id, String title, bool done) {
-    return GestureDetector(
-      onTap: () => _toggleTask(id, done),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Row(
-          children: [
-            Icon(
-              done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-              color: done ? const Color(0xFF4ECDC4) : Colors.white24,
-              size: 20,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: done ? Colors.white54 : Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  decoration: done ? TextDecoration.lineThrough : null,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActionGrid() {
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/belief-rewiring'),
-            child: _buildActionItem(
-              Icons.psychology_rounded,
-              'Mindset',
-              const Color(0xFFf093fb),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: () {
-              // TODO: Navigate to add deal page
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Add Deal feature coming soon!'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            child: _buildActionItem(
-              Icons.add_business_rounded,
-              'New Deal',
-              const Color(0xFF667eea),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => Navigator.pushNamed(context, '/reports'),
-            child: _buildActionItem(
-              Icons.analytics_rounded,
-              'Reports',
-              const Color(0xFF4ECDC4),
-            ),
-          ),
-        ),
-      ],
-    ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1);
-  }
-
-  Widget _buildActionItem(IconData icon, String label, Color color) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-            blurRadius: 15,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityTimeline() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (_isLoadingActivities) {
-      return const SizedBox.shrink(); // Loading shown at top
-    }
-
-    if (_recentActivities.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        alignment: Alignment.center,
-        child: Text(
-          'No recent operations logged today.',
-          style: TextStyle(color: Colors.grey[500], fontSize: 13),
-        ),
-      );
-    }
-
-    // Show top 3 or all
-    final displayList = _recentActivities.take(5).toList();
-
-    return Container(
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(32),
-      ),
-      child: Column(
-        children: displayList.asMap().entries.map((entry) {
-          final activity = entry.value;
-          final isLast = entry.key == displayList.length - 1;
-
-          return Column(
-            children: [
-              _buildActivityItem(
-                activity['title'] ?? 'Operation',
-                activity['category'] == 'subconscious'
-                    ? 'Mindset Mastery'
-                    : (activity['description'] ?? 'Operational Task'),
-                _formatActivityTime(
-                  activity['completed_at'] ?? activity['created_at'],
-                ),
-                _getActivityColor(activity['type']),
-              ),
-              if (!isLast) const Divider(height: 40, thickness: 0.5),
-            ],
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  String _formatActivityTime(String? dateStr) {
-    if (dateStr == null) return 'Today';
-    try {
-      final date = DateTime.parse(dateStr).toLocal();
-      final now = DateTime.now();
-      final diff = now.difference(date);
-
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      return 'Today'; // Simplified for now
-    } catch (e) {
-      return 'Today';
-    }
-  }
-
-  Color _getActivityColor(String? type) {
-    switch (type) {
-      case 'leadOutreach':
-        return const Color(0xFF667eea);
-      case 'followUp':
-        return const Color(0xFF4ECDC4);
-      case 'meeting':
-        return const Color(0xFFFFB347);
-      case 'siteVisit':
-        return Colors.indigo;
-      case 'morningPriming':
-        return Colors.amber;
-      case 'focusDrill':
-        return Colors.orange;
-      case 'eveningReflection':
-        return Colors.deepPurple;
+  Color _getTierColor(String? tier) {
+    switch (tier?.toLowerCase()) {
+      case 'diamond':
+        return const Color(0xFF7C3AED);
+      case 'platinum':
+        return const Color(0xFFD946EF);
+      case 'gold':
+        return const Color(0xFFF59E0B);
+      case 'silver':
+        return const Color(0xFF94A3B8);
       default:
-        return const Color(0xFF10B981);
+        return const Color(0xFF64748B);
     }
-  }
-
-  Widget _buildActivityItem(
-    String title,
-    String sub,
-    String time,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                sub,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          time,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    );
   }
 }

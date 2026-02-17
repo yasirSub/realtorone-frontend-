@@ -210,3 +210,32 @@ class LearningProgress {
     );
   }
 }
+
+class CourseModel {
+  final int id;
+  final String title;
+  final String description;
+  final String? url;
+  final String minTier;
+  final bool isLocked;
+
+  CourseModel({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.url,
+    required this.minTier,
+    this.isLocked = false,
+  });
+
+  factory CourseModel.fromJson(Map<String, dynamic> json) {
+    return CourseModel(
+      id: json['id'],
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      url: json['url'],
+      minTier: json['min_tier'] ?? 'Free',
+      isLocked: json['is_locked'] ?? false,
+    );
+  }
+}

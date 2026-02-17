@@ -4,19 +4,25 @@ import 'package:flutter_animate/flutter_animate.dart';
 class EliteLoader extends StatelessWidget {
   final bool isFullPage;
   final String? message;
+  final Color? color;
 
-  const EliteLoader({super.key, this.isFullPage = false, this.message});
+  const EliteLoader({
+    super.key,
+    this.isFullPage = false,
+    this.message,
+    this.color,
+  });
 
   /// A top-aligned linear loader for use in Stacks
-  static Widget top() {
+  static Widget top({Color? color}) {
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
       child: SafeArea(
-        child: const LinearProgressIndicator(
+        child: LinearProgressIndicator(
           backgroundColor: Colors.transparent,
-          valueColor: AlwaysStoppedAnimation(Color(0xFF667eea)),
+          valueColor: AlwaysStoppedAnimation(color ?? const Color(0xFF667eea)),
           minHeight: 4,
         ).animate().fadeIn(),
       ),
@@ -26,10 +32,12 @@ class EliteLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loaderColor = color ?? const Color(0xFF667eea);
+
     if (!isFullPage) {
-      return const LinearProgressIndicator(
+      return LinearProgressIndicator(
         backgroundColor: Colors.transparent,
-        valueColor: AlwaysStoppedAnimation(Color(0xFF667eea)),
+        valueColor: AlwaysStoppedAnimation(loaderColor),
         minHeight: 4,
       ).animate().fadeIn();
     }
@@ -44,7 +52,7 @@ class EliteLoader extends StatelessWidget {
               backgroundColor: isDark
                   ? Colors.white10
                   : const Color(0xFFE2E8F0),
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF667eea)),
+              valueColor: AlwaysStoppedAnimation(loaderColor),
               minHeight: 3,
             ).animate().fadeIn().shimmer(duration: 1500.ms),
             if (message != null) ...[

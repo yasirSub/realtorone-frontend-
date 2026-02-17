@@ -158,7 +158,7 @@ class UserApi {
 
   static Future<Map<String, dynamic>> getTodayTasks() async {
     return await ApiClient.get(
-      '/tasks/today',
+      ApiEndpoints.todayTasks,
       requiresAuth: true,
       useCache: true,
     );
@@ -166,9 +166,17 @@ class UserApi {
 
   static Future<Map<String, dynamic>> completeTask(int id) async {
     return await ApiClient.put(
-      '/activities/$id/complete',
+      ApiEndpoints.completeActivity(id),
       {},
       requiresAuth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> getRewards() async {
+    return await ApiClient.get(
+      ApiEndpoints.userRewards,
+      requiresAuth: true,
+      useCache: true,
     );
   }
 }

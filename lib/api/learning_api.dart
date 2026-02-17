@@ -10,6 +10,11 @@ class LearningApi {
     );
   }
 
+  /// Get courses based on user tier
+  static Future<Map<String, dynamic>> getCourses() async {
+    return await ApiClient.get(ApiEndpoints.courses, requiresAuth: true);
+  }
+
   /// Get learning content, optionally filtered by category
   static Future<Map<String, dynamic>> getContent({String? category}) async {
     String endpoint = ApiEndpoints.learningContent;

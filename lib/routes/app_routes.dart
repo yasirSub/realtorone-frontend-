@@ -12,4 +12,9 @@ class AppRoutes {
   static const String reports = '/reports';
   static const String settings = '/settings';
   static const String dashboard = '/dashboard'; // Legacy
+  static const String subscriptionPlans = '/subscription-plans';
+  static const String rewards = '/rewards';
+  static const String resultsTracker = '/results-tracker';
+  static const String leaderboard = '/leaderboard';
+  static const String badges = '/badges';
 }
