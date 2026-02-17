@@ -218,6 +218,10 @@ class CourseModel {
   final String? url;
   final String minTier;
   final bool isLocked;
+  final int moduleNumber;
+  final int sequence;
+  final int progressPercent;
+  final bool isCompleted;
 
   CourseModel({
     required this.id,
@@ -226,6 +230,10 @@ class CourseModel {
     this.url,
     required this.minTier,
     this.isLocked = false,
+    this.moduleNumber = 1,
+    this.sequence = 0,
+    this.progressPercent = 0,
+    this.isCompleted = false,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
@@ -234,8 +242,41 @@ class CourseModel {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       url: json['url'],
-      minTier: json['min_tier'] ?? 'Free',
+      minTier: json['min_tier'] ?? 'Consultant',
       isLocked: json['is_locked'] ?? false,
+      moduleNumber: json['module_number'] ?? 1,
+      sequence: json['sequence'] ?? 0,
+      progressPercent: json['progress_percent'] ?? 0,
+      isCompleted: json['is_completed'] ?? false,
+    );
+  }
+}
+
+class ModuleModel {
+  final int moduleNumber;
+  final String moduleName;
+  final bool isLocked;
+  final String requiredTier;
+  final List<CourseModel> courses;
+
+  ModuleModel({
+    required this.moduleNumber,
+    required this.moduleName,
+    required this.isLocked,
+    required this.requiredTier,
+    required this.courses,
+  });
+
+  factory ModuleModel.fromJson(Map<String, dynamic> json) {
+    return ModuleModel(
+      moduleNumber: json['module_number'] ?? 1,
+      moduleName: json['module_name'] ?? 'Module ${json['module_number'] ?? 1}',
+      isLocked: json['is_locked'] ?? false,
+      requiredTier: json['required_tier'] ?? 'Consultant',
+      courses: (json['courses'] as List<dynamic>?)
+              ?.map((c) => CourseModel.fromJson(c))
+              .toList() ??
+          [],
     );
   }
 }

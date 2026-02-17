@@ -13,12 +13,19 @@ class RewardsPage extends StatefulWidget {
 class _RewardsPageState extends State<RewardsPage> {
   bool _isLoading = true;
   int _totalRewards = 0;
-  List<dynamic> _breakdown = [];
+
+  // Points history (per activity)
+  bool _isLoadingHistory = true;
+  List<Map<String, dynamic>> _todayEntries = [];
+  List<Map<String, dynamic>> _olderEntries = [];
+  int _todayPoints = 0;
+  bool _showFullHistory = false;
 
   @override
   void initState() {
     super.initState();
     _fetchRewards();
+    _fetchPointsHistory();
   }
 
   Future<void> _fetchRewards() async {
@@ -28,13 +35,56 @@ class _RewardsPageState extends State<RewardsPage> {
       if (mounted && response['success'] == true) {
         setState(() {
           _totalRewards = response['total_rewards'] ?? 0;
-          _breakdown = response['breakdown'] ?? [];
         });
       }
     } catch (e) {
       debugPrint('Error fetching rewards: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchPointsHistory() async {
+    setState(() => _isLoadingHistory = true);
+    try {
+      final response = await UserApi.getPointsHistory(limit: 100);
+      if (mounted && response['success'] == true) {
+        final List<Map<String, dynamic>> raw =
+            List<Map<String, dynamic>>.from(response['data'] ?? []);
+
+        final now = DateTime.now();
+        final todayKey =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+        final today = <Map<String, dynamic>>[];
+        final older = <Map<String, dynamic>>[];
+
+        for (final entry in raw) {
+          final dateStr = entry['date']?.toString() ?? '';
+          if (dateStr == todayKey) {
+            today.add(entry);
+          } else {
+            older.add(entry);
+          }
+        }
+
+        final todayPts = today.fold<int>(
+          0,
+          (sum, e) => sum + ((e['points'] as num?)?.toInt() ?? 0),
+        );
+
+        setState(() {
+          _todayEntries = today;
+          _olderEntries = older;
+          _todayPoints = todayPts;
+          _isLoadingHistory = false;
+        });
+      } else {
+        if (mounted) setState(() => _isLoadingHistory = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching points history: $e');
+      if (mounted) setState(() => _isLoadingHistory = false);
     }
   }
 
@@ -58,7 +108,7 @@ class _RewardsPageState extends State<RewardsPage> {
           ),
         ),
         title: Text(
-          'MASTERY REWARDS',
+          'POINTS',
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF1E293B),
             fontSize: 16,
@@ -71,18 +121,22 @@ class _RewardsPageState extends State<RewardsPage> {
       body: _isLoading
           ? const Center(child: EliteLoader())
           : RefreshIndicator(
-              onRefresh: _fetchRewards,
+              onRefresh: () async {
+                await _fetchRewards();
+                await _fetchPointsHistory();
+              },
               color: Colors.amber,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _buildTotalScoreCard(isDark),
+                    _buildTotalPointsCard(isDark),
                     const SizedBox(height: 32),
-                    _buildBreakdownSection(isDark),
-                    const SizedBox(height: 32),
-                    _buildRedeemSection(isDark),
+                    _buildTodaySection(isDark),
+                    const SizedBox(height: 24),
+                    _buildHistorySection(isDark),
                   ],
                 ),
               ),
@@ -90,7 +144,7 @@ class _RewardsPageState extends State<RewardsPage> {
     );
   }
 
-  Widget _buildTotalScoreCard(bool isDark) {
+  Widget _buildTotalPointsCard(bool isDark) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
@@ -110,6 +164,7 @@ class _RewardsPageState extends State<RewardsPage> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 48)
               .animate(onPlay: (controller) => controller.repeat(reverse: true))
@@ -131,7 +186,7 @@ class _RewardsPageState extends State<RewardsPage> {
           ).animate().fadeIn().scale(),
           const SizedBox(height: 8),
           const Text(
-            'TOTAL MASTERY POINTS',
+            'TOTAL POINTS',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -144,139 +199,242 @@ class _RewardsPageState extends State<RewardsPage> {
     );
   }
 
-  Widget _buildBreakdownSection(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'POINT SOURCES',
-          style: TextStyle(
-            color: isDark ? Colors.white60 : const Color(0xFF64748B),
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ..._breakdown.map((item) {
-          final category = item['category'] ?? 'Unknown';
-          final points = item['total'] ?? 0;
-          final isSubconscious = category == 'subconscious';
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isSubconscious
-                    ? const Color(0xFF667eea).withValues(alpha: 0.3)
-                    : const Color(0xFF4ECDC4).withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color:
-                        (isSubconscious
-                                ? const Color(0xFF667eea)
-                                : const Color(0xFF4ECDC4))
-                            .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    isSubconscious
-                        ? Icons.psychology_rounded
-                        : Icons.bolt_rounded,
-                    color: isSubconscious
-                        ? const Color(0xFF667eea)
-                        : const Color(0xFF4ECDC4),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      category.toString().toUpperCase(),
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF1E293B),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    Text(
-                      isSubconscious
-                          ? 'Mindset & Belief'
-                          : 'Action & Execution',
-                      style: TextStyle(
-                        color: isDark
-                            ? Colors.white54
-                            : const Color(0xFF94A3B8),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  '+$points',
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF1E293B),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildRedeemSection(bool isDark) {
+  Widget _buildTodaySection(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          const Icon(
-            Icons.lock_outline_rounded,
-            color: Color(0xFF94A3B8),
-            size: 32,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'REWARDS STORE LOCKED',
-            style: TextStyle(
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Keep accumulating mastery points to unlock exclusive coaching sessions, report upgrades, and premium content.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 13,
-              height: 1.5,
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'TODAY',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              if (_isLoadingHistory)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '$_todayPoints',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'points today',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_todayEntries.isEmpty && !_isLoadingHistory)
+            Text(
+              'Complete your tasks to start earning points today.',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+              ),
+            )
+          else
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _todayEntries.take(3).map((entry) {
+                final title = entry['title']?.toString() ?? 'Activity';
+                final pts = (entry['points'] as num?)?.toInt() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF1F2933),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '+$pts',
+                          style: const TextStyle(
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistorySection(bool isDark) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _olderEntries.isEmpty
+                ? null
+                : () {
+                    setState(() {
+                      _showFullHistory = !_showFullHistory;
+                    });
+                  },
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.zero,
+              foregroundColor: const Color(0xFF667eea),
+            ),
+            icon: Icon(
+              _showFullHistory
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+            ),
+            label: Text(
+              _olderEntries.isEmpty
+                  ? 'No past history yet'
+                  : (_showFullHistory ? 'Hide history' : 'Show history'),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_showFullHistory && _olderEntries.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _olderEntries.take(20).map((entry) {
+                final title = entry['title']?.toString() ?? 'Activity';
+                final pts = (entry['points'] as num?)?.toInt() ?? 0;
+                final dateStr = entry['date']?.toString() ?? '';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1F2933),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              dateStr,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? Colors.white54
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF64748B).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '+$pts',
+                          style: const TextStyle(
+                            color: Color(0xFF1E293B),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
     );
   }
 }

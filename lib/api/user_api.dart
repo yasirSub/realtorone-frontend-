@@ -179,4 +179,12 @@ class UserApi {
       useCache: true,
     );
   }
+
+  static Future<Map<String, dynamic>> getPointsHistory({int limit = 100, int offset = 0}) async {
+    return await ApiClient.get(
+      '${ApiEndpoints.pointsHistory}?limit=$limit&offset=$offset',
+      requiresAuth: true,
+      useCache: false, // Always fetch fresh history
+    );
+  }
 }

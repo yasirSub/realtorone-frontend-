@@ -7,7 +7,7 @@ class SubscriptionApi {
     return await ApiClient.get(
       ApiEndpoints.packages,
       requiresAuth: true,
-      useCache: true,
+      useCache: false, // Disable cache to get fresh tier names
     );
   }
 

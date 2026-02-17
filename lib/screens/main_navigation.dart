@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'home/home_page.dart';
 import 'activities/activities_page.dart';
 import 'learning/learning_page.dart';
-import 'leaderboard/leaderboard_page.dart';
 import 'profile/profile_page.dart';
 import 'dart:ui';
 
@@ -20,7 +19,6 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _pages = [
     const HomePage(),
     const ActivitiesPage(),
-    const LeaderboardPage(),
     const LearningPage(),
     const ProfilePage(),
   ];
@@ -93,9 +91,8 @@ class _MainNavigationState extends State<MainNavigation> {
                               Icons.check_circle_rounded,
                               'TASKS',
                             ),
-                            _buildNavItem(2, Icons.leaderboard_rounded, 'RANK'),
-                            _buildNavItem(3, Icons.school_rounded, 'LEARN'),
-                            _buildNavItem(4, Icons.person_rounded, 'PROFILE'),
+                            _buildNavItem(2, Icons.school_rounded, 'LEARN'),
+                            _buildNavItem(3, Icons.person_rounded, 'PROFILE'),
                           ],
                         ),
                       ),

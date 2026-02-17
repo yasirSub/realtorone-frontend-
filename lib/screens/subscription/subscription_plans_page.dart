@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import '../../api/subscription_api.dart';
+import '../../api/api_client.dart';
 import '../../widgets/elite_loader.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -18,7 +19,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool _isLoading = true;
   List<dynamic> _packages = [];
   Map<String, dynamic>? _currentSub;
-  String _currentTier = 'Free';
+  String _currentTier = 'Consultant';
   bool _isPremium = false;
   String? _expiresAt;
 
@@ -35,6 +36,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   // Tier config
   static const _tierIcons = {
+    'Consultant': Icons.star_border_rounded,
+    'Rainmaker': Icons.workspace_premium_rounded,
+    'Titan': Icons.emoji_events_rounded,
+    'Titan - GOLD': Icons.emoji_events_rounded, // Legacy support
+    'Titan-GOLD': Icons.emoji_events_rounded, // Legacy support
+    // Legacy support
     'Free': Icons.star_border_rounded,
     'Silver': Icons.workspace_premium_rounded,
     'Gold': Icons.emoji_events_rounded,
@@ -43,6 +50,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   };
 
   static const _tierGradients = {
+    'Consultant': [Color(0xFF64748B), Color(0xFF475569)],
+    'Rainmaker': [Color(0xFF94A3B8), Color(0xFF64748B)],
+    'Titan': [Color(0xFFF59E0B), Color(0xFFD97706)],
+    'Titan - GOLD': [Color(0xFFF59E0B), Color(0xFFD97706)], // Legacy support
+    'Titan-GOLD': [Color(0xFFF59E0B), Color(0xFFD97706)], // Legacy support
+    // Legacy support
     'Free': [Color(0xFF64748B), Color(0xFF475569)],
     'Silver': [Color(0xFF94A3B8), Color(0xFF64748B)],
     'Gold': [Color(0xFFF59E0B), Color(0xFFD97706)],
@@ -51,6 +64,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   };
 
   static const _tierGlow = {
+    'Consultant': Color(0xFF64748B),
+    'Rainmaker': Color(0xFF94A3B8),
+    'Titan': Color(0xFFF59E0B),
+    'Titan - GOLD': Color(0xFFF59E0B), // Legacy support
+    'Titan-GOLD': Color(0xFFF59E0B), // Legacy support
+    // Legacy support
     'Free': Color(0xFF64748B),
     'Silver': Color(0xFF94A3B8),
     'Gold': Color(0xFFF59E0B),
@@ -73,6 +92,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Clear cache before fetching to ensure fresh tier names
+      await ApiClient.clearCache();
       final results = await Future.wait([
         SubscriptionApi.getPackages(),
         SubscriptionApi.getMySubscription(),
@@ -89,7 +110,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           if (subRes['success'] == true) {
             _currentSub = subRes['data'];
             _isPremium = subRes['is_premium'] == true;
-            _currentTier = subRes['membership_tier'] ?? 'Free';
+            _currentTier = subRes['membership_tier'] ?? 'Consultant';
             _expiresAt = subRes['expires_at'];
           }
           _isLoading = false;
@@ -623,6 +644,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   Widget _buildPackageCard(Map<String, dynamic> pkg, bool isDark, int index) {
     final name = pkg['name']?.toString() ?? 'Package';
+    // Remove "GOLD" from display name
+    final displayName = name
+        .replaceAll(' - GOLD', '')
+        .replaceAll('- GOLD', '')
+        .replaceAll(' GOLD', '')
+        .replaceAll('GOLD', '')
+        .trim();
     final id = (pkg['id'] as num?)?.toInt() ?? 0;
     final priceMonthly =
         double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0;
@@ -631,10 +659,52 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final isSelected = _selectedPackageId == id;
     final isCurrentTier = name == _currentTier;
     final isFree = priceMonthly == 0;
-    final gradients =
-        _tierGradients[name] ??
-        [const Color(0xFF667eea), const Color(0xFF764ba2)];
-    final glowColor = _tierGlow[name] ?? const Color(0xFF667eea);
+    
+    // Determine if Titan or Rainmaker for special styling
+    final isTitan = name.toLowerCase().contains('titan');
+    final isRainmaker = name.toLowerCase().contains('rainmaker');
+    
+    // Get gradients and glow colors (support both old and new names)
+    final gradients = _tierGradients[name] ?? 
+                      (isTitan ? _tierGradients['Titan'] : null) ??
+                      (isRainmaker ? _tierGradients['Rainmaker'] : null) ??
+                      [const Color(0xFF667eea), const Color(0xFF764ba2)];
+    final glowColor = _tierGlow[name] ?? 
+                      (isTitan ? _tierGlow['Titan'] : null) ??
+                      (isRainmaker ? _tierGlow['Rainmaker'] : null) ??
+                      const Color(0xFF667eea);
+    
+    // Card background color based on tier
+    final cardBgColor = isTitan
+        ? (isDark 
+            ? const Color(0xFF1E293B).withOpacity(0.8)
+            : Colors.white)
+        : isRainmaker
+        ? (isDark 
+            ? const Color(0xFF1E293B).withOpacity(0.8)
+            : Colors.white)
+        : (isDark ? const Color(0xFF1E293B) : Colors.white);
+    
+    // Tier-specific background gradient overlay
+    final bgGradient = isTitan
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFF59E0B).withOpacity(0.1),
+              const Color(0xFFD97706).withOpacity(0.05),
+            ],
+          )
+        : isRainmaker
+        ? LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF94A3B8).withOpacity(0.1),
+              const Color(0xFF64748B).withOpacity(0.05),
+            ],
+          )
+        : null;
 
     return GestureDetector(
           onTap: isFree || isCurrentTier
@@ -646,22 +716,31 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              color: cardBgColor,
+              gradient: bgGradient,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: isSelected
                     ? glowColor
                     : isCurrentTier
                     ? glowColor.withOpacity(0.3)
+                    : (isTitan || isRainmaker)
+                    ? glowColor.withOpacity(0.2)
                     : Colors.transparent,
-                width: isSelected ? 2 : 1,
+                width: isSelected ? 2.5 : (isTitan || isRainmaker) ? 1.5 : 1,
               ),
               boxShadow: [
                 if (isSelected)
                   BoxShadow(
-                    color: glowColor.withOpacity(0.15),
+                    color: glowColor.withOpacity(0.25),
                     blurRadius: 25,
                     offset: const Offset(0, 8),
+                  ),
+                if (isTitan || isRainmaker)
+                  BoxShadow(
+                    color: glowColor.withOpacity(0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 4),
                   ),
                 BoxShadow(
                   color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
@@ -696,11 +775,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                           Row(
                             children: [
                               Text(
-                                name.toUpperCase(),
+                                displayName.toUpperCase(),
                                 style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white
-                                      : const Color(0xFF1E293B),
+                                  color: isTitan
+                                      ? const Color(0xFFF59E0B)
+                                      : isRainmaker
+                                      ? const Color(0xFF94A3B8)
+                                      : (isDark
+                                          ? Colors.white
+                                          : const Color(0xFF1E293B)),
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 0.5,
@@ -762,9 +845,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                           Text(
                             '\$${priceMonthly.toStringAsFixed(0)}',
                             style: TextStyle(
-                              color: isDark
-                                  ? Colors.white
-                                  : const Color(0xFF1E293B),
+                              color: isTitan
+                                  ? const Color(0xFFF59E0B)
+                                  : isRainmaker
+                                  ? const Color(0xFF94A3B8)
+                                  : (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1E293B)),
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
                             ),

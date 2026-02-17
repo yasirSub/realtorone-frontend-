@@ -344,26 +344,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 curve: Curves.easeOutBack,
                               ),
                               const SizedBox(height: 20),
-                              if (true) // temporary visual debug
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 4,
-                                  ),
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    'DEBUG: ${_userData?['email'] ?? 'No Email'} | Tier: ${_userData?['membership_tier'] ?? 'No Tier'}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                      fontFamily: 'monospace',
-                                    ),
-                                  ),
-                                ),
+                              // Debug text removed for production
                               Text(
                                     _userData?['name']?.toString() ??
                                         'Realtor Name',
@@ -453,8 +434,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         _MenuItem(
                           icon: Icons.workspace_premium_rounded,
                           title: _userData?['is_premium'] == true
-                              ? '${_userData?['membership_tier'] ?? 'Premium'} Plan'
-                              : 'Free Plan',
+                              ? '${(_userData?['membership_tier'] ?? 'Premium').toString().replaceAll(' - GOLD', '').replaceAll('- GOLD', '').replaceAll(' GOLD', '').replaceAll('GOLD', '').trim()} Plan'
+                              : 'Consultant Plan',
                           subtitle: _userData?['is_premium'] == true
                               ? 'Tap to manage your subscription'
                               : 'Upgrade to unlock premium features',
@@ -588,7 +569,7 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildStatItem(
             '${_userData?['total_rewards'] ?? '0'}',
-            'REWARDS',
+            'POINTS',
             Colors.amber,
             onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
           ),
@@ -598,7 +579,14 @@ class _ProfilePageState extends State<ProfilePage> {
             const Color(0xFF4ECDC4),
           ),
           _buildStatItem(
-            (_userData?['membership_tier'] ?? 'Free').toString().toUpperCase(),
+            (_userData?['membership_tier'] ?? 'Consultant')
+                .toString()
+                .replaceAll(' - GOLD', '')
+                .replaceAll('- GOLD', '')
+                .replaceAll(' GOLD', '')
+                .replaceAll('GOLD', '')
+                .trim()
+                .toUpperCase(),
             'PLAN',
             _getTierColor(_userData?['membership_tier']),
             onTap: () =>
@@ -611,6 +599,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Color _getTierColor(String? tier) {
     switch (tier?.toLowerCase()) {
+      case 'titan':
+      case 'titan - gold':
+      case 'titan-gold':
+        return const Color(0xFFF59E0B); // Gold color
+      case 'rainmaker':
+        return const Color(0xFF94A3B8); // Silver/Gray color
+      case 'consultant':
+        return const Color(0xFF64748B); // Default gray
+      // Legacy support (will be migrated)
       case 'diamond':
         return const Color(0xFF7C3AED);
       case 'platinum':
@@ -634,22 +631,34 @@ class _ProfilePageState extends State<ProfilePage> {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
+          Flexible(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+          const SizedBox(height: 2),
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
           ),
         ],

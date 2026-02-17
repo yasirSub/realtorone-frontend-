@@ -258,59 +258,65 @@ class _HomePageState extends State<HomePage> {
                                 const Spacer(),
 
                                 // Tactical HUD Badge
-                                ClipRRect(
-                                      borderRadius: BorderRadius.circular(24),
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(
-                                          sigmaX: 15,
-                                          sigmaY: 15,
-                                        ),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(20),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.05,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              24,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.1,
-                                              ),
-                                            ),
+                                GestureDetector(
+                                      onTap: () => Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.rewards,
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(24),
+                                        child: BackdropFilter(
+                                          filter: ImageFilter.blur(
+                                            sigmaX: 15,
+                                            sigmaY: 15,
                                           ),
-                                          child: Row(
-                                            children: [
-                                              _buildHudItem(
-                                                Icons
-                                                    .local_fire_department_rounded,
-                                                'STREAK',
-                                                '${_userData?['current_streak'] ?? 0} DAYS',
-                                                const Color(0xFFFFB347),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(
+                                                alpha: 0.05,
                                               ),
-                                              Container(
-                                                width: 1,
-                                                height: 30,
-                                                color: Colors.white10,
-                                                margin:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 20,
-                                                    ),
+                                              borderRadius: BorderRadius.circular(
+                                                24,
                                               ),
-                                              _buildHudItem(
-                                                Icons.auto_awesome_rounded,
-                                                'SCORE',
-                                                '${_userData?['growth_score'] ?? 0}',
-                                                const Color(0xFF4ECDC4),
+                                              border: Border.all(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.1,
+                                                ),
                                               ),
-                                              const Spacer(),
-                                              const Icon(
-                                                Icons.arrow_forward_ios_rounded,
-                                                color: Colors.white24,
-                                                size: 14,
-                                              ),
-                                            ],
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                _buildHudItem(
+                                                  Icons
+                                                      .local_fire_department_rounded,
+                                                  'STREAK',
+                                                  '${_userData?['current_streak'] ?? 0} DAYS',
+                                                  const Color(0xFFFFB347),
+                                                ),
+                                                Container(
+                                                  width: 1,
+                                                  height: 30,
+                                                  color: Colors.white10,
+                                                  margin:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 20,
+                                                      ),
+                                                ),
+                                                _buildHudItem(
+                                                  Icons.auto_awesome_rounded,
+                                                  'POINTS',
+                                                  '${_userData?['total_rewards'] ?? 0}',
+                                                  const Color(0xFF4ECDC4),
+                                                ),
+                                                const Spacer(),
+                                                const Icon(
+                                                  Icons.arrow_forward_ios_rounded,
+                                                  color: Colors.white24,
+                                                  size: 14,
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),

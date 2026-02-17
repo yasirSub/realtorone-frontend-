@@ -298,6 +298,21 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
           ...question.options.asMap().entries.map(
             (entry) => _buildOption(question.id, entry.key, entry.value),
           ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _nextQuestion,
+              child: const Text(
+                'Skip',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

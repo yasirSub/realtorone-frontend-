@@ -8,7 +8,8 @@ class ActivitiesApi {
     if (date != null) {
       endpoint += '?date=$date';
     }
-    return await ApiClient.get(endpoint, requiresAuth: true, useCache: true);
+    // Do NOT cache: activities must reflect immediately after logging/completing.
+    return await ApiClient.get(endpoint, requiresAuth: true, useCache: false);
   }
 
   /// Create a new activity
@@ -50,7 +51,8 @@ class ActivitiesApi {
     return await ApiClient.get(
       ApiEndpoints.activitiesProgress,
       requiresAuth: true,
-      useCache: true,
+      // Do NOT cache: streak/progress must update immediately after completing.
+      useCache: false,
     );
   }
 

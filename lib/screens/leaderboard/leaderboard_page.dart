@@ -405,31 +405,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           ),
         ),
         const SizedBox(height: 6),
-        Container(
-          height: height,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                color.withValues(alpha: 0.6),
-                color.withValues(alpha: 0.2),
-              ],
-            ),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
-          ),
-          child: Center(
-            child: Text(
-              '#$rank',
-              style: TextStyle(
-                color: color,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
+        // Rank badge hidden for now (design change)
+        const SizedBox.shrink(),
       ],
     );
   }
@@ -444,17 +421,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 30,
-            child: Text(
-              '#${entry['rank']}',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          // Per-entry rank label hidden for now
+          const SizedBox(width: 0),
           CircleAvatar(
             radius: 18,
             backgroundColor: const Color(0xFF00D4AA).withValues(alpha: 0.2),

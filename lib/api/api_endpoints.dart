@@ -1,6 +1,6 @@
 class ApiEndpoints {
-  // Base URL
-  static const String baseUrl = 'http://192.168.31.129:8000/api';
+  // Base URL for Android emulator → host machine
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // Auth endpoints
   static const String login = '/login';
@@ -22,6 +22,7 @@ class ApiEndpoints {
   static const String changePassword = '/user/change-password';
   static const String uploadPhoto = '/user/photo';
   static const String userRewards = '/user/rewards';
+  static const String pointsHistory = '/user/points-history';
 
   // Diagnosis endpoints
   static const String diagnosisSubmit = '/diagnosis/submit';
@@ -78,3 +79,4 @@ class ApiEndpoints {
   // ============== PHASE 6: WEEKLY REVIEW ==============
   static const String weeklyReview = '/weekly-review';
 }
+

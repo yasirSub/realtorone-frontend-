@@ -17,10 +17,14 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentStreak = 0;
+  int _todayPoints = 0;
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayActivities = [];
   List<Map<String, dynamic>> _activityTypes = [];
+  // Track which activity types the user has interacted with today
   final Set<String> _interactedKeys = {};
+  // Track which activity types are completed (for instant UI feedback)
+  final Set<String> _completedKeys = {};
 
   @override
   void initState() {
@@ -86,9 +90,25 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             _todayActivities = List<Map<String, dynamic>>.from(
               activitiesResponse['data'] ?? [],
             );
-            // Sync local state with server
+
+            // Sync local state with server for interacted + completed keys
+            _interactedKeys.clear();
+            _completedKeys.clear();
+            _todayPoints = 0;
             for (var a in _todayActivities) {
-              if (a['type'] != null) _interactedKeys.add(a['type']);
+              final type = a['type'];
+              if (type != null) {
+                _interactedKeys.add(type);
+                if (a['is_completed'] == true || a['is_completed'] == 1) {
+                  _completedKeys.add(type);
+                  final dynamic rawPoints = a['points'];
+                  if (rawPoints is num) {
+                    _todayPoints += rawPoints.toInt();
+                  } else if (rawPoints is String) {
+                    _todayPoints += int.tryParse(rawPoints) ?? 0;
+                  }
+                }
+              }
             }
           }
           if (typesResponse['success'] == true) {
@@ -227,6 +247,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                           _buildMiniBadge(
                             'STREAK: $_currentStreak',
                             const Color(0xFFFFB347),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildMiniBadge(
+                            'POINTS: $_todayPoints',
+                            const Color(0xFF10B981),
                           ),
                           const SizedBox(width: 12),
                           _buildMiniBadge(
@@ -637,10 +662,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     final String typeKey = activityType['type_key'] ?? '';
     final bool isInteracted =
         existingLog.isNotEmpty || _interactedKeys.contains(typeKey);
-    final bool isCompleted =
+    // Consider both server state and local optimistic completions
+    final bool isCompleted = _completedKeys.contains(typeKey) ||
         (existingLog.isNotEmpty &&
-        (existingLog['is_completed'] == true ||
-            existingLog['is_completed'] == 1));
+            (existingLog['is_completed'] == true ||
+                existingLog['is_completed'] == 1));
 
     return Opacity(
       opacity: isInteracted ? 0.6 : 1.0,
@@ -962,16 +988,21 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }) async {
     final String typeKey = activityType['type_key'] ?? '';
     final String name = activityType['name'] ?? 'Unknown';
+    final String category =
+        (activityType['category'] == 'conscious') ? 'task' : activityType['category'];
     if (_interactedKeys.contains(typeKey)) return;
 
     debugPrint(
       'ACTIVITY_LOG_DEBUG: [1] Clicked ${completed ? "YES" : "NO"} for activity: $name ($typeKey)',
     );
 
-    // Optimistic UI Update: Add to interacted keys immediately and don't block with loader
+    // Optimistic UI Update: mark as interacted (and completed if YES) immediately
     if (mounted) {
       setState(() {
         _interactedKeys.add(typeKey);
+        if (completed) {
+          _completedKeys.add(typeKey);
+        }
       });
     }
 
@@ -982,7 +1013,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       final response = await ActivitiesApi.createActivity(
         title: name,
         type: typeKey,
-        category: activityType['category'],
+        category: category,
         durationMinutes: 30,
       );
 
@@ -1012,6 +1043,22 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             _todayActivities = List<Map<String, dynamic>>.from(
               activitiesResponse['data'] ?? [],
             );
+            // Recalculate points from fresh server data
+            _todayPoints = 0;
+            _completedKeys.clear();
+            for (final a in _todayActivities) {
+              final type = a['type'];
+              if (type != null &&
+                  (a['is_completed'] == true || a['is_completed'] == 1)) {
+                _completedKeys.add(type);
+                final dynamic rawPoints = a['points'];
+                if (rawPoints is num) {
+                  _todayPoints += rawPoints.toInt();
+                } else if (rawPoints is String) {
+                  _todayPoints += int.tryParse(rawPoints) ?? 0;
+                }
+              }
+            }
           });
           debugPrint('ACTIVITY_LOG_DEBUG: [7] Local state synced with server.');
         }
