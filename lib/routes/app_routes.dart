@@ -15,6 +15,7 @@ class AppRoutes {
   static const String subscriptionPlans = '/subscription-plans';
   static const String rewards = '/rewards';
   static const String resultsTracker = '/results-tracker';
+  static const String activities = '/activities';
   static const String leaderboard = '/leaderboard';
   static const String badges = '/badges';
 }

@@ -18,7 +18,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   final List<Widget> _pages = [
     const HomePage(),
-    const ActivitiesPage(),
+    const ActivitiesPage(), // Activity Log: Revenue Actions + Identity Conditioning tabs
     const LearningPage(),
     const ProfilePage(),
   ];

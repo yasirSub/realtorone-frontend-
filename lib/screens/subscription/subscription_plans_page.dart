@@ -274,6 +274,40 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
   }
 
+  /// Normalize tier name for deduplication (Titan, Titan-GOLD, Titan - GOLD → Titan)
+  String _normalizeTierName(String name) {
+    return name
+        .replaceAll(' - GOLD', '')
+        .replaceAll('- GOLD', '')
+        .replaceAll(' GOLD', '')
+        .replaceAll('GOLD', '')
+        .trim()
+        .toLowerCase();
+  }
+
+  /// Filter packages to avoid duplicate tier cards. When subscribed, prefer the package matching current tier.
+  List<dynamic> get _displayPackages {
+    final byTier = <String, dynamic>{};
+    for (final pkg in _packages) {
+      final name = pkg['name']?.toString() ?? '';
+      final normalized = _normalizeTierName(name);
+      final isCurrent = _isPremium && name == _currentTier;
+      if (byTier[normalized] == null || isCurrent) {
+        byTier[normalized] = pkg;
+      }
+    }
+    final result = <dynamic>[];
+    final seen = <String>{};
+    for (final pkg in _packages) {
+      final normalized = _normalizeTierName(pkg['name']?.toString() ?? '');
+      if (!seen.contains(normalized)) {
+        seen.add(normalized);
+        result.add(byTier[normalized]!);
+      }
+    }
+    return result;
+  }
+
   double _calculatePrice(Map<String, dynamic> pkg) {
     double price =
         (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) *
@@ -446,17 +480,17 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 ),
               ),
 
-              // Package Cards
+              // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    final pkg = _packages[index];
+                    final pkg = _displayPackages[index];
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: _buildPackageCard(pkg, isDark, index),
                     );
-                  }, childCount: _packages.length),
+                  }, childCount: _displayPackages.length),
                 ),
               ),
 

@@ -64,6 +64,14 @@ class ApiEndpoints {
   static const String resultsMonthlyGraph = '/results/monthly-graph';
 
   // ============== PHASE 2: FOLLOW-UP GUARD ==============
+  // Clients (results-based) helper endpoints
+  static const String clientsStatus = '/clients/status';
+  static const String clients = '/clients';
+  static String clientActions(int id) => '/clients/$id/actions';
+  static String clientActionLog(int id) => '/clients/$id/action-log';
+  static const String revenueMetrics = '/revenue/metrics';
+
+  // Follow-ups
   static const String followUps = '/follow-ups';
   static String completeFollowUp(int id) => '/follow-ups/$id/complete';
 

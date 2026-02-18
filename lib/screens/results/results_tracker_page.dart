@@ -19,18 +19,39 @@ class _ResultsTrackerPageState extends State<ResultsTrackerPage>
   List<dynamic> _followUps = [];
   int _overdueCount = 0;
   String? _guardAlert;
+  bool _hasClients = true;
+  bool _checkedClientStatus = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadData();
+    _loadClientStatus();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     await Future.wait([_loadResults(), _loadMonthlyGraph(), _loadFollowUps()]);
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadClientStatus() async {
+    final response = await ApiClient.get(
+      ApiEndpoints.clientsStatus,
+      requiresAuth: true,
+    );
+
+    if (response['success'] == true) {
+      setState(() {
+        _hasClients = response['has_clients'] ?? false;
+        _checkedClientStatus = true;
+      });
+    } else {
+      setState(() {
+        _checkedClientStatus = true;
+      });
+    }
   }
 
   Future<void> _loadResults() async {
@@ -209,7 +230,9 @@ class _ResultsTrackerPageState extends State<ResultsTrackerPage>
             ),
           ),
           const SizedBox(height: 12),
-          if (_results.isEmpty)
+          if (_results.isEmpty && _checkedClientStatus && !_hasClients)
+            _buildFirstClientHero()
+          else if (_results.isEmpty)
             _emptyState(
               'No results logged yet',
               'Tap + to log your first hot lead or deal!',
@@ -681,7 +704,120 @@ class _ResultsTrackerPageState extends State<ResultsTrackerPage>
     );
   }
 
-  void _showLogResultDialog() {
+  Widget _buildFirstClientHero() {
+    return Container(
+      margin: const EdgeInsets.only(top: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF020617), Color(0xFF111827)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 24,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Skyline placeholder
+          Container(
+            width: double.infinity,
+            height: 160,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF020617), Color(0xFF1E293B)],
+              ),
+            ),
+            alignment: Alignment.center,
+            child: const Text(
+              'THE DEAL ROOM',
+              style: TextStyle(
+                color: Colors.amber,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'The skyline is ready.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Your deals aren’t… yet.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF60A5FA),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Add your first client to start your ascent.\nEvery skyline starts with one deal.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFACC15),
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              onPressed: () => _showLogResultDialog(firstClient: true),
+              icon: const Icon(Icons.person_add_alt_1_rounded),
+              label: const Text(
+                'Add First Client',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'CLIENTS • REVENUE',
+            style: TextStyle(
+              color: Colors.white30,
+              fontSize: 11,
+              letterSpacing: 2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLogResultDialog({bool firstClient = false}) {
     String selectedType = 'hot_lead';
     final clientController = TextEditingController();
     final propertyController = TextEditingController();
@@ -722,9 +858,9 @@ class _ResultsTrackerPageState extends State<ResultsTrackerPage>
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Log Result',
-                      style: TextStyle(
+                    Text(
+                      firstClient ? 'Add First Client' : 'Log Result',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

@@ -5,6 +5,8 @@ import '../../api/user_api.dart';
 import '../../models/activity_model.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/skill_skeleton.dart';
+import '../deal_room/deal_room_widget.dart';
+import '../deal_room/revenue_tracker_widget.dart';
 
 class ActivitiesPage extends StatefulWidget {
   const ActivitiesPage({super.key});
@@ -25,6 +27,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   final Set<String> _interactedKeys = {};
   // Track which activity types are completed (for instant UI feedback)
   final Set<String> _completedKeys = {};
+  int _revenueSubTab = 0; // 0 = Clients, 1 = Revenue
 
   @override
   void initState() {
@@ -51,18 +54,14 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
           for (var task in allTasks) {
             final typeKey = task['type'];
-            // Map types to subconscious, everything else is conscious
+            // Map types to Identity Conditioning (from diagram: Min 2, Max 40)
             if ([
+              'journaling',
+              'webinar',
               'visualization',
               'affirmations',
-              'gratitude',
-              'mindset_training',
-              'audio_reprogramming',
-              'webinar',
-              'belief_exercise',
-              'calm_reset',
-              'identity_statement',
-              'morning_ritual',
+              'inner_game_audio',
+              'guided_reset',
               'custom',
             ].contains(typeKey)) {
               _subconsciousTasks.add(task);
@@ -117,7 +116,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             );
             debugPrint('Activity Types Loaded: ${_activityTypes.length}');
             debugPrint(
-              'Conscious Types: ${_activityTypes.where((t) => t['category'] == 'conscious').length}',
+              'Revenue Actions Types: ${_activityTypes.where((t) => t['category'] == 'conscious').length}',
             );
           }
           if (progressResponse['success'] == true) {
@@ -128,42 +127,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _toggleActivityComplete(
-    int activityId,
-    bool currentStatus,
-  ) async {
-    if (currentStatus) return;
-
-    // Optimistic Update
-    if (mounted) {
-      setState(() {
-        final index = _todayActivities.indexWhere((a) => a['id'] == activityId);
-        if (index != -1) {
-          _todayActivities[index]['is_completed'] = 1; // Mark as done locally
-        }
-      });
-    }
-
-    try {
-      final response = await ActivitiesApi.completeActivity(activityId);
-      if (response['success'] == true) {
-        // Silent refresh in background to sync streak/etc
-        final progressResponse = await ActivitiesApi.getProgress();
-        if (mounted && progressResponse['success'] == true) {
-          setState(() {
-            _currentStreak = progressResponse['data']['current_streak'] ?? 0;
-          });
-        }
-        if (mounted) {
-          _showCompletionFeedback('+50 XP Gained!');
-        }
-      }
-    } catch (e) {
-      debugPrint('Error completing activity: $e');
-      // Rollback would happen on next manual refresh or navigation
     }
   }
 
@@ -205,7 +168,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               title: const Text(
-                'LIVE ACTIVITY LOG',
+                'ACTIVITY LOG',
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -281,8 +244,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   letterSpacing: 1.5,
                 ),
                 tabs: const [
-                  Tab(text: 'CONSCIOUS'),
-                  Tab(text: 'SUBCONSCIOUS'),
+                  Tab(text: 'REVENUE ACTIONS'),
+                  Tab(text: 'IDENTITY CONDITIONING'),
                 ],
               ),
             ),
@@ -429,9 +392,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }
 
   Widget _buildConsciousTab() {
-    final consciousTypes = _activityTypes
-        .where((t) => t['category'] == 'conscious')
-        .toList();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -441,80 +402,128 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       color: const Color(0xFF667eea),
       backgroundColor: Colors.white,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 160),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 160),
         children: [
-          // Priorities Section
-          if (_consciousTasks.isNotEmpty) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'CORE PRIORITIES',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                    letterSpacing: 2,
-                  ),
-                ),
-                Text(
-                  '${_consciousTasks.where((t) => t['is_completed'] == true || t['is_completed'] == 1).length}/${_consciousTasks.length} DONE',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF10B981),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ..._consciousTasks.asMap().entries.map(
-              (entry) => _buildTaskInteractionItem(entry.value)
-                  .animate()
-                  .fadeIn(delay: (entry.key * 50).ms)
-                  .slideX(begin: 0.05),
-            ),
-            const SizedBox(height: 32),
-          ],
-
-          const Text(
-            'LOG OPERATIONS',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 12,
-              color: Color(0xFF64748B),
-              letterSpacing: 2,
+          // ── CLIENTS / REVENUE toggle ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _revenueTabButton(
+                icon: Icons.people_alt_rounded,
+                label: 'CLIENTS',
+                active: _revenueSubTab == 0,
+                onTap: () => setState(() => _revenueSubTab = 0),
+                isDark: isDark,
+              ),
+              const SizedBox(width: 28),
+              _revenueTabButton(
+                icon: Icons.attach_money_rounded,
+                label: 'REVENUE',
+                active: _revenueSubTab == 1,
+                onTap: () => setState(() => _revenueSubTab = 1),
+                isDark: isDark,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: Container(
+              width: 80,
+              height: 3,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
+                borderRadius: BorderRadius.circular(99),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          if (_isLoading && consciousTypes.isEmpty)
-            const SkillSkeleton(itemCount: 3)
-          else if (consciousTypes.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text(
-                  'No conscious operations available.',
-                  style: TextStyle(color: Color(0xFF94A3B8)),
-                ),
+
+          // ── Content based on sub-tab ──
+          if (_revenueSubTab == 0) ...[
+            const DealRoomWidget(),
+
+            if (_consciousTasks.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'CORE PRIORITIES',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      color: Color(0xFF64748B),
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  Text(
+                    '${_consciousTasks.where((t) => t['is_completed'] == true || t['is_completed'] == 1).length}/${_consciousTasks.length} DONE',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
               ),
-            )
-          else
-            ...consciousTypes.asMap().entries.map(
-              (entry) => _buildActivityTypeCard(entry.value)
-                  .animate()
-                  .fadeIn(delay: (entry.key * 50).ms)
-                  .slideX(begin: 0.05),
+              const SizedBox(height: 16),
+              ..._consciousTasks.asMap().entries.map(
+                (entry) => _buildTaskInteractionItem(entry.value)
+                    .animate()
+                    .fadeIn(delay: (entry.key * 50).ms)
+                    .slideX(begin: 0.05),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ] else ...[
+            const RevenueTrackerWidget(),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _revenueTabButton({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    final color = active
+        ? (isDark ? Colors.white : const Color(0xFF2563EB))
+        : (isDark ? Colors.white30 : const Color(0xFF94A3B8));
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: active
+                  ? (isDark
+                      ? const Color(0xFF1E3A5F)
+                      : const Color(0xFFEFF6FF))
+                  : Colors.transparent,
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              letterSpacing: 0.8,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildSubconsciousTab() {
-    final mindsetActivities = _todayActivities
-        .where((a) => a['category'] == 'subconscious')
-        .toList();
     final subconsciousTypes = _activityTypes
         .where((t) => t['category'] == 'subconscious')
         .toList();
@@ -565,61 +574,41 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               const SizedBox(height: 32),
             ],
 
-            // Operations List
-            const Text(
-              'LOG OPERATIONS',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-                color: Color(0xFF64748B),
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 16),
+            // Identity Conditioning: Manual & Verified subcategories
             if (_isLoading && subconsciousTypes.isEmpty)
               const SkillSkeleton(itemCount: 3)
             else if (subconsciousTypes.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(40),
-                  child: Text('No subconscious operations available.'),
+                  child: Text('No identity conditioning operations available.'),
                 ),
               )
-            else
-              ...subconsciousTypes.asMap().entries.map(
-                (entry) => _buildActivityTypeCard(entry.value)
-                    .animate()
-                    .fadeIn(delay: (entry.key * 50).ms)
-                    .slideX(begin: 0.05),
+            else ...[
+              // 1. Manual Identity Activities
+              _buildSubcategorySection(
+                'MANUAL IDENTITY ACTIVITIES',
+                subconsciousTypes.where((t) => t['subcategory'] == 'manual').toList(),
+                0,
               ),
-
-            // Today's Progress Log
-            if (mindsetActivities.isNotEmpty) ...[
-              const SizedBox(height: 32),
-              const Text(
-                'COMPLETED LOGS',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                  letterSpacing: 2,
+              const SizedBox(height: 24),
+              // 2. Verified Identity Activities
+              _buildSubcategorySection(
+                'VERIFIED IDENTITY ACTIVITIES',
+                subconsciousTypes.where((t) => t['subcategory'] == 'verified').toList(),
+                50,
+              ),
+              // Custom/other types without subcategory
+              if (subconsciousTypes.any((t) => t['subcategory'] != 'manual' && t['subcategory'] != 'verified')) ...[
+                const SizedBox(height: 24),
+                _buildSubcategorySection(
+                  'OTHER',
+                  subconsciousTypes.where((t) => t['subcategory'] != 'manual' && t['subcategory'] != 'verified').toList(),
+                  100,
                 ),
-              ),
-              const SizedBox(height: 16),
-              ...mindsetActivities.map(
-                (a) => _buildRitualCard(
-                  a['title'],
-                  '${a['duration_minutes'] ?? 10} min • ${a['type']?.toUpperCase() ?? 'MINDSET'}',
-                  _getMindsetIcon(a['type']),
-                  _getMindsetColor(a['type']),
-                  a['is_completed'] == true || a['is_completed'] == 1,
-                  onTap: () => _toggleActivityComplete(
-                    a['id'],
-                    a['is_completed'] == true || a['is_completed'] == 1,
-                  ),
-                ),
-              ),
+              ],
             ],
+
             const SizedBox(height: 32),
           ],
         ),
@@ -632,18 +621,29 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     );
   }
 
-  IconData _getMindsetIcon(String? type) {
-    if (type == 'morningPriming') return Icons.wb_sunny_rounded;
-    if (type == 'focusDrill') return Icons.bolt_rounded;
-    if (type == 'eveningReflection') return Icons.nightlight_round;
-    return Icons.psychology_rounded;
-  }
-
-  Color _getMindsetColor(String? type) {
-    if (type == 'morningPriming') return const Color(0xFFFFB347);
-    if (type == 'focusDrill') return const Color(0xFF4ECDC4);
-    if (type == 'eveningReflection') return const Color(0xFF667eea);
-    return const Color(0xFFf093fb);
+  Widget _buildSubcategorySection(String title, List<Map<String, dynamic>> types, int baseDelay) {
+    if (types.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 12,
+            color: Color(0xFF64748B),
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...types.asMap().entries.map(
+          (entry) => _buildActivityTypeCard(entry.value)
+              .animate()
+              .fadeIn(delay: (baseDelay + entry.key * 50).ms)
+              .slideX(begin: 0.05),
+        ),
+      ],
+    );
   }
 
   Widget _buildActivityTypeCard(Map<String, dynamic> activityType) {
@@ -868,61 +868,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     return _getActivityTypeIcon(typeKey);
   }
 
-  Widget _buildRitualCard(
-    String title,
-    String sub,
-    IconData icon,
-    Color color,
-    bool done, {
-    VoidCallback? onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 16,
-        ),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Icon(icon, color: color, size: 24),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 16,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        subtitle: Text(
-          sub,
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        trailing: done
-            ? const Icon(
-                Icons.check_circle_rounded,
-                color: Color(0xFF4ECDC4),
-                size: 30,
-              )
-            : Icon(Icons.play_circle_filled_rounded, color: color, size: 36),
-      ),
-    ).animate().fadeIn().slideX(begin: 0.1);
-  }
-
   IconData _getActivityTypeIcon(String? typeKey) {
     switch (typeKey) {
       // Conscious
@@ -956,27 +901,19 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         return Icons.person_add_rounded;
       case 'skill_training':
         return Icons.school_rounded;
-      // Subconscious
+      // Identity Conditioning
+      case 'journaling':
+        return Icons.book_rounded;
+      case 'webinar':
+        return Icons.video_library_rounded;
       case 'visualization':
         return Icons.visibility_rounded;
       case 'affirmations':
         return Icons.repeat_rounded;
-      case 'gratitude':
-        return Icons.favorite_rounded;
-      case 'mindset_training':
-        return Icons.psychology_rounded;
-      case 'audio_reprogramming':
+      case 'inner_game_audio':
         return Icons.headphones_rounded;
-      case 'webinar':
-        return Icons.video_library_rounded;
-      case 'belief_exercise':
-        return Icons.edit_rounded;
-      case 'calm_reset':
+      case 'guided_reset':
         return Icons.air_rounded;
-      case 'identity_statement':
-        return Icons.verified_user_rounded;
-      case 'morning_ritual':
-        return Icons.wb_sunny_rounded;
       default:
         return Icons.task_alt_rounded;
     }
@@ -1119,7 +1056,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               ),
               const SizedBox(height: 4),
               const Text(
-                'Add your own subconscious activity',
+                'Add your own identity conditioning activity',
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontSize: 13,

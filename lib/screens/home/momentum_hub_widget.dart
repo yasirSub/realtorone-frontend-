@@ -330,14 +330,14 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
           Row(
             children: [
               _buildPillarChip(
-                'SUBCONSCIOUS',
+                'IDENTITY CONDITIONING',
                 _subconsciousScore,
                 40,
                 const Color(0xFFD946EF),
               ),
               const SizedBox(width: 10),
               _buildPillarChip(
-                'EXECUTION',
+                'REVENUE ACTIONS',
                 _consciousScore,
                 45,
                 const Color(0xFFA855F7),
@@ -504,8 +504,8 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
                 letterSpacing: 1,
               ),
               tabs: const [
-                Tab(text: 'CONSCIOUS'),
-                Tab(text: 'SUBCONSCIOUS'),
+                Tab(text: 'REVENUE ACTIONS'),
+                Tab(text: 'IDENTITY CONDITIONING'),
               ],
             ),
           ),
@@ -517,7 +517,7 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
               padding: const EdgeInsets.symmetric(vertical: 40),
               alignment: Alignment.center,
               child: Text(
-                'No ${_selectedCategory} activities defined',
+                'No ${_selectedCategory == 'conscious' ? 'revenue actions' : 'identity conditioning'} activities defined',
                 style: TextStyle(
                   color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                   fontSize: 13,
@@ -845,35 +845,24 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
       case 'skill_training':
         return Icons.bolt_rounded;
       case 'eye':
+      // Identity Conditioning
+      case 'journaling':
+      case 'bookheart':
+        return Icons.book_rounded;
+      case 'webinar':
+      case 'video':
+        return Icons.videocam_rounded;
       case 'visualization':
         return Icons.visibility_rounded;
-      case 'repeat':
       case 'affirmations':
+      case 'repeat':
         return Icons.loop_rounded;
-      case 'bookheart':
-      case 'gratitude':
-        return Icons.favorite_rounded;
-      case 'brain':
-      case 'mindset_training':
-        return Icons.psychology_rounded;
+      case 'inner_game_audio':
       case 'headphones':
-      case 'audio_reprogramming':
         return Icons.headphones_rounded;
-      case 'video':
-      case 'webinar':
-        return Icons.videocam_rounded;
-      case 'pentool':
-      case 'belief_exercise':
-        return Icons.edit_rounded;
+      case 'guided_reset':
       case 'wind':
-      case 'calm_reset':
         return Icons.air_rounded;
-      case 'usercheck':
-      case 'identity_statement':
-        return Icons.verified_user_rounded;
-      case 'sun':
-      case 'morning_ritual':
-        return Icons.wb_sunny_rounded;
       default:
         return Icons.bolt_rounded;
     }

@@ -17,6 +17,7 @@ import 'app_routes.dart';
 
 import '../screens/rewards/rewards_page.dart';
 import '../screens/results/results_tracker_page.dart';
+import '../screens/activities/activities_page.dart';
 import '../screens/leaderboard/leaderboard_page.dart';
 import '../screens/badges/badges_page.dart';
 
@@ -39,6 +40,7 @@ class RouteConfig {
       AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),
       AppRoutes.rewards: (context) => const RewardsPage(),
       AppRoutes.resultsTracker: (context) => const ResultsTrackerPage(),
+      AppRoutes.activities: (context) => const ActivitiesPage(),
       AppRoutes.leaderboard: (context) => const LeaderboardPage(),
       AppRoutes.badges: (context) => const BadgesPage(),
     };
