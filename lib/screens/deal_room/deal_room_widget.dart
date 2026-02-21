@@ -7,7 +7,9 @@ import 'add_client_page.dart';
 import 'client_revenue_actions_page.dart';
 
 class DealRoomWidget extends StatefulWidget {
-  const DealRoomWidget({super.key});
+  final VoidCallback? onClientActionLogged;
+
+  const DealRoomWidget({super.key, this.onClientActionLogged});
 
   @override
   State<DealRoomWidget> createState() => _DealRoomWidgetState();
@@ -336,25 +338,6 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.diamond_rounded,
-                color: Color(0xFF60A5FA),
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Clients',
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF111827),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 10),
           ..._clients.take(6).map((c) => _clientTile(c, isDark)),
           const SizedBox(height: 10),
@@ -419,7 +402,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                 clientName: name,
               ),
             ),
-          );
+          ).then((_) => widget.onClientActionLogged?.call());
         }
       },
       child: Container(

@@ -28,6 +28,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   // Track which activity types are completed (for instant UI feedback)
   final Set<String> _completedKeys = {};
   int _revenueSubTab = 0; // 0 = Clients, 1 = Revenue
+  int _revenueRefreshTrigger = 0;
 
   @override
   void initState() {
@@ -398,6 +399,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       onRefresh: () async {
         await _loadTasks();
         await _loadActivities();
+        if (mounted) setState(() => _revenueRefreshTrigger++);
       },
       color: const Color(0xFF667eea),
       backgroundColor: Colors.white,
@@ -420,7 +422,10 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                 icon: Icons.attach_money_rounded,
                 label: 'REVENUE',
                 active: _revenueSubTab == 1,
-                onTap: () => setState(() => _revenueSubTab = 1),
+                onTap: () => setState(() {
+                  _revenueSubTab = 1;
+                  _revenueRefreshTrigger++;
+                }),
                 isDark: isDark,
               ),
             ],
@@ -440,7 +445,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
           // ── Content based on sub-tab ──
           if (_revenueSubTab == 0) ...[
-            const DealRoomWidget(),
+            DealRoomWidget(
+              onClientActionLogged: () {
+                if (mounted) setState(() => _revenueRefreshTrigger++);
+              },
+            ),
 
             if (_consciousTasks.isNotEmpty) ...[
               Row(
@@ -475,7 +484,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               const SizedBox(height: 32),
             ],
           ] else ...[
-            const RevenueTrackerWidget(),
+            RevenueTrackerWidget(refreshTrigger: _revenueRefreshTrigger),
           ],
         ],
       ),

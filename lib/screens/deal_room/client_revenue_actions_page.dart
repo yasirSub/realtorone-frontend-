@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
@@ -20,6 +22,7 @@ class ClientRevenueActionsPage extends StatefulWidget {
 class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
   bool _loading = true;
   List<Map<String, dynamic>> _actions = [];
+  List<dynamic> _clientActivities = [];
   final String _dateKey = DateTime.now().toIso8601String().split('T').first;
   DateTime _scheduledAt =
       DateTime.now().add(const Duration(days: 1)); // default next day
@@ -44,8 +47,25 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList(growable: false);
       }
+      await _loadClientActivities();
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _loadClientActivities() async {
+    try {
+      final res = await ApiClient.get(
+        ApiEndpoints.clientActivities(widget.clientId),
+        requiresAuth: true,
+      );
+      if (mounted && res['success'] == true) {
+        setState(() {
+          _clientActivities = res['data'] ?? [];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading client activities: $e');
     }
   }
 
@@ -57,15 +77,29 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
       _actions[index]['status'] = status;
     });
 
-    await ApiClient.post(
-      ApiEndpoints.clientActions(widget.clientId),
-      {
-        'action_key': key,
-        'status': status,
-        'date': _dateKey,
-      },
-      requiresAuth: true,
-    );
+    debugPrint('[DAILY_LOG_DEBUG] POST /clients/${widget.clientId}/actions');
+    debugPrint('[DAILY_LOG_DEBUG]   action_key=$key, status=$status, date=$_dateKey');
+    try {
+      final res = await ApiClient.post(
+        ApiEndpoints.clientActions(widget.clientId),
+        {
+          'action_key': key,
+          'status': status,
+          'date': _dateKey,
+        },
+        requiresAuth: true,
+      );
+      debugPrint('[DAILY_LOG_DEBUG]   Response: success=${res['success']}');
+      if (res['success'] == true && status == 'yes') {
+        await _loadClientActivities();
+      }
+      if (res['success'] != true) {
+        debugPrint('[DAILY_LOG_DEBUG]   ERROR: ${res['message'] ?? res}');
+      }
+    } catch (e, st) {
+      debugPrint('[DAILY_LOG_DEBUG]   EXCEPTION: $e');
+      debugPrint('[DAILY_LOG_DEBUG]   Stack: $st');
+    }
   }
 
   Future<void> _createFollowUp(DateTime when) async {
@@ -695,9 +729,9 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
 
                             const SizedBox(height: 22),
 
-                            // ── Commission Earned ──
+                            // ── Net Commission Earned ──
                             Text(
-                              'COMMISSION EARNED',
+                              'NET COMMISSION EARNED',
                               style: TextStyle(
                                 fontWeight: FontWeight.w800,
                                 fontSize: 12,
@@ -752,25 +786,6 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                                         contentPadding:
                                             EdgeInsets.symmetric(
                                                 horizontal: 10),
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(right: 10),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF22C55E)
-                                          .withValues(alpha: 0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(8),
-                                    ),
-                                    child: const Text(
-                                      '~5.0%',
-                                      style: TextStyle(
-                                        color: Color(0xFF22C55E),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ),
@@ -1371,9 +1386,10 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                   ),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                       Text(
                         'REVENUE ACTIONS',
                         style: TextStyle(
@@ -1432,27 +1448,233 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _actions.length,
-                          itemBuilder: (context, index) {
-                            final action = _actions[index];
-                            return _actionRow(
-                              keyValue: action['key'] ?? '',
-                              label: action['label'] ?? '',
-                              status: (action['status'] ?? '') as String,
-                              onYes: () => _handleYesTap(action['key']),
-                              onNo: () => _setStatus(action['key'], 'no'),
-                              isDark: isDark,
-                            );
-                          },
+                      ..._actions.map((action) => _actionRow(
+                            keyValue: action['key'] ?? '',
+                            label: action['label'] ?? '',
+                            status: (action['status'] ?? '') as String,
+                            onYes: () => _handleYesTap(action['key']),
+                            onNo: () => _setStatus(action['key'], 'no'),
+                            isDark: isDark,
+                          )),
+                      const SizedBox(height: 24),
+                      Text(
+                        'ACTIVITY FOR THIS CLIENT',
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF9CA3AF),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.4,
                         ),
                       ),
-                    ],
+                      const SizedBox(height: 12),
+                      if (_clientActivities.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text(
+                              'No activities yet. Log actions above to see them here.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: isDark
+                                    ? Colors.white38
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        ..._clientActivities.asMap().entries.map((entry) {
+                          final activity = entry.value;
+                          final type = activity['type'] ?? '';
+                          final timestamp = activity['created_at'] ??
+                              activity['date']?.toString();
+                          return _buildClientActivityItem(
+                            activity,
+                            type,
+                            timestamp,
+                            isDark,
+                            entry.key == _clientActivities.length - 1,
+                          );
+                        }),
+                      ],
+                    ),
                   ),
                 ),
               ),
       ),
+    );
+  }
+
+  String _getActionLabelFromNotes(dynamic activity) {
+    try {
+      final notes = activity['notes'];
+      if (notes is String && notes.isNotEmpty) {
+        final map = jsonDecode(notes) as Map<String, dynamic>?;
+        final label = map?['action_label']?.toString();
+        if (label != null && label.isNotEmpty) return label;
+      }
+    } catch (_) {}
+    return 'Activity';
+  }
+
+  String _getActivityDescription(dynamic activity, String type) {
+    switch (type) {
+      case 'hot_lead':
+        return 'Initial outreach via phone';
+      case 'deal_closed':
+        return 'Deal successfully closed';
+      case 'commission':
+        return 'Commission received';
+      case 'revenue_action':
+        return _getActionLabelFromNotes(activity);
+      default:
+        return type.toString().replaceAll('_', ' ');
+    }
+  }
+
+  String _getStatusLabel(String type) {
+    switch (type) {
+      case 'hot_lead':
+        return 'Interested';
+      case 'deal_closed':
+        return 'Deal Closed';
+      case 'commission':
+        return 'Completed';
+      case 'revenue_action':
+        return 'Completed';
+      default:
+        return 'In Progress';
+    }
+  }
+
+  IconData _getActivityIcon(String type) {
+    switch (type) {
+      case 'hot_lead':
+        return Icons.local_fire_department_rounded;
+      case 'deal_closed':
+        return Icons.celebration_rounded;
+      case 'commission':
+        return Icons.monetization_on_rounded;
+      case 'revenue_action':
+        return Icons.task_alt_rounded;
+      default:
+        return Icons.circle;
+    }
+  }
+
+  Color _getActivityIconColor(String type) {
+    switch (type) {
+      case 'hot_lead':
+        return const Color(0xFF3B82F6);
+      case 'deal_closed':
+        return const Color(0xFF10B981);
+      case 'commission':
+        return const Color(0xFFF97316);
+      case 'revenue_action':
+        return const Color(0xFF6366F1);
+      default:
+        return const Color(0xFF94A3B8);
+    }
+  }
+
+  String _formatTimestamp(String? timestamp) {
+    if (timestamp == null) return 'Recently';
+    try {
+      final date = DateTime.parse(timestamp);
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inMinutes < 1) return 'Just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
+      if (diff.inHours < 24) return '${diff.inHours} hours ago';
+      if (diff.inDays == 1) return 'Yesterday';
+      if (diff.inDays < 7) return '${diff.inDays} days ago';
+      return '${diff.inDays} days ago';
+    } catch (_) {
+      return 'Recently';
+    }
+  }
+
+  Widget _buildClientActivityItem(
+    dynamic activity,
+    String type,
+    dynamic timestamp,
+    bool isDark,
+    bool isLast,
+  ) {
+    final icon = _getActivityIcon(type);
+    final iconColor = _getActivityIconColor(type);
+    final statusLabel = _getStatusLabel(type);
+    final statusColor = iconColor;
+    final description = _getActivityDescription(activity, type);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 18),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 50,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.grey[200],
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Text(
+          _formatTimestamp(timestamp?.toString()),
+          style: TextStyle(
+            fontSize: 11,
+            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+          ),
+        ),
+      ],
     );
   }
 
