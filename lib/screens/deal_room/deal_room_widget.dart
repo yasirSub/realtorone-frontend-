@@ -19,6 +19,8 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   bool _isLoading = true;
   bool _hasClients = true;
   List<dynamic> _clients = [];
+  List<dynamic> _originalClients = [];
+  bool _sortByPriority = false;
 
   @override
   void initState() {
@@ -45,16 +47,91 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
           requiresAuth: true,
         );
         if (clientsRes['success'] == true) {
-          _clients = clientsRes['data'] ?? [];
+          final data = (clientsRes['data'] ?? []) as List<dynamic>;
+          // Keep an original copy so we can toggle sorting on/off
+          _originalClients = List<dynamic>.from(data);
+          _clients = List<dynamic>.from(_originalClients);
+          _applySort();
         } else {
+          _originalClients = [];
           _clients = [];
         }
       } else {
+        _originalClients = [];
         _clients = [];
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _toggleSortByPriority() {
+    setState(() {
+      _sortByPriority = !_sortByPriority;
+      _applySort();
+    });
+  }
+
+  void _applySort() {
+    if (_clients.isEmpty) return;
+
+    if (!_sortByPriority) {
+      // Restore original ordering from API
+      _clients = List<dynamic>.from(_originalClients);
+      return;
+    }
+
+    final sorted = List<dynamic>.from(_originalClients);
+
+    sorted.sort((a, b) {
+      final int pa = _extractPriority(a);
+      final int pb = _extractPriority(b);
+      // Higher priority (3) first
+      final int byPriority = pb.compareTo(pa);
+      if (byPriority != 0) return byPriority;
+
+      final int da = _extractTodayPercent(a);
+      final int db = _extractTodayPercent(b);
+      // Higher completion percentage first
+      return db.compareTo(da);
+    });
+
+    _clients = sorted;
+  }
+
+  int _extractPriority(dynamic client) {
+    int priority = 1;
+    if (client is Map && client['notes'] is String) {
+      final notes = client['notes'] as String;
+      if (notes.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(notes);
+          if (parsed is Map) {
+            final dynamic rawPriority = parsed['priority_level'];
+            if (rawPriority is num) {
+              priority = rawPriority.toInt().clamp(1, 3);
+            } else if (rawPriority is String) {
+              final parsedInt = int.tryParse(rawPriority);
+              if (parsedInt != null) {
+                priority = parsedInt.clamp(1, 3);
+              }
+            }
+          }
+        } catch (_) {}
+      }
+    }
+    return priority;
+  }
+
+  int _extractTodayPercent(dynamic client) {
+    if (client is! Map) return 0;
+    final progress = client['today_progress'];
+    if (progress is Map<String, dynamic>) {
+      final value = progress['percentage'];
+      if (value is int) return value.clamp(0, 100);
+      if (value is num) return value.toInt().clamp(0, 100);
+    }
+    return 0;
   }
 
   Future<void> _startAddFirstClient() async {
@@ -338,7 +415,34 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Clients',
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : const Color(0xFF111827),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              IconButton(
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  Icons.filter_list_rounded,
+                  size: 20,
+                  color: _sortByPriority
+                      ? const Color(0xFF2563EB)
+                      : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+                ),
+                tooltip: 'Sort by priority & progress',
+                onPressed: _toggleSortByPriority,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           ..._clients.take(6).map((c) => _clientTile(c, isDark)),
           const SizedBox(height: 10),
           SizedBox(
@@ -369,25 +473,75 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   Widget _clientTile(dynamic client, bool isDark) {
     final name = (client['client_name'] ?? 'Unnamed').toString();
     final status = (client['status'] ?? 'active').toString();
+
+    // Priority for this client (1 = Normal, 2 = High, 3 = Urgent)
+    int priority = 1;
     final notes = client['notes'];
-    String? stage;
     if (notes is String && notes.isNotEmpty) {
       try {
         final parsed = jsonDecode(notes);
-        if (parsed is Map && parsed['lead_stage'] is String) {
-          stage = parsed['lead_stage'] as String;
+        if (parsed is Map) {
+          final dynamic rawPriority = parsed['priority_level'];
+          if (rawPriority is num) {
+            priority = rawPriority.toInt().clamp(1, 3);
+          } else if (rawPriority is String) {
+            final parsedInt = int.tryParse(rawPriority);
+            if (parsedInt != null) {
+              priority = parsedInt.clamp(1, 3);
+            }
+          }
         }
       } catch (_) {}
     }
 
-    final label = (stage ?? status).toUpperCase();
-    final color = label.contains('NEGOTIATION')
-        ? const Color(0xFF2563EB)
-        : label.contains('FOLLOW')
-            ? const Color(0xFFF59E0B)
-            : label.contains('CLOSED') || label.contains('LOST') || status == 'lost'
-                ? const Color(0xFFEF4444)
-                : const Color(0xFF10B981);
+    // Extract today's progress summary, if present
+    final progress = client is Map ? client['today_progress'] as Map<String, dynamic>? : null;
+    final int todayPercent = progress?['percentage'] is int
+        ? progress!['percentage'] as int
+        : (progress?['percentage'] is num ? (progress!['percentage'] as num).toInt() : 0);
+    final String todayStatus = (progress?['status'] ?? 'none').toString();
+
+    // Main color + label used for the left bar and subtitle
+    late final Color mainColor;
+    late final String mainLabel;
+
+    if (status == 'lost') {
+      // If client is lost, always show LOST even if priority is set
+      mainColor = const Color(0xFFEF4444);
+      mainLabel = 'LOST';
+    } else if (todayStatus == 'high') {
+      mainColor = const Color(0xFF16A34A); // strong green
+      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+    } else if (todayStatus == 'medium') {
+      mainColor = const Color(0xFFF59E0B); // amber
+      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+    } else if (todayStatus == 'low') {
+      mainColor = const Color(0xFFF97316); // orange
+      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+    } else {
+      // none / no actions yet
+      mainColor = const Color(0xFFDC2626); // red
+      mainLabel = 'TODAY: NOT STARTED';
+    }
+
+    // Priority chip styling (shown near chevron)
+    Color? priorityColor;
+    String? priorityLabel;
+    if (status != 'lost') {
+      if (priority == 3) {
+        // Highest priority → GOLD
+        priorityColor = const Color(0xFFFACC15); // gold
+        priorityLabel = 'HIGH PRIORITY';
+      } else if (priority == 2) {
+        // Medium priority → SILVER
+        priorityColor = const Color(0xFF9CA3AF); // silver / grey
+        priorityLabel = 'LOW PRIORITY';
+      } else {
+        // Lowest / normal (1) → no chip
+        priorityColor = null;
+        priorityLabel = null;
+      }
+    }
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -402,7 +556,10 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                 clientName: name,
               ),
             ),
-          ).then((_) => widget.onClientActionLogged?.call());
+          ).then((_) async {
+            widget.onClientActionLogged?.call();
+            await _load(); // refresh clients + today progress after daily log actions
+          });
         }
       },
       child: Container(
@@ -421,7 +578,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
               width: 6,
               height: 34,
               decoration: BoxDecoration(
-                color: color,
+                color: mainColor,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -430,19 +587,28 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF111827),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            color:
+                                isDark ? Colors.white : const Color(0xFF111827),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    label,
+                    mainLabel,
                     style: TextStyle(
-                      color: color,
+                      color: mainColor,
                       fontWeight: FontWeight.w800,
                       fontSize: 11,
                       letterSpacing: 0.4,
@@ -451,7 +617,36 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (priorityLabel != null && priorityColor != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(
+                        alpha: isDark ? 0.25 : 0.12,
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      priorityLabel,
+                      style: TextStyle(
+                        color: priorityColor,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                const Icon(Icons.chevron_right_rounded, color: Colors.black38),
+              ],
+            ),
           ],
         ),
       ),

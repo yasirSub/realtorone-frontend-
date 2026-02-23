@@ -18,6 +18,7 @@ class _AddClientPageState extends State<AddClientPage> {
 
   String? _leadSource;
   String? _leadStage;
+  String _priority = '2'; // 1 = Normal, 2 = High, 3 = Urgent
   bool _isSaving = false;
 
   @override
@@ -45,6 +46,12 @@ class _AddClientPageState extends State<AddClientPage> {
     'Closed / Lost',
   ];
 
+  static const _priorityLevels = <({String label, String value})>[
+    (label: 'Normal (1 - Nurture)', value: '1'),
+    (label: 'High (2 - Focus)', value: '2'),
+    (label: 'Urgent (3 - Hot)', value: '3'),
+  ];
+
   Future<void> _saveClient() async {
     final name = _clientNameController.text.trim();
     if (name.isEmpty) return;
@@ -59,6 +66,7 @@ class _AddClientPageState extends State<AddClientPage> {
             ? null
             : _emailController.text.trim(),
         'lead_stage': _leadStage,
+        'priority_level': int.tryParse(_priority),
       });
 
       final status = _leadStage == 'Closed / Lost' ? 'lost' : 'active';
@@ -186,6 +194,26 @@ class _AddClientPageState extends State<AddClientPage> {
                   )
                   .toList(),
               onChanged: (v) => setState(() => _leadStage = v),
+            ),
+            const SizedBox(height: 14),
+            _fieldLabel('Priority', isDark),
+            const SizedBox(height: 6),
+            _dropdown(
+              value: _priority,
+              hintText: 'Select Priority',
+              isDark: isDark,
+              items: _priorityLevels
+                  .map(
+                    (p) => DropdownMenuItem(
+                      value: p.value,
+                      child: Text(p.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _priority = v);
+              },
             ),
             const SizedBox(height: 26),
             SizedBox(

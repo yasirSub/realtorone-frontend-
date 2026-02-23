@@ -168,15 +168,91 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             backgroundColor: const Color(0xFF1E293B),
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'ACTIVITY LOG',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                  letterSpacing: 2,
-                ),
+              centerTitle: true,
+              titlePadding: const EdgeInsets.only(
+                left: 16,
+                right: 16,
+                bottom: 14,
               ),
+              title: innerBoxIsScrolled
+                  ? Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'ACTIVITY LOG',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              letterSpacing: 2,
+                              shadows: [
+                                Shadow(
+                                  color: Color(0x40000000),
+                                  offset: Offset(0, 1),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF10B981,
+                              ).withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF10B981,
+                                ).withValues(alpha: 0.6),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star_rounded,
+                                  size: 10,
+                                  color: const Color(0xFF10B981),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  '$_todayPoints pts',
+                                  style: const TextStyle(
+                                    color: Color(0xFF10B981),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : const Text(
+                      'ACTIVITY LOG',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: 2,
+                        shadows: [
+                          Shadow(
+                            color: Color(0x40000000),
+                            offset: Offset(0, 1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                    ),
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -185,42 +261,47 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF1E293B), Color(0xFF764ba2)],
+                        colors: [
+                          Color(0xFF1E293B),
+                          Color(0xFF2D2348),
+                          Color(0xFF764ba2),
+                        ],
+                        stops: [0.0, 0.4, 1.0],
                       ),
                     ),
                   ),
                   Positioned(
-                    right: -20,
-                    bottom: 20,
+                    right: -24,
+                    top: -20,
                     child: Opacity(
-                      opacity: 0.1,
-                      child: const Icon(
+                      opacity: 0.18,
+                      child: Icon(
                         Icons.bolt_rounded,
-                        size: 180,
-                        color: Colors.white,
+                        size: 200,
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ),
-                  // HUD Overlay
+                  // HUD Overlay – stats row
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 60, 24, 0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.fromLTRB(20, 52, 20, 0),
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           _buildMiniBadge(
-                            'STREAK: $_currentStreak',
+                            'STREAK',
+                            '$_currentStreak',
                             const Color(0xFFFFB347),
+                            Icons.local_fire_department_rounded,
                           ),
-                          const SizedBox(width: 12),
                           _buildMiniBadge(
-                            'POINTS: $_todayPoints',
+                            'POINTS',
+                            '$_todayPoints',
                             const Color(0xFF10B981),
-                          ),
-                          const SizedBox(width: 12),
-                          _buildMiniBadge(
-                            'LIVE: OPERATIONAL',
-                            const Color(0xFF4ECDC4),
+                            Icons.star_rounded,
                           ),
                         ],
                       ),
@@ -245,8 +326,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   letterSpacing: 1.5,
                 ),
                 tabs: const [
-                  Tab(text: 'REVENUE ACTIONS'),
                   Tab(text: 'IDENTITY CONDITIONING'),
+                  Tab(text: 'REVENUE ACTIONS'),
                 ],
               ),
             ),
@@ -254,7 +335,10 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         ],
         body: TabBarView(
           controller: _tabController,
-          children: [_buildConsciousTab(), _buildSubconsciousTab()],
+          children: [
+            _buildSubconsciousTab(), // Identity Conditioning first
+            _buildConsciousTab(), // Revenue Actions second
+          ],
         ),
       ),
     );
@@ -372,22 +456,50 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     );
   }
 
-  Widget _buildMiniBadge(String label, Color color) {
+  Widget _buildMiniBadge(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 8,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: color.withValues(alpha: 0.95),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -509,9 +621,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: active
-                  ? (isDark
-                      ? const Color(0xFF1E3A5F)
-                      : const Color(0xFFEFF6FF))
+                  ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
                   : Colors.transparent,
               shape: BoxShape.circle,
             ),
@@ -597,22 +707,36 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               // 1. Manual Identity Activities
               _buildSubcategorySection(
                 'MANUAL IDENTITY ACTIVITIES',
-                subconsciousTypes.where((t) => t['subcategory'] == 'manual').toList(),
+                subconsciousTypes
+                    .where((t) => t['subcategory'] == 'manual')
+                    .toList(),
                 0,
               ),
               const SizedBox(height: 24),
               // 2. Verified Identity Activities
               _buildSubcategorySection(
                 'VERIFIED IDENTITY ACTIVITIES',
-                subconsciousTypes.where((t) => t['subcategory'] == 'verified').toList(),
+                subconsciousTypes
+                    .where((t) => t['subcategory'] == 'verified')
+                    .toList(),
                 50,
               ),
               // Custom/other types without subcategory
-              if (subconsciousTypes.any((t) => t['subcategory'] != 'manual' && t['subcategory'] != 'verified')) ...[
+              if (subconsciousTypes.any(
+                (t) =>
+                    t['subcategory'] != 'manual' &&
+                    t['subcategory'] != 'verified',
+              )) ...[
                 const SizedBox(height: 24),
                 _buildSubcategorySection(
                   'OTHER',
-                  subconsciousTypes.where((t) => t['subcategory'] != 'manual' && t['subcategory'] != 'verified').toList(),
+                  subconsciousTypes
+                      .where(
+                        (t) =>
+                            t['subcategory'] != 'manual' &&
+                            t['subcategory'] != 'verified',
+                      )
+                      .toList(),
                   100,
                 ),
               ],
@@ -630,7 +754,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     );
   }
 
-  Widget _buildSubcategorySection(String title, List<Map<String, dynamic>> types, int baseDelay) {
+  Widget _buildSubcategorySection(
+    String title,
+    List<Map<String, dynamic>> types,
+    int baseDelay,
+  ) {
     if (types.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -672,7 +800,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     final bool isInteracted =
         existingLog.isNotEmpty || _interactedKeys.contains(typeKey);
     // Consider both server state and local optimistic completions
-    final bool isCompleted = _completedKeys.contains(typeKey) ||
+    final bool isCompleted =
+        _completedKeys.contains(typeKey) ||
         (existingLog.isNotEmpty &&
             (existingLog['is_completed'] == true ||
                 existingLog['is_completed'] == 1));
@@ -934,8 +1063,9 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }) async {
     final String typeKey = activityType['type_key'] ?? '';
     final String name = activityType['name'] ?? 'Unknown';
-    final String category =
-        (activityType['category'] == 'conscious') ? 'task' : activityType['category'];
+    final String category = (activityType['category'] == 'conscious')
+        ? 'task'
+        : activityType['category'];
     if (_interactedKeys.contains(typeKey)) return;
 
     debugPrint(

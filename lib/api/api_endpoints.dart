@@ -68,6 +68,7 @@ class ApiEndpoints {
   static const String clientsStatus = '/clients/status';
   static const String clients = '/clients';
   static String clientActions(int id) => '/clients/$id/actions';
+  static String clientDailyProgress(int id) => '/clients/$id/daily-progress';
   static String clientActivities(int id) => '/clients/$id/activities';
   static String clientActionLog(int id) => '/clients/$id/action-log';
   static const String revenueMetrics = '/revenue/metrics';
