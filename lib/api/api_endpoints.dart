@@ -1,6 +1,6 @@
 class ApiEndpoints {
-  // Base URL for Android emulator → host machine
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // Base URL for Production VPS
+  static const String baseUrl = 'http://api.aanantbishthealing.com/api';
 
   // Auth endpoints
   static const String login = '/login';

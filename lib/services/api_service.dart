@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Base URL for Android emulator → host machine
-  // Emulator uses 10.0.2.2 to reach the Windows host where Docker runs.
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
+  // Base URL for Production VPS
+  static const String baseUrl = 'http://api.aanantbishthealing.com/api';
 
   static Future<Map<String, dynamic>> login(
     String email,
