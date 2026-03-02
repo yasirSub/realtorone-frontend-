@@ -216,38 +216,148 @@ class CourseModel {
   final String title;
   final String description;
   final String? url;
+  final String? thumbnailUrl;
   final String minTier;
   final bool isLocked;
   final int moduleNumber;
   final int sequence;
   final int progressPercent;
   final bool isCompleted;
+  final bool isPublished;
+  final List<ModuleItem>? modules;
 
   CourseModel({
     required this.id,
     required this.title,
     required this.description,
     this.url,
+    this.thumbnailUrl,
     required this.minTier,
     this.isLocked = false,
     this.moduleNumber = 1,
     this.sequence = 0,
     this.progressPercent = 0,
     this.isCompleted = false,
+    this.isPublished = true,
+    this.modules,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
     return CourseModel(
-      id: json['id'],
-      title: json['title'] ?? '',
+      id: json['id'] ?? 0,
+      title: json['title'] ?? 'Untitled',
       description: json['description'] ?? '',
       url: json['url'],
+      thumbnailUrl: json['thumbnail_url'],
       minTier: json['min_tier'] ?? 'Consultant',
       isLocked: json['is_locked'] ?? false,
       moduleNumber: json['module_number'] ?? 1,
       sequence: json['sequence'] ?? 0,
       progressPercent: json['progress_percent'] ?? 0,
       isCompleted: json['is_completed'] ?? false,
+      isPublished: json['is_published'] ?? true,
+      modules: (json['modules'] as List<dynamic>?)
+          ?.map((m) => ModuleItem.fromJson(m))
+          .toList(),
+    );
+  }
+}
+
+class ModuleItem {
+  final int id;
+  final String title;
+  final String? description;
+  final int sequence;
+  final List<LessonItem> lessons;
+
+  ModuleItem({
+    required this.id,
+    required this.title,
+    this.description,
+    required this.sequence,
+    required this.lessons,
+  });
+
+  factory ModuleItem.fromJson(Map<String, dynamic> json) {
+    return ModuleItem(
+      id: json['id'],
+      title: json['title'] ?? '',
+      description: json['description'],
+      sequence: json['sequence'] ?? 0,
+      lessons: (json['lessons'] as List<dynamic>?)
+              ?.map((l) => LessonItem.fromJson(l))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+class LessonItem {
+  final int id;
+  final String title;
+  final String? description;
+  final int sequence;
+  final bool isPublished;
+  final bool isPreview;
+  final List<MaterialItem> materials;
+
+  LessonItem({
+    required this.id,
+    required this.title,
+    this.description,
+    required this.sequence,
+    this.isPublished = true,
+    this.isPreview = false,
+    required this.materials,
+  });
+
+  factory LessonItem.fromJson(Map<String, dynamic> json) {
+    return LessonItem(
+      id: json['id'],
+      title: json['title'] ?? '',
+      description: json['description'],
+      sequence: json['sequence'] ?? 0,
+      isPublished: json['is_published'] ?? true,
+      isPreview: json['is_preview'] ?? false,
+      materials: (json['materials'] as List<dynamic>?)
+              ?.map((m) => MaterialItem.fromJson(m))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+class MaterialItem {
+  final int id;
+  final String? title;
+  final String type;
+  final String? url;
+  final String? thumbnailUrl;
+  final bool showDownloadLink;
+  final bool isCompleted;
+  final String? completedAt;
+
+  MaterialItem({
+    required this.id,
+    this.title,
+    required this.type,
+    this.url,
+    this.thumbnailUrl,
+    this.showDownloadLink = false,
+    this.isCompleted = false,
+    this.completedAt,
+  });
+
+  factory MaterialItem.fromJson(Map<String, dynamic> json) {
+    return MaterialItem(
+      id: json['id'],
+      title: json['title'],
+      type: json['type'] ?? 'Video',
+      url: json['url'],
+      thumbnailUrl: json['thumbnail_url'],
+      showDownloadLink: json['show_download_link'] ?? false,
+      isCompleted: json['is_completed'] ?? false,
+      completedAt: json['completed_at'],
     );
   }
 }

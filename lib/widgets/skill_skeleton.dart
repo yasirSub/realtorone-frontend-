@@ -17,7 +17,7 @@ class SkillSkeleton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(28),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.03)),
+                border: Border.all(color: Colors.black.withOpacity(0.03)),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(20),

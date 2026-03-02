@@ -15,6 +15,11 @@ class LearningApi {
     return await ApiClient.get(ApiEndpoints.courses, requiresAuth: true);
   }
 
+  /// Get detailed course curriculum
+  static Future<Map<String, dynamic>> getCourseDetails(int id) async {
+    return await ApiClient.get('${ApiEndpoints.courses}/$id', requiresAuth: true);
+  }
+
   /// Get learning content, optionally filtered by category
   static Future<Map<String, dynamic>> getContent({String? category}) async {
     String endpoint = ApiEndpoints.learningContent;
@@ -33,5 +38,17 @@ class LearningApi {
       'content_id': contentId,
       'progress_percent': progressPercent,
     }, requiresAuth: true);
+  }
+
+  /// Update material completion status
+  static Future<Map<String, dynamic>> updateMaterialProgress({
+    required int materialId,
+    required bool isCompleted,
+  }) async {
+    return await ApiClient.post(
+      '${ApiEndpoints.courses}/materials/$materialId/progress',
+      {'is_completed': isCompleted},
+      requiresAuth: true,
+    );
   }
 }

@@ -121,6 +121,14 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 32),
             _buildDebugBtn(
+              'Demo Account',
+              'demo11@gmail.com',
+              password: '123456789',
+              icon: Icons.rocket_launch_rounded,
+              color: const Color(0xFF6366F1),
+            ),
+            const SizedBox(height: 12),
+            _buildDebugBtn(
               'Titan',
               'diamond@example.com',
               icon: Icons.emoji_events_rounded,
@@ -171,16 +179,14 @@ class _LoginPageState extends State<LoginPage> {
         _handleLogin();
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: (color ?? const Color(0xFFF1F5F9)).withValues(
-          alpha: 0.1,
-        ),
+        backgroundColor: (color ?? const Color(0xFFF1F5F9)).withOpacity(0.1),
         foregroundColor: color ?? const Color(0xFF1E293B),
         elevation: 0,
         minimumSize: const Size(double.infinity, 60),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: (color ?? const Color(0xFFE2E8F0)).withValues(alpha: 0.2),
+            color: (color ?? const Color(0xFFE2E8F0)).withOpacity(0.2),
             width: 1.5,
           ),
         ),
@@ -219,7 +225,7 @@ class _LoginPageState extends State<LoginPage> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFF667eea).withValues(alpha: 0.15),
+                    const Color(0xFF667eea).withOpacity(0.15),
                     Theme.of(context).scaffoldBackgroundColor,
                     Theme.of(context).scaffoldBackgroundColor,
                   ],
@@ -510,7 +516,7 @@ class _LoginPageState extends State<LoginPage> {
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF667eea).withValues(alpha: 0.05),
+                color: const Color(0xFF667eea).withOpacity(0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, color: const Color(0xFF667eea), size: 18),

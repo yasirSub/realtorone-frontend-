@@ -21,6 +21,9 @@ import '../screens/activities/activities_page.dart';
 import '../screens/leaderboard/leaderboard_page.dart';
 import '../screens/badges/badges_page.dart';
 
+import '../screens/learning/course_curriculum_page.dart';
+import '../screens/learning/video_player_page.dart';
+
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -43,6 +46,21 @@ class RouteConfig {
       AppRoutes.activities: (context) => const ActivitiesPage(),
       AppRoutes.leaderboard: (context) => const LeaderboardPage(),
       AppRoutes.badges: (context) => const BadgesPage(),
+      AppRoutes.courseCurriculum: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        return CourseCurriculumPage(
+          courseId: args['courseId'],
+          courseTitle: args['courseTitle'],
+        );
+      },
+      AppRoutes.videoPlayer: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        return VideoPlayerPage(
+          videoUrl: args['videoUrl'],
+          title: args['title'],
+          materialId: args['materialId'],
+        );
+      },
     };
   }
 }

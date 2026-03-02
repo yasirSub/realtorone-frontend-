@@ -511,7 +511,7 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: const Color(0xFF22C55E)
-                                    .withValues(alpha: 0.1),
+                                    .withOpacity(0.1),
                               ),
                               child: const Center(
                                 child: Icon(

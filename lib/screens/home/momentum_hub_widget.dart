@@ -198,13 +198,13 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
           end: Alignment.bottomRight,
           colors: [
             const Color(0xFF1E293B),
-            Color.lerp(const Color(0xFF1E293B), scoreColor, 0.08)!,
+            Color.lerp(const Color(0xFF1E293B), scoreColor, 0.08) ?? const Color(0xFF1E293B),
           ],
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E293B).withValues(alpha: 0.3),
+            color: const Color(0xFF1E293B).withOpacity(0.3),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
@@ -245,10 +245,10 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF97316).withValues(alpha: 0.15),
+                  color: const Color(0xFFF97316).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: const Color(0xFFF97316).withValues(alpha: 0.3),
+                    color: const Color(0xFFF97316).withOpacity(0.3),
                   ),
                 ),
                 child: Row(
@@ -355,16 +355,16 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withOpacity(0.08),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.15)),
+          border: Border.all(color: color.withOpacity(0.15)),
         ),
         child: Column(
           children: [
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.4),
+                color: Colors.white.withOpacity(0.4),
                 fontSize: 8,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1,
@@ -385,7 +385,7 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
                   TextSpan(
                     text: '/$max',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.25),
+                      color: Colors.white.withOpacity(0.25),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -425,7 +425,7 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04),
+            color: Colors.black.withOpacity(isDark ? 0.15 : 0.04),
             blurRadius: 20,
           ),
         ],
@@ -559,7 +559,7 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
+                  ? Colors.white.withOpacity(0.05)
                   : const Color(0xFFE2E8F0),
             ),
           ),
@@ -573,7 +573,7 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: color.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(icon, color: color, size: 20),

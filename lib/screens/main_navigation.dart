@@ -46,9 +46,9 @@ class _MainNavigationState extends State<MainNavigation> {
                   end: Alignment.bottomCenter,
                   colors: [
                     (isDark ? const Color(0xFF020617) : Colors.white)
-                        .withValues(alpha: 0.0),
+                        .withOpacity(0.0),
                     (isDark ? const Color(0xFF020617) : Colors.white)
-                        .withValues(alpha: 0.8),
+                        .withOpacity(0.8),
                     (isDark ? const Color(0xFF020617) : Colors.white),
                   ],
                   stops: const [0.0, 0.4, 1.0],
@@ -69,14 +69,14 @@ class _MainNavigationState extends State<MainNavigation> {
                               (isDark
                                       ? const Color(0xFF1E293B)
                                       : const Color(0xFF0F172A))
-                                  .withValues(alpha: 0.92),
+                                  .withOpacity(0.92),
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08),
+                            color: Colors.white.withOpacity(0.08),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
+                              color: Colors.black.withOpacity(0.25),
                               blurRadius: 25,
                               offset: const Offset(0, 12),
                             ),
@@ -115,7 +115,7 @@ class _MainNavigationState extends State<MainNavigation> {
     final isSelected = _currentIndex == index;
     final color = isSelected
         ? const Color(0xFF667eea)
-        : Colors.white.withValues(alpha: 0.45);
+        : Colors.white.withOpacity(0.45);
 
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -153,7 +153,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 boxShadow: [
                   if (isSelected)
                     BoxShadow(
-                      color: const Color(0xFF667eea).withValues(alpha: 0.6),
+                      color: const Color(0xFF667eea).withOpacity(0.6),
                       blurRadius: 10,
                       spreadRadius: 1,
                     ),

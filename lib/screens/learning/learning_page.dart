@@ -51,29 +51,35 @@ class _LearningPageState extends State<LearningPage>
 
   bool get _isPremium => _userTier.toLowerCase() != 'free';
 
+  int _getTierWeight(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'titan': return 3;
+      case 'rainmaker': return 2;
+      case 'consultant': return 1;
+      case 'free': return 0;
+      default: return 1; // Default to consultant for safety
+    }
+  }
+
+  bool _isTierUnlocked(String requiredTier) {
+    return _getTierWeight(_userTier) >= _getTierWeight(requiredTier);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF1F5F9),
+      backgroundColor: const Color(0xFF0F172A),
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) => [
           // MISSION CONTROL VAULT HEADER
           SliverAppBar(
-            expandedHeight: 220,
+            expandedHeight: 180,
             pinned: true,
             stretch: true,
-            backgroundColor: const Color(0xFF1E293B),
+            backgroundColor: const Color(0xFF0F172A),
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text(
-                'KNOWLEDGE VAULT',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
-                  letterSpacing: 2,
-                ),
-              ),
+              centerTitle: true,
               background: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -82,54 +88,45 @@ class _LearningPageState extends State<LearningPage>
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Color(0xFF1E293B), Color(0xFF1e3a8a)],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: -30,
-                    bottom: 20,
-                    child: Opacity(
-                      opacity: 0.1,
-                      child: const Icon(
-                        Icons.school_rounded,
-                        size: 200,
-                        color: Colors.white,
+                        colors: [Color(0xFF0F172A), Color(0xFF020617)],
                       ),
                     ),
                   ),
                   // HUD BARS
                   SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 60, 24, 0),
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildTacticalBadge(
-                                'LIBRARY: ENCRYPTED',
-                                const Color(0xFF4ECDC4),
-                              ),
-                              const SizedBox(width: 12),
-                              _buildTacticalBadge(
-                                'TIER: ${_userTier.toUpperCase()}',
-                                _isPremium
-                                    ? const Color(0xFFFFB347)
-                                    : Colors.white38,
-                              ),
+                              _buildTacticalBadge('KNOWLEDGE VAULT', const Color(0xFF4ECDC4).withOpacity(0.8)),
+                              _buildTacticalBadge(_userTier.toUpperCase(), const Color(0xFFFFB347)),
                             ],
                           ),
-                          const SizedBox(height: 20),
+                          const Spacer(),
                           const Text(
-                            'UNLOCKED MISSION BLUEPRINTS',
+                            'UNLOCKED STRATEGY VAULT',
                             style: TextStyle(
-                              color: Colors.white24,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
                               fontSize: 10,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'TIERED ASSETS',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 1,
                             ),
                           ),
+                          const SizedBox(height: 40),
                         ],
                       ),
                     ),
@@ -137,52 +134,29 @@ class _LearningPageState extends State<LearningPage>
                 ],
               ),
             ),
-            actions: [
-              if (!_isPremium)
-                Padding(
-                  padding: const EdgeInsets.only(
-                    right: 16,
-                    top: 12,
-                    bottom: 12,
-                  ),
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.subscriptionPlans,
-                    ),
-                    icon: const Icon(
-                      Icons.security_rounded,
-                      color: Colors.amber,
-                      size: 16,
-                    ),
-                    label: const Text(
-                      'UPGRADE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.1),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ).animate().scale(delay: 400.ms),
-            ],
           ),
         ],
-        body: RefreshIndicator(
-          onRefresh: _loadData,
-          color: const Color(0xFF667eea),
-          child: _isLoading
-              ? const Center(child: EliteLoader())
-              : _modules.isEmpty
-              ? _buildEmptyState()
-              : _buildModulesList(),
+        body: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(32),
+              topRight: Radius.circular(32),
+            ),
+            child: RefreshIndicator(
+              onRefresh: _loadData,
+              color: const Color(0xFF6366F1),
+              child: _isLoading
+                  ? const Center(child: EliteLoader())
+                  : _buildTieredList(),
+            ),
+          ),
         ),
       ),
     );
@@ -196,7 +170,7 @@ class _LearningPageState extends State<LearningPage>
           Icon(
             Icons.lock_clock_rounded,
             size: 64,
-            color: Colors.grey.withValues(alpha: 0.3),
+            color: Colors.grey.withOpacity(0.3),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -217,123 +191,79 @@ class _LearningPageState extends State<LearningPage>
     );
   }
 
-  Widget _buildModulesList() {
+  Widget _buildTieredList() {
+    final List<String> tiers = ['Consultant', 'Rainmaker', 'Titan'];
+    
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
-      itemCount: _modules.length,
+      itemCount: tiers.length,
       itemBuilder: (context, index) {
-        final module = _modules[index];
-        return _buildModuleSection(module, index);
+        final tier = tiers[index];
+        final tierModules = _modules.where((m) => m.requiredTier.toLowerCase() == tier.toLowerCase()).toList();
+        
+        // Flatten all courses from all modules in this tier
+        final List<CourseModel> tierCourses = [];
+        for (var m in tierModules) {
+          tierCourses.addAll(m.courses);
+        }
+
+        if (tierCourses.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // TIER HEADER (The User wants Tiers as the separation)
+            _buildTierSectionHeader(tier),
+            const SizedBox(height: 12),
+            // Courses under this Tier
+            ...tierCourses.map((course) {
+              return _buildCourseCard(course, _getTierColor(tier));
+            }),
+            const SizedBox(height: 16),
+          ],
+        );
       },
     );
   }
 
-  Widget _buildModuleSection(ModuleModel module, int moduleIndex) {
-    final moduleColors = [
-      const Color(0xFF6366f1), // Module 1 - Purple
-      const Color(0xFFF59E0B), // Module 2 - Gold
-      const Color(0xFF7C3AED), // Module 3 - Purple
-    ];
-    final moduleIndexColor = module.moduleNumber - 1;
-    Color moduleColor;
-    if (moduleIndexColor >= 0 && moduleIndexColor < moduleColors.length) {
-      moduleColor = moduleColors[moduleIndexColor];
-    } else {
-      moduleColor = const Color(0xFF6366f1);
+  Color _getTierColor(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'titan': return const Color(0xFFF59E0B);
+      case 'rainmaker': return const Color(0xFF6366F1);
+      case 'consultant': return const Color(0xFF10B981);
+      default: return const Color(0xFF6366f1);
     }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Module Header
-        Padding(
-          padding: EdgeInsets.only(bottom: 16, top: moduleIndex > 0 ? 32 : 0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: module.isLocked 
-                      ? Colors.grey.withValues(alpha: 0.1)
-                      : moduleColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: module.isLocked 
-                        ? Colors.grey.withValues(alpha: 0.3)
-                        : moduleColor.withValues(alpha: 0.3),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      module.isLocked ? Icons.lock_outline_rounded : Icons.auto_awesome_rounded,
-                      size: 16,
-                      color: module.isLocked ? Colors.grey : moduleColor,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      module.moduleName.toUpperCase(),
-                      style: TextStyle(
-                        color: module.isLocked ? Colors.grey : moduleColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (module.isLocked) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _showUpgradePrompt(module),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.arrow_upward_rounded, size: 12, color: Colors.amber),
-                          const SizedBox(width: 4),
-                          Text(
-                            'UPGRADE TO ${module.requiredTier.toUpperCase()}',
-                            style: const TextStyle(
-                              color: Colors.amber,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+  }
+
+  Widget _buildTierSectionHeader(String tier) {
+    final color = _getTierColor(tier);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.shield_rounded, size: 14, color: color),
+          const SizedBox(width: 8),
+          Text(
+            '${tier.toUpperCase()} LEVEL ASSETS',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
           ),
-        ),
-        // Courses in Module
-        ...module.courses.asMap().entries.map((entry) {
-          final courseIndex = entry.key;
-          final course = entry.value;
-          return _buildCourseCard(course, moduleColor)
-              .animate()
-              .fadeIn(delay: ((moduleIndex * 100) + (courseIndex * 50)).ms)
-              .slideY(begin: 0.1);
-        }),
-      ],
+        ],
+      ),
     );
   }
 
-  void _showUpgradePrompt(ModuleModel module) {
+  void _showUpgradePrompt(String tierName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -342,7 +272,7 @@ class _LearningPageState extends State<LearningPage>
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'UPGRADE TO ${module.requiredTier.toUpperCase()} TO UNLOCK ${module.moduleName.toUpperCase()}',
+                'UPGRADE TO ${tierName.toUpperCase()} TO UNLOCK',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1,
@@ -363,120 +293,114 @@ class _LearningPageState extends State<LearningPage>
   }
 
   Widget _buildCourseCard(CourseModel course, Color moduleColor) {
-    final bool isLocked = course.isLocked;
+    final bool isLocked = course.isLocked && !_isTierUnlocked(course.minTier);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 12),
+      height: 90, // Fixed height for absolute rendering stability
       decoration: BoxDecoration(
-        color: isLocked ? Colors.white.withValues(alpha: 0.6) : Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        color: isLocked ? Colors.white.withOpacity(0.5) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 10),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: InkWell(
         onTap: () => _openCourse(course),
-        borderRadius: BorderRadius.circular(28),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        borderRadius: BorderRadius.circular(16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
           child: Row(
             children: [
+              // Fixed Size Side Thumbnail
               Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: isLocked
-                      ? Colors.grey.withValues(alpha: 0.1)
-                      : const Color(0xFF6366f1).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
-                ),
+                width: 100,
+                height: 90,
+                color: moduleColor.withOpacity(0.1),
                 child: Stack(
-                  alignment: Alignment.center,
+                  fit: StackFit.expand,
                   children: [
-                    Icon(
-                      isLocked
-                          ? Icons.lock_outline_rounded
-                          : course.isCompleted
-                          ? Icons.check_circle_rounded
-                          : Icons.play_circle_fill_rounded,
-                      color: isLocked ? Colors.grey : moduleColor,
-                      size: isLocked ? 24 : 32,
-                    ),
-                    if (!isLocked && course.progressPercent > 0 && !course.isCompleted)
-                      Positioned(
-                        bottom: 0,
-                        child: Container(
-                          width: 20,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: moduleColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
+                    if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
+                      Image.network(
+                        course.thumbnailUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey),
+                      )
+                    else
+                      Center(
+                        child: Icon(
+                          isLocked ? Icons.lock_outline_rounded : Icons.play_circle_fill_rounded,
+                          color: moduleColor.withOpacity(0.4),
+                          size: 32,
+                        ),
+                      ),
+                    if (isLocked)
+                      Container(
+                        color: Colors.white.withOpacity(0.3),
+                        child: const Center(
+                          child: Icon(Icons.lock_rounded, color: Color(0xFF64748B), size: 24),
                         ),
                       ),
                   ],
                 ),
               ),
-              const SizedBox(width: 20),
+              
+              // Course Content
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            course.title,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 17,
-                              color: isLocked
-                                  ? const Color(0xFF64748B)
-                                  : const Color(0xFF1E293B),
-                              letterSpacing: -0.5,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              course.title,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                color: isLocked ? const Color(0xFF64748B) : const Color(0xFF1E293B),
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                        _buildTierPill(course.minTier, isLocked: isLocked),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      course.description,
-                      style: TextStyle(
-                        color: isLocked ? Colors.grey[400] : Colors.grey[600],
-                        fontSize: 12,
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (!isLocked && course.progressPercent > 0) ...[
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: course.progressPercent / 100,
-                          backgroundColor: Colors.grey[200],
-                          valueColor: AlwaysStoppedAnimation<Color>(moduleColor),
-                          minHeight: 4,
-                        ),
+                          const SizedBox(width: 8),
+                          _buildTierPill(course.minTier, isLocked: isLocked),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${course.progressPercent}% Complete',
+                        course.description,
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: isLocked ? Colors.grey[400] : Colors.grey[600],
                           fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                          height: 1.2,
                         ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      if (!isLocked && course.progressPercent > 0) ...[
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: course.progressPercent / 100,
+                            backgroundColor: Colors.grey[100],
+                            valueColor: AlwaysStoppedAnimation<Color>(moduleColor),
+                            minHeight: 2,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -489,37 +413,34 @@ class _LearningPageState extends State<LearningPage>
   Widget _buildTierPill(String tier, {bool isLocked = false}) {
     Color color;
     switch (tier.toLowerCase()) {
-      case 'diamond':
-        color = const Color(0xFF0EA5E9);
+      case 'titan':
+        color = const Color(0xFFF59E0B); // Amber
         break;
-      case 'gold':
-        color = const Color(0xFFF59E0B);
+      case 'rainmaker':
+        color = const Color(0xFF6366F1); // Indigo
         break;
-      case 'silver':
-        color = const Color(0xFF64748B);
+      case 'consultant':
+        color = const Color(0xFF10B981); // Emerald
         break;
       default:
-        color = const Color(0xFF10B981);
+        color = const Color(0xFF64748B); // Slate
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isLocked
-            ? Colors.grey.withValues(alpha: 0.1)
-            : color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        color: isLocked ? Colors.grey.withOpacity(0.1) : color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: isLocked
-              ? Colors.grey.withValues(alpha: 0.2)
-              : color.withValues(alpha: 0.2),
+          color: isLocked ? Colors.grey.withOpacity(0.2) : color.withOpacity(0.2),
+          width: 0.8,
         ),
       ),
       child: Text(
         tier.toUpperCase(),
         style: TextStyle(
           color: isLocked ? Colors.grey : color,
-          fontSize: 8,
+          fontSize: 7,
           fontWeight: FontWeight.w900,
           letterSpacing: 0.5,
         ),
@@ -531,9 +452,9 @@ class _LearningPageState extends State<LearningPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Text(
         label,
@@ -548,7 +469,8 @@ class _LearningPageState extends State<LearningPage>
   }
 
   Future<void> _openCourse(CourseModel course) async {
-    if (course.isLocked) {
+    final bool isLocked = course.isLocked && !_isTierUnlocked(course.minTier);
+    if (isLocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -579,51 +501,14 @@ class _LearningPageState extends State<LearningPage>
       return;
     }
 
-    // Update progress when course is accessed
-    try {
-      await ApiClient.post(
-        '${ApiEndpoints.courses}/${course.id}/progress',
-        {
-          'progress_percent': course.progressPercent > 0 ? course.progressPercent : 5,
-          'is_completed': course.isCompleted,
-        },
-        requiresAuth: true,
-      );
-      // Reload to update progress
-      if (mounted) _loadData();
-    } catch (e) {
-      debugPrint('Error updating progress: $e');
-    }
-
-    if (course.url != null && course.url!.isNotEmpty) {
-      // Open URL in browser or webview
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.open_in_new_rounded, size: 18),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Opening: ${course.title}'),
-              ),
-            ],
-          ),
-          backgroundColor: const Color(0xFF1E293B),
-          behavior: SnackBarBehavior.floating,
-          action: SnackBarAction(
-            label: 'OPEN',
-            textColor: const Color(0xFF4ECDC4),
-            onPressed: () {
-              // You can use url_launcher package here
-              // launchUrl(Uri.parse(course.url!));
-            },
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Course content coming soon...')),
-      );
-    }
+    // Navigate to course curriculum
+    Navigator.pushNamed(
+      context,
+      AppRoutes.courseCurriculum,
+      arguments: {
+        'courseId': course.id,
+        'courseTitle': course.title,
+      },
+    );
   }
 }

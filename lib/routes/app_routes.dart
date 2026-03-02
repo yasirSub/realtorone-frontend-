@@ -18,4 +18,6 @@ class AppRoutes {
   static const String activities = '/activities';
   static const String leaderboard = '/leaderboard';
   static const String badges = '/badges';
+  static const String courseCurriculum = '/course-curriculum';
+  static const String videoPlayer = '/video-player';
 }
