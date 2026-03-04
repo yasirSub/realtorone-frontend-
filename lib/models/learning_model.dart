@@ -300,6 +300,9 @@ class LessonItem {
   final bool isPublished;
   final bool isPreview;
   final List<MaterialItem> materials;
+  final bool allowVideoDownload;
+  final bool allowPdfDownload;
+  final bool allowComments;
 
   LessonItem({
     required this.id,
@@ -309,9 +312,16 @@ class LessonItem {
     this.isPublished = true,
     this.isPreview = false,
     required this.materials,
+    this.allowVideoDownload = false,
+    this.allowPdfDownload = false,
+    this.allowComments = false,
   });
 
   factory LessonItem.fromJson(Map<String, dynamic> json) {
+    final allowVideo = json['allow_video_download'] ?? false;
+    final allowPdf = json['allow_pdf_download'] ?? false;
+    final allowComments = json['allow_comments'] ?? false;
+
     return LessonItem(
       id: json['id'],
       title: json['title'] ?? '',
@@ -319,10 +329,15 @@ class LessonItem {
       sequence: json['sequence'] ?? 0,
       isPublished: json['is_published'] ?? true,
       isPreview: json['is_preview'] ?? false,
-      materials: (json['materials'] as List<dynamic>?)
-              ?.map((m) => MaterialItem.fromJson(m))
-              .toList() ??
-          [],
+      allowVideoDownload: allowVideo,
+      allowPdfDownload: allowPdf,
+      allowComments: allowComments,
+      materials: (json['materials'] as List<dynamic>?)?.map((m) {
+            final material = MaterialItem.fromJson(m);
+            // Absolute Individual Control: 
+            // Every training material follows its own specific setting from the backend.
+            return material; 
+          }).toList() ?? [],
     );
   }
 }
@@ -335,6 +350,7 @@ class MaterialItem {
   final String? thumbnailUrl;
   final bool showDownloadLink;
   final bool isCompleted;
+  final int progressSeconds;
   final String? completedAt;
 
   MaterialItem({
@@ -345,8 +361,25 @@ class MaterialItem {
     this.thumbnailUrl,
     this.showDownloadLink = false,
     this.isCompleted = false,
+    this.progressSeconds = 0,
     this.completedAt,
   });
+
+  MaterialItem copyWith({
+    bool? showDownloadLink,
+  }) {
+    return MaterialItem(
+      id: id,
+      title: title,
+      type: type,
+      url: url,
+      thumbnailUrl: thumbnailUrl,
+      showDownloadLink: showDownloadLink ?? this.showDownloadLink,
+      isCompleted: isCompleted,
+      progressSeconds: progressSeconds,
+      completedAt: completedAt,
+    );
+  }
 
   factory MaterialItem.fromJson(Map<String, dynamic> json) {
     return MaterialItem(
@@ -356,7 +389,8 @@ class MaterialItem {
       url: json['url'],
       thumbnailUrl: json['thumbnail_url'],
       showDownloadLink: json['show_download_link'] ?? false,
-      isCompleted: json['is_completed'] ?? false,
+      isCompleted: json['is_completed'] == true || json['is_completed'] == 1,
+      progressSeconds: json['progress_seconds'] ?? 0,
       completedAt: json['completed_at'],
     );
   }

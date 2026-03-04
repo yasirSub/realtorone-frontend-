@@ -194,18 +194,20 @@ class _LearningPageState extends State<LearningPage>
   Widget _buildTieredList() {
     final List<String> tiers = ['Consultant', 'Rainmaker', 'Titan'];
     
+    // Gather all courses from all modules
+    final allCourses = <CourseModel>[];
+    for (var module in _modules) {
+      allCourses.addAll(module.courses);
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
       itemCount: tiers.length,
       itemBuilder: (context, index) {
         final tier = tiers[index];
-        final tierModules = _modules.where((m) => m.requiredTier.toLowerCase() == tier.toLowerCase()).toList();
         
-        // Flatten all courses from all modules in this tier
-        final List<CourseModel> tierCourses = [];
-        for (var m in tierModules) {
-          tierCourses.addAll(m.courses);
-        }
+        // Filter courses by their OWN minTier property
+        final tierCourses = allCourses.where((c) => c.minTier.toLowerCase() == tier.toLowerCase()).toList();
 
         if (tierCourses.isEmpty) return const SizedBox.shrink();
 
@@ -219,7 +221,7 @@ class _LearningPageState extends State<LearningPage>
             ...tierCourses.map((course) {
               return _buildCourseCard(course, _getTierColor(tier));
             }),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
           ],
         );
       },
@@ -326,7 +328,7 @@ class _LearningPageState extends State<LearningPage>
                   children: [
                     if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
                       Image.network(
-                        course.thumbnailUrl!,
+                        course.thumbnailUrl!.contains('://') ? course.thumbnailUrl! : '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/storage/${course.thumbnailUrl}',
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey),
                       )

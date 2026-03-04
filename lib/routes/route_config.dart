@@ -23,6 +23,7 @@ import '../screens/badges/badges_page.dart';
 
 import '../screens/learning/course_curriculum_page.dart';
 import '../screens/learning/video_player_page.dart';
+import '../screens/learning/course_exam_page.dart';
 
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
@@ -59,6 +60,13 @@ class RouteConfig {
           videoUrl: args['videoUrl'],
           title: args['title'],
           materialId: args['materialId'],
+        );
+      },
+      AppRoutes.courseExam: (context) {
+        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        return CourseExamPage(
+          courseId: args['courseId'],
+          courseTitle: args['courseTitle'] ?? 'Exam',
         );
       },
     };

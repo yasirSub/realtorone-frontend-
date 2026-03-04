@@ -54,6 +54,9 @@ class ApiEndpoints {
 
   // Courses (End-user)
   static const String courses = '/courses';
+  static String courseExam(int courseId) => '/courses/$courseId/exam';
+  static String courseExamSubmit(int courseId) => '/courses/$courseId/exam/submit';
+  static String courseProgress(int courseId) => '/courses/$courseId/progress';
 
   // Subscription endpoints
   static const String packages = '/packages';

@@ -43,11 +43,56 @@ class LearningApi {
   /// Update material completion status
   static Future<Map<String, dynamic>> updateMaterialProgress({
     required int materialId,
-    required bool isCompleted,
+    bool? isCompleted,
+    int? progressSeconds,
   }) async {
+    final Map<String, dynamic> data = {};
+    if (isCompleted != null) data['is_completed'] = isCompleted;
+    if (progressSeconds != null) data['progress_seconds'] = progressSeconds;
+
     return await ApiClient.post(
       '${ApiEndpoints.courses}/materials/$materialId/progress',
-      {'is_completed': isCompleted},
+      data,
+      requiresAuth: true,
+    );
+  }
+
+  /// Mark course progress (e.g. 100% and completed when all modules done)
+  static Future<Map<String, dynamic>> updateCourseProgress({
+    required int courseId,
+    required int progressPercent,
+    bool isCompleted = false,
+  }) async {
+    return await ApiClient.post(
+      ApiEndpoints.courseProgress(courseId),
+      {
+        'progress_percent': progressPercent,
+        'is_completed': isCompleted,
+      },
+      requiresAuth: true,
+    );
+  }
+
+  /// Get course exam (only after course is completed)
+  static Future<Map<String, dynamic>> getCourseExam(int courseId) async {
+    return await ApiClient.get(
+      ApiEndpoints.courseExam(courseId),
+      requiresAuth: true,
+    );
+  }
+
+  /// Submit exam answers
+  static Future<Map<String, dynamic>> submitCourseExam({
+    required int courseId,
+    required List<Map<String, dynamic>> answers,
+    String? startedAt,
+  }) async {
+    return await ApiClient.post(
+      ApiEndpoints.courseExamSubmit(courseId),
+      {
+        'answers': answers,
+        if (startedAt != null) 'started_at': startedAt,
+      },
       requiresAuth: true,
     );
   }
