@@ -1,8 +1,6 @@
 class ApiEndpoints {
-  // Base URL for Local Development (Use 10.0.2.2 for Android Emulator, 127.0.0.1 for iOS/Web)
-  static const String baseUrl = 'http://10.0.2.2:8000/api';
-  // static const String baseUrl = 'http://api.aanantbishthealing.com/api';
-  // static const String baseUrl = 'http://localhost:8000/api';
+  // VPS backend used by the mobile app builds.
+  static const String baseUrl = 'http://187.77.184.129:8000/api';
 
   // Auth endpoints
   static const String login = '/login';
@@ -55,7 +53,8 @@ class ApiEndpoints {
   // Courses (End-user)
   static const String courses = '/courses';
   static String courseExam(int courseId) => '/courses/$courseId/exam';
-  static String courseExamSubmit(int courseId) => '/courses/$courseId/exam/submit';
+  static String courseExamSubmit(int courseId) =>
+      '/courses/$courseId/exam/submit';
   static String courseProgress(int courseId) => '/courses/$courseId/progress';
 
   // Subscription endpoints
@@ -94,4 +93,3 @@ class ApiEndpoints {
   // ============== PHASE 6: WEEKLY REVIEW ==============
   static const String weeklyReview = '/weekly-review';
 }
-

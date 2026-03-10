@@ -18,6 +18,7 @@ class AppRoutes {
   static const String activities = '/activities';
   static const String leaderboard = '/leaderboard';
   static const String badges = '/badges';
+  static const String revenChat = '/reven-chat';
   static const String courseCurriculum = '/course-curriculum';
   static const String videoPlayer = '/video-player';
   static const String courseExam = '/course-exam';

@@ -42,113 +42,35 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_isLoading) {
       return const SizedBox(height: 120, child: Center(child: EliteLoader()));
     }
 
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, AppRoutes.reports),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard(
-                  'Growth Potential',
-                  '$_growthScore',
-                  const Color(0xFF667eea),
-                  Icons.trending_up_rounded,
-                  true, // isGrowth
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildMetricCard(
-                  'Execution Rate',
-                  '$_executionRate%',
-                  const Color(0xFF4ECDC4),
-                  Icons.bolt_rounded,
-                  false, // isExecution
-                ),
-              ),
-            ],
+          Expanded(
+            child: _buildMetricCard(
+              'Growth Potential',
+              '$_growthScore',
+              const Color(0xFF667eea),
+              Icons.trending_up_rounded,
+              true,
+            ),
           ),
-          const SizedBox(height: 16),
-          // SECONDARY HUD: ACTIVITY PULSE
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: isDark ? const Color(0xFF334155) : Colors.white,
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-                  blurRadius: 10,
-                ),
-              ],
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildMetricCard(
+              'Execution Rate',
+              '$_executionRate%',
+              const Color(0xFF4ECDC4),
+              Icons.bolt_rounded,
+              false,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildPulseItem(
-                  Icons.phone_in_talk_rounded,
-                  'CALLS',
-                  '45',
-                  isDark,
-                ),
-                _buildPulseItem(Icons.groups_rounded, 'MEET', '12', isDark),
-                _buildPulseItem(Icons.repeat_rounded, 'FOLD', '28', isDark),
-                _buildPulseItem(
-                  Icons.location_on_rounded,
-                  'SITE',
-                  '08',
-                  isDark,
-                ),
-              ],
-            ),
-          ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+          ),
         ],
       ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
-    );
-  }
-
-  Widget _buildPulseItem(
-    IconData icon,
-    String label,
-    String value,
-    bool isDark,
-  ) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          color: isDark ? Colors.white38 : const Color(0xFF64748B),
-          size: 14,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: isDark ? Colors.white38 : const Color(0xFF64748B),
-            fontSize: 8,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
     );
   }
 

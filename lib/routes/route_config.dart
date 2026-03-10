@@ -20,6 +20,7 @@ import '../screens/results/results_tracker_page.dart';
 import '../screens/activities/activities_page.dart';
 import '../screens/leaderboard/leaderboard_page.dart';
 import '../screens/badges/badges_page.dart';
+import '../screens/chatbot/reven_chat_page.dart';
 
 import '../screens/learning/course_curriculum_page.dart';
 import '../screens/learning/video_player_page.dart';
@@ -47,15 +48,18 @@ class RouteConfig {
       AppRoutes.activities: (context) => const ActivitiesPage(),
       AppRoutes.leaderboard: (context) => const LeaderboardPage(),
       AppRoutes.badges: (context) => const BadgesPage(),
+      AppRoutes.revenChat: (context) => const RevenChatPage(),
       AppRoutes.courseCurriculum: (context) {
-        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
         return CourseCurriculumPage(
           courseId: args['courseId'],
           courseTitle: args['courseTitle'],
         );
       },
       AppRoutes.videoPlayer: (context) {
-        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
         return VideoPlayerPage(
           videoUrl: args['videoUrl'],
           title: args['title'],
@@ -63,7 +67,8 @@ class RouteConfig {
         );
       },
       AppRoutes.courseExam: (context) {
-        final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+        final args =
+            ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
         return CourseExamPage(
           courseId: args['courseId'],
           courseTitle: args['courseTitle'] ?? 'Exam',

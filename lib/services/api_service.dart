@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // Base URL for Production VPS
-  static const String baseUrl = 'http://api.aanantbishthealing.com/api';
+  // Base URL for the live RealtorOne VPS backend.
+  static const String baseUrl = 'http://187.77.184.129:8000/api';
 
   static Future<Map<String, dynamic>> login(
     String email,
@@ -47,4 +47,3 @@ class ApiService {
     }
   }
 }
-
