@@ -27,9 +27,10 @@ class RevenChatPage extends StatefulWidget {
           reverseCurve: Curves.easeInCubic,
         );
         return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          ),
+          opacity: Tween<double>(
+            begin: 0,
+            end: 1,
+          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
           child: SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0.12, 0.15),
@@ -89,8 +90,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
         final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
         if (sid != null) {
           final historyRes = await ChatApi.getHistory(sid);
-          if (historyRes['success'] == true &&
-              historyRes['messages'] is List) {
+          if (historyRes['success'] == true && historyRes['messages'] is List) {
             final msgs = historyRes['messages'] as List;
             if (!mounted) return;
             setState(() {
@@ -124,11 +124,13 @@ class _RevenChatPageState extends State<RevenChatPage> {
     if (!mounted) return;
     if (_messages.isEmpty) {
       setState(() {
-        _messages.add(const _RevenMessage(
-          text:
-              'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
-          isUser: false,
-        ));
+        _messages.add(
+          const _RevenMessage(
+            text:
+                'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+            isUser: false,
+          ),
+        );
       });
     }
   }
@@ -137,11 +139,13 @@ class _RevenChatPageState extends State<RevenChatPage> {
     setState(() {
       _sessionId = null;
       _messages.clear();
-      _messages.add(const _RevenMessage(
-        text:
-            'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
-        isUser: false,
-      ));
+      _messages.add(
+        const _RevenMessage(
+          text:
+              'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+          isUser: false,
+        ),
+      );
     });
     Navigator.of(context).pop();
     _scrollToBottom();
@@ -162,9 +166,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -180,11 +182,13 @@ class _RevenChatPageState extends State<RevenChatPage> {
           setState(() {
             _sessionId = null;
             _messages.clear();
-            _messages.add(const _RevenMessage(
-              text:
-                  'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
-              isUser: false,
-            ));
+            _messages.add(
+              const _RevenMessage(
+                text:
+                    'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+                isUser: false,
+              ),
+            );
           });
         } else {
           await _fetchSessions();
@@ -240,7 +244,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
     final subtitleColor = isDark
         ? const Color(0xFF94A3B8)
         : const Color(0xFF64748B);
-    final borderColor = isDark ? const Color(0xFF263148) : const Color(0xFFDDE5F0);
+    final borderColor = isDark
+        ? const Color(0xFF263148)
+        : const Color(0xFFDDE5F0);
 
     showModalBottomSheet<void>(
       context: context,
@@ -291,7 +297,11 @@ class _RevenChatPageState extends State<RevenChatPage> {
                     const Spacer(),
                     TextButton.icon(
                       onPressed: _startNewChat,
-                      icon: Icon(Icons.add_rounded, size: 18, color: const Color(0xFF4F7CFF)),
+                      icon: Icon(
+                        Icons.add_rounded,
+                        size: 18,
+                        color: const Color(0xFF4F7CFF),
+                      ),
                       label: Text(
                         'New chat',
                         style: TextStyle(
@@ -310,12 +320,18 @@ class _RevenChatPageState extends State<RevenChatPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat_bubble_outline,
-                                size: 48, color: subtitleColor.withValues(alpha: 0.5)),
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 48,
+                              color: subtitleColor.withValues(alpha: 0.5),
+                            ),
                             const SizedBox(height: 12),
                             Text(
                               'No past chats yet',
-                              style: TextStyle(color: subtitleColor, fontSize: 15),
+                              style: TextStyle(
+                                color: subtitleColor,
+                                fontSize: 15,
+                              ),
                             ),
                           ],
                         ),
@@ -327,8 +343,11 @@ class _RevenChatPageState extends State<RevenChatPage> {
                         itemBuilder: (_, i) {
                           final s = _sessions[i];
                           final rawId = s['id'];
-                          final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
-                          final title = (s['title'] as String?)?.trim().isNotEmpty == true
+                          final sid = rawId is int
+                              ? rawId
+                              : int.tryParse(rawId.toString());
+                          final title =
+                              (s['title'] as String?)?.trim().isNotEmpty == true
                               ? (s['title'] as String)
                               : 'Chat ${i + 1}';
                           final updated = s['updated_at'] ?? s['created_at'];
@@ -338,46 +357,58 @@ class _RevenChatPageState extends State<RevenChatPage> {
                           final isActive = _sessionId == sid;
 
                           return ListTile(
-                              leading: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? const Color(0xFF4F7CFF).withValues(alpha: 0.15)
-                                      : borderColor.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.chat_bubble_rounded,
-                                  color: isActive ? const Color(0xFF4F7CFF) : subtitleColor,
-                                  size: 20,
-                                ),
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isActive
+                                    ? const Color(
+                                        0xFF4F7CFF,
+                                      ).withValues(alpha: 0.15)
+                                    : borderColor.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              title: Text(
-                                title,
-                                style: TextStyle(
-                                  color: titleColor,
-                                  fontSize: 15,
-                                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                                ),
+                              child: Icon(
+                                Icons.chat_bubble_rounded,
+                                color: isActive
+                                    ? const Color(0xFF4F7CFF)
+                                    : subtitleColor,
+                                size: 20,
                               ),
-                              subtitle: dateStr.isNotEmpty
-                                  ? Text(
-                                      dateStr,
-                                      style: TextStyle(
-                                        color: subtitleColor,
-                                        fontSize: 12,
-                                      ),
-                                    )
+                            ),
+                            title: Text(
+                              title,
+                              style: TextStyle(
+                                color: titleColor,
+                                fontSize: 15,
+                                fontWeight: isActive
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                            subtitle: dateStr.isNotEmpty
+                                ? Text(
+                                    dateStr,
+                                    style: TextStyle(
+                                      color: subtitleColor,
+                                      fontSize: 12,
+                                    ),
+                                  )
+                                : null,
+                            trailing: IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                color: subtitleColor,
+                                size: 20,
+                              ),
+                              onPressed: sid != null
+                                  ? () => _deleteSession(sid)
                                   : null,
-                              trailing: IconButton(
-                                icon: Icon(Icons.delete_outline, color: subtitleColor, size: 20),
-                                onPressed: sid != null
-                                    ? () => _deleteSession(sid)
-                                    : null,
-                              ),
-                              onTap: sid != null ? () => _switchToSession(sid) : null,
-                            );
+                            ),
+                            onTap: sid != null
+                                ? () => _switchToSession(sid)
+                                : null,
+                          );
                         },
                       ),
               ),
@@ -411,7 +442,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
   }
 
   static (String, List<Map<String, dynamic>>?, List<Map<String, dynamic>>?)
-      _parseMessageContent(String content) {
+  _parseMessageContent(String content) {
     if (content.isEmpty) return ('', null, null);
     if (content.startsWith('{')) {
       try {
@@ -422,15 +453,19 @@ class _RevenChatPageState extends State<RevenChatPage> {
           final commands = decoded['commands'];
           final coursesList = courses is List && courses.isNotEmpty
               ? courses
-                  .map((e) =>
-                      e is Map<String, dynamic> ? e : <String, dynamic>{})
-                  .toList()
+                    .map(
+                      (e) =>
+                          e is Map<String, dynamic> ? e : <String, dynamic>{},
+                    )
+                    .toList()
               : null;
           final commandsList = commands is List && commands.isNotEmpty
               ? commands
-                  .map((e) =>
-                      e is Map<String, dynamic> ? e : <String, dynamic>{})
-                  .toList()
+                    .map(
+                      (e) =>
+                          e is Map<String, dynamic> ? e : <String, dynamic>{},
+                    )
+                    .toList()
               : null;
           return (text, coursesList, commandsList);
         }
@@ -455,7 +490,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
     final now = DateTime.now();
     setState(() {
       _messages.add(_RevenMessage(text: text, isUser: true, createdAt: now));
-      _messages.add(const _RevenMessage(text: '…', isUser: false, isLoading: true));
+      _messages.add(
+        const _RevenMessage(text: '…', isUser: false, isLoading: true),
+      );
       _isLoading = true;
     });
     _scrollToBottom();
@@ -466,36 +503,46 @@ class _RevenChatPageState extends State<RevenChatPage> {
     setState(() {
       _messages.removeLast();
       _isLoading = false;
-        if (res['success'] == true) {
+      if (res['success'] == true) {
         final courses = res['courses'] as List?;
         final commands = res['commands'] as List?;
-        _messages.add(_RevenMessage(
-          text: res['reply'] as String? ?? 'No response.',
-          isUser: false,
-          courses: courses != null
-              ? courses
-                  .map((e) =>
-                      e is Map<String, dynamic> ? e : <String, dynamic>{})
-                  .toList()
-              : null,
-          commands: commands != null
-              ? commands
-                  .map((e) =>
-                      e is Map<String, dynamic> ? e : <String, dynamic>{})
-                  .toList()
-              : null,
-          createdAt: DateTime.now(),
-        ));
+        _messages.add(
+          _RevenMessage(
+            text: res['reply'] as String? ?? 'No response.',
+            isUser: false,
+            courses: courses != null
+                ? courses
+                      .map(
+                        (e) =>
+                            e is Map<String, dynamic> ? e : <String, dynamic>{},
+                      )
+                      .toList()
+                : null,
+            commands: commands != null
+                ? commands
+                      .map(
+                        (e) =>
+                            e is Map<String, dynamic> ? e : <String, dynamic>{},
+                      )
+                      .toList()
+                : null,
+            createdAt: DateTime.now(),
+          ),
+        );
         final sid = res['session_id'];
         if (sid != null) {
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
           _fetchSessions();
         }
       } else {
-        _messages.add(_RevenMessage(
-          text: res['message'] as String? ?? 'Something went wrong. Please try again.',
-          isUser: false,
-        ));
+        _messages.add(
+          _RevenMessage(
+            text:
+                res['message'] as String? ??
+                'Something went wrong. Please try again.',
+            isUser: false,
+          ),
+        );
       }
     });
     _scrollToBottom();
@@ -831,9 +878,10 @@ class _TypingDotState extends State<_TypingDot>
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _animation = Tween<double>(begin: 0.3, end: 1).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.3,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     Future.delayed(Duration(milliseconds: widget.delay * 200), () {
       if (mounted) _controller.repeat(reverse: true);
     });
@@ -993,10 +1041,7 @@ class _ChatBubble extends StatelessWidget {
 // ── Course list inside chat bubble ────────────────────────────────────────
 
 class _CourseList extends StatelessWidget {
-  const _CourseList({
-    required this.courses,
-    required this.titleColor,
-  });
+  const _CourseList({required this.courses, required this.titleColor});
 
   final List<Map<String, dynamic>> courses;
   final Color titleColor;
@@ -1023,8 +1068,11 @@ class _CourseList extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.menu_book_rounded,
-                      size: 16, color: const Color(0xFF4F7CFF)),
+                  Icon(
+                    Icons.menu_book_rounded,
+                    size: 16,
+                    color: const Color(0xFF4F7CFF),
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1081,8 +1129,9 @@ class _CommandChips extends StatelessWidget {
         final keyword = (c['keyword'] as String?) ?? '';
         final label = (c['label'] as String?) ?? keyword;
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        final borderColor =
-            isDark ? const Color(0xFF263148) : const Color(0xFFDDE5F0);
+        final borderColor = isDark
+            ? const Color(0xFF263148)
+            : const Color(0xFFDDE5F0);
         final surfaceColor = isDark ? const Color(0xFF131E30) : Colors.white;
 
         return GestureDetector(
