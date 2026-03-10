@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../api/chat_api.dart';
@@ -98,10 +100,15 @@ class _RevenChatPageState extends State<RevenChatPage> {
                 if (m is Map<String, dynamic>) {
                   final role = (m['role'] as String?) ?? 'assistant';
                   final content = (m['content'] as String?) ?? '';
+                  final parsed = _parseMessageContent(content);
+                  final createdAt = _parseDateTime(m['created_at']);
                   _messages.add(
                     _RevenMessage(
-                      text: content,
+                      text: parsed.$1,
                       isUser: role == 'user',
+                      courses: parsed.$2,
+                      commands: parsed.$3,
+                      createdAt: createdAt,
                     ),
                   );
                 }
@@ -140,6 +147,52 @@ class _RevenChatPageState extends State<RevenChatPage> {
     _scrollToBottom();
   }
 
+  Future<void> _deleteSession(int sid) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete chat?'),
+        content: const Text(
+          'This chat will be permanently deleted. You can\'t undo this.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    try {
+      final res = await ChatApi.deleteSession(sid);
+      if (res['success'] == true && mounted) {
+        final wasCurrent = _sessionId == sid;
+        if (wasCurrent) {
+          Navigator.of(context).pop();
+          setState(() {
+            _sessionId = null;
+            _messages.clear();
+            _messages.add(const _RevenMessage(
+              text:
+                  'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+              isUser: false,
+            ));
+          });
+        } else {
+          await _fetchSessions();
+        }
+      }
+    } catch (_) {}
+  }
+
   Future<void> _switchToSession(int sid) async {
     Navigator.of(context).pop();
     try {
@@ -153,8 +206,15 @@ class _RevenChatPageState extends State<RevenChatPage> {
             if (m is Map<String, dynamic>) {
               final role = (m['role'] as String?) ?? 'assistant';
               final content = (m['content'] as String?) ?? '';
+              final parsed = _parseMessageContent(content);
+              final createdAt = _parseDateTime(m['created_at']);
               _messages.add(
-                _RevenMessage(text: content, isUser: role == 'user'),
+                _RevenMessage(
+                  text: parsed.$1,
+                  isUser: role == 'user',
+                  courses: parsed.$2,
+                  createdAt: createdAt,
+                ),
               );
             }
           }
@@ -162,6 +222,15 @@ class _RevenChatPageState extends State<RevenChatPage> {
         _scrollToBottom();
       }
     } catch (_) {}
+  }
+
+  static DateTime? _parseDateTime(dynamic v) {
+    if (v == null) return null;
+    try {
+      return DateTime.parse(v.toString());
+    } catch (_) {
+      return null;
+    }
   }
 
   void _showChatList() {
@@ -176,92 +245,144 @@ class _RevenChatPageState extends State<RevenChatPage> {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Text(
-                'Chat history',
-                style: TextStyle(
-                  color: titleColor,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        builder: (_, scrollController) => Container(
+          margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: borderColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: subtitleColor.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-            ),
-            ListTile(
-              leading: Icon(Icons.add_circle_outline, color: const Color(0xFF4F7CFF)),
-              title: Text(
-                'New chat',
-                style: TextStyle(color: titleColor, fontWeight: FontWeight.w600),
-              ),
-              onTap: _startNewChat,
-            ),
-            const Divider(height: 1),
-            Flexible(
-              child: _sessions.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        'No past chats yet',
-                        style: TextStyle(color: subtitleColor, fontSize: 14),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  children: [
+                    Text(
+                      'Chat history',
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
                       ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _sessions.length,
-                      itemBuilder: (_, i) {
-                        final s = _sessions[i];
-                        final rawId = s['id'];
-                        final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
-                        final title = (s['title'] as String?)?.trim().isNotEmpty == true
-                            ? (s['title'] as String)
-                            : 'Chat ${i + 1}';
-                        final updated = s['updated_at'] ?? s['created_at'];
-                        final dateStr = updated != null
-                            ? _formatDate(updated.toString())
-                            : '';
-
-                        return ListTile(
-                          leading: Icon(
-                            Icons.chat_bubble_outline,
-                            color: subtitleColor,
-                            size: 20,
-                          ),
-                          title: Text(
-                            title,
-                            style: TextStyle(
-                              color: titleColor,
-                              fontSize: 14,
-                              fontWeight: _sessionId == sid
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                          subtitle: dateStr.isNotEmpty
-                              ? Text(
-                                  dateStr,
-                                  style: TextStyle(
-                                    color: subtitleColor,
-                                    fontSize: 11,
-                                  ),
-                                )
-                              : null,
-                          onTap: sid != null ? () => _switchToSession(sid) : null,
-                        );
-                      },
                     ),
-            ),
-          ],
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: _startNewChat,
+                      icon: Icon(Icons.add_rounded, size: 18, color: const Color(0xFF4F7CFF)),
+                      label: Text(
+                        'New chat',
+                        style: TextStyle(
+                          color: const Color(0xFF4F7CFF),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: _sessions.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat_bubble_outline,
+                                size: 48, color: subtitleColor.withValues(alpha: 0.5)),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No past chats yet',
+                              style: TextStyle(color: subtitleColor, fontSize: 15),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        itemCount: _sessions.length,
+                        itemBuilder: (_, i) {
+                          final s = _sessions[i];
+                          final rawId = s['id'];
+                          final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
+                          final title = (s['title'] as String?)?.trim().isNotEmpty == true
+                              ? (s['title'] as String)
+                              : 'Chat ${i + 1}';
+                          final updated = s['updated_at'] ?? s['created_at'];
+                          final dateStr = updated != null
+                              ? _formatDate(updated.toString())
+                              : '';
+                          final isActive = _sessionId == sid;
+
+                          return ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? const Color(0xFF4F7CFF).withValues(alpha: 0.15)
+                                      : borderColor.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.chat_bubble_rounded,
+                                  color: isActive ? const Color(0xFF4F7CFF) : subtitleColor,
+                                  size: 20,
+                                ),
+                              ),
+                              title: Text(
+                                title,
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontSize: 15,
+                                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: dateStr.isNotEmpty
+                                  ? Text(
+                                      dateStr,
+                                      style: TextStyle(
+                                        color: subtitleColor,
+                                        fontSize: 12,
+                                      ),
+                                    )
+                                  : null,
+                              trailing: IconButton(
+                                icon: Icon(Icons.delete_outline, color: subtitleColor, size: 20),
+                                onPressed: sid != null
+                                    ? () => _deleteSession(sid)
+                                    : null,
+                              ),
+                              onTap: sid != null ? () => _switchToSession(sid) : null,
+                            );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     ).then((_) async {
@@ -289,6 +410,35 @@ class _RevenChatPageState extends State<RevenChatPage> {
     super.dispose();
   }
 
+  static (String, List<Map<String, dynamic>>?, List<Map<String, dynamic>>?)
+      _parseMessageContent(String content) {
+    if (content.isEmpty) return ('', null, null);
+    if (content.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(content) as Map<String, dynamic>?;
+        if (decoded != null) {
+          final text = decoded['text'] as String? ?? '';
+          final courses = decoded['courses'];
+          final commands = decoded['commands'];
+          final coursesList = courses is List && courses.isNotEmpty
+              ? courses
+                  .map((e) =>
+                      e is Map<String, dynamic> ? e : <String, dynamic>{})
+                  .toList()
+              : null;
+          final commandsList = commands is List && commands.isNotEmpty
+              ? commands
+                  .map((e) =>
+                      e is Map<String, dynamic> ? e : <String, dynamic>{})
+                  .toList()
+              : null;
+          return (text, coursesList, commandsList);
+        }
+      } catch (_) {}
+    }
+    return (content, null, null);
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
@@ -302,8 +452,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
 
   Future<void> _sendToApi(String text) async {
     if (_isLoading) return;
+    final now = DateTime.now();
     setState(() {
-      _messages.add(_RevenMessage(text: text, isUser: true));
+      _messages.add(_RevenMessage(text: text, isUser: true, createdAt: now));
       _messages.add(const _RevenMessage(text: '…', isUser: false, isLoading: true));
       _isLoading = true;
     });
@@ -315,10 +466,25 @@ class _RevenChatPageState extends State<RevenChatPage> {
     setState(() {
       _messages.removeLast();
       _isLoading = false;
-      if (res['success'] == true) {
+        if (res['success'] == true) {
+        final courses = res['courses'] as List?;
+        final commands = res['commands'] as List?;
         _messages.add(_RevenMessage(
           text: res['reply'] as String? ?? 'No response.',
           isUser: false,
+          courses: courses != null
+              ? courses
+                  .map((e) =>
+                      e is Map<String, dynamic> ? e : <String, dynamic>{})
+                  .toList()
+              : null,
+          commands: commands != null
+              ? commands
+                  .map((e) =>
+                      e is Map<String, dynamic> ? e : <String, dynamic>{})
+                  .toList()
+              : null,
+          createdAt: DateTime.now(),
         ));
         final sid = res['session_id'];
         if (sid != null) {
@@ -553,6 +719,8 @@ class _RevenChatPageState extends State<RevenChatPage> {
                               surfaceColor: surfaceColor,
                               borderColor: borderColor,
                               titleColor: titleColor,
+                              subtitleColor: subtitleColor,
+                              onCommandTapped: _sendToApi,
                             );
                           },
                         ),
@@ -704,6 +872,8 @@ class _ChatBubble extends StatelessWidget {
     required this.surfaceColor,
     required this.borderColor,
     required this.titleColor,
+    required this.subtitleColor,
+    this.onCommandTapped,
   });
 
   final _RevenMessage message;
@@ -711,6 +881,19 @@ class _ChatBubble extends StatelessWidget {
   final Color surfaceColor;
   final Color borderColor;
   final Color titleColor;
+  final Color subtitleColor;
+  final void Function(String)? onCommandTapped;
+
+  static String _formatMessageTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
+      return 'Today ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -739,16 +922,189 @@ class _ChatBubble extends StatelessWidget {
                 ]
               : null,
         ),
-        child: Text(
-          message.text,
-          style: TextStyle(
-            color: isUser ? Colors.white : titleColor,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            height: 1.45,
-          ),
-        ),
+        child: message.isLoading
+            ? SizedBox(
+                width: 48,
+                height: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _TypingDot(delay: 0),
+                    _TypingDot(delay: 1),
+                    _TypingDot(delay: 2),
+                  ],
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (message.text.isNotEmpty)
+                    Text(
+                      message.text,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : titleColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 1.45,
+                      ),
+                    ),
+                  if (message.courses != null &&
+                      message.courses!.isNotEmpty &&
+                      !isUser) ...[
+                    if (message.text.isNotEmpty) const SizedBox(height: 12),
+                    _CourseList(
+                      courses: message.courses!,
+                      titleColor: titleColor,
+                    ),
+                  ],
+                  if (message.commands != null &&
+                      message.commands!.isNotEmpty &&
+                      !isUser) ...[
+                    if (message.text.isNotEmpty ||
+                        (message.courses != null &&
+                            message.courses!.isNotEmpty))
+                      const SizedBox(height: 12),
+                    _CommandChips(
+                      commands: message.commands!,
+                      titleColor: titleColor,
+                      onCommandTapped: onCommandTapped,
+                    ),
+                  ],
+                  if (message.createdAt != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatMessageTime(message.createdAt!),
+                      style: TextStyle(
+                        color: isUser
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : subtitleColor,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
       ),
+    );
+  }
+}
+
+// ── Course list inside chat bubble ────────────────────────────────────────
+
+class _CourseList extends StatelessWidget {
+  const _CourseList({
+    required this.courses,
+    required this.titleColor,
+  });
+
+  final List<Map<String, dynamic>> courses;
+  final Color titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: courses.map((c) {
+        final title = (c['title'] as String?) ?? 'Course';
+        final desc = (c['description'] as String?)?.toString();
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4F7CFF).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFF4F7CFF).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.menu_book_rounded,
+                      size: 16, color: const Color(0xFF4F7CFF)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (desc != null && desc.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  desc,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: titleColor.withValues(alpha: 0.75),
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ── Command chips inside chat bubble ────────────────────────────────────
+
+class _CommandChips extends StatelessWidget {
+  const _CommandChips({
+    required this.commands,
+    required this.titleColor,
+    this.onCommandTapped,
+  });
+
+  final List<Map<String, dynamic>> commands;
+  final Color titleColor;
+  final void Function(String)? onCommandTapped;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: commands.map((c) {
+        final keyword = (c['keyword'] as String?) ?? '';
+        final label = (c['label'] as String?) ?? keyword;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final borderColor =
+            isDark ? const Color(0xFF263148) : const Color(0xFFDDE5F0);
+        final surfaceColor = isDark ? const Color(0xFF131E30) : Colors.white;
+
+        return GestureDetector(
+          onTap: onCommandTapped != null && keyword.isNotEmpty
+              ? () => onCommandTapped!(keyword)
+              : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: surfaceColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label, style: TextStyle(color: titleColor, fontSize: 13)),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -883,10 +1239,16 @@ class _RevenMessage {
   final String text;
   final bool isUser;
   final bool isLoading;
+  final List<Map<String, dynamic>>? courses;
+  final List<Map<String, dynamic>>? commands;
+  final DateTime? createdAt;
 
   const _RevenMessage({
     required this.text,
     required this.isUser,
     this.isLoading = false,
+    this.courses,
+    this.commands,
+    this.createdAt,
   });
 }

@@ -97,4 +97,5 @@ class ApiEndpoints {
   static const String chat = '/chat';
   static const String chatHistory = '/chat/history';
   static String chatHistorySession(int id) => '/chat/history/$id';
+  static String chatDeleteSession(int id) => '/chat/history/$id';
 }

@@ -33,4 +33,12 @@ class ChatApi {
       requiresAuth: true,
     );
   }
+
+  /// Delete a chat session.
+  static Future<Map<String, dynamic>> deleteSession(int sessionId) async {
+    return ApiClient.delete(
+      ApiEndpoints.chatDeleteSession(sessionId),
+      requiresAuth: true,
+    );
+  }
 }
