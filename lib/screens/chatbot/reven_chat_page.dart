@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../api/chat_api.dart';
 import 'data/reven_quick_prompts.dart';
 
 // ignore_for_file: unused_element
@@ -8,14 +9,14 @@ class RevenChatPage extends StatefulWidget {
   const RevenChatPage({super.key});
 
   /// Opens Reven as a compact floating window.
-  /// Tapping the dim barrier (outside the box) closes it.
+  /// Animates from the chat icon as if the bot is speaking.
   static Future<void> show(BuildContext context) {
     return showGeneralDialog<void>(
       context: context,
       barrierLabel: 'Reven chat',
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.20),
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: const Duration(milliseconds: 420),
       pageBuilder: (ctx, _, __) => const RevenChatPage(),
       transitionBuilder: (ctx, animation, _, child) {
         final curved = CurvedAnimation(
@@ -24,17 +25,16 @@ class RevenChatPage extends StatefulWidget {
           reverseCurve: Curves.easeInCubic,
         );
         return FadeTransition(
-          opacity: Tween<double>(
-            begin: 0,
-            end: 1,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
+          opacity: Tween<double>(begin: 0, end: 1).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          ),
           child: SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0, 0.1),
+              begin: const Offset(0.12, 0.15),
               end: Offset.zero,
             ).animate(curved),
             child: ScaleTransition(
-              scale: Tween<double>(begin: 0.85, end: 1).animate(curved),
+              scale: Tween<double>(begin: 0.45, end: 1).animate(curved),
               alignment: Alignment.bottomRight,
               child: child,
             ),
@@ -52,14 +52,235 @@ class _RevenChatPageState extends State<RevenChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isExpanded = false;
+  bool _isLoading = false;
+  int? _sessionId;
+  List<Map<String, dynamic>> _sessions = [];
 
-  final List<_RevenMessage> _messages = [
-    const _RevenMessage(
-      text:
-          'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
-      isUser: false,
-    ),
-  ];
+  final List<_RevenMessage> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSessions() async {
+    try {
+      final res = await ChatApi.listSessions();
+      if (res['success'] == true && res['sessions'] is List) {
+        final list = (res['sessions'] as List)
+            .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+            .toList();
+        if (mounted) setState(() => _sessions = list);
+        return list;
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<void> _loadHistory() async {
+    final sessions = await _fetchSessions();
+    try {
+      if (sessions.isNotEmpty) {
+        final first = sessions.first;
+        final rawId = first['id'];
+        final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
+        if (sid != null) {
+          final historyRes = await ChatApi.getHistory(sid);
+          if (historyRes['success'] == true &&
+              historyRes['messages'] is List) {
+            final msgs = historyRes['messages'] as List;
+            if (!mounted) return;
+            setState(() {
+              _sessionId = sid;
+              _messages.clear();
+              for (final m in msgs) {
+                if (m is Map<String, dynamic>) {
+                  final role = (m['role'] as String?) ?? 'assistant';
+                  final content = (m['content'] as String?) ?? '';
+                  _messages.add(
+                    _RevenMessage(
+                      text: content,
+                      isUser: role == 'user',
+                    ),
+                  );
+                }
+              }
+            });
+            _scrollToBottom();
+            return;
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (!mounted) return;
+    if (_messages.isEmpty) {
+      setState(() {
+        _messages.add(const _RevenMessage(
+          text:
+              'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+          isUser: false,
+        ));
+      });
+    }
+  }
+
+  void _startNewChat() {
+    setState(() {
+      _sessionId = null;
+      _messages.clear();
+      _messages.add(const _RevenMessage(
+        text:
+            'Hi, I am Reven, your AI assistant. I am here to help you with what you need.',
+        isUser: false,
+      ));
+    });
+    Navigator.of(context).pop();
+    _scrollToBottom();
+  }
+
+  Future<void> _switchToSession(int sid) async {
+    Navigator.of(context).pop();
+    try {
+      final res = await ChatApi.getHistory(sid);
+      if (res['success'] == true && res['messages'] is List && mounted) {
+        final msgs = res['messages'] as List;
+        setState(() {
+          _sessionId = sid;
+          _messages.clear();
+          for (final m in msgs) {
+            if (m is Map<String, dynamic>) {
+              final role = (m['role'] as String?) ?? 'assistant';
+              final content = (m['content'] as String?) ?? '';
+              _messages.add(
+                _RevenMessage(text: content, isUser: role == 'user'),
+              );
+            }
+          }
+        });
+        _scrollToBottom();
+      }
+    } catch (_) {}
+  }
+
+  void _showChatList() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF131E30) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtitleColor = isDark
+        ? const Color(0xFF94A3B8)
+        : const Color(0xFF64748B);
+    final borderColor = isDark ? const Color(0xFF263148) : const Color(0xFFDDE5F0);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Text(
+                'Chat history',
+                style: TextStyle(
+                  color: titleColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.add_circle_outline, color: const Color(0xFF4F7CFF)),
+              title: Text(
+                'New chat',
+                style: TextStyle(color: titleColor, fontWeight: FontWeight.w600),
+              ),
+              onTap: _startNewChat,
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: _sessions.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'No past chats yet',
+                        style: TextStyle(color: subtitleColor, fontSize: 14),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _sessions.length,
+                      itemBuilder: (_, i) {
+                        final s = _sessions[i];
+                        final rawId = s['id'];
+                        final sid = rawId is int ? rawId : int.tryParse(rawId.toString());
+                        final title = (s['title'] as String?)?.trim().isNotEmpty == true
+                            ? (s['title'] as String)
+                            : 'Chat ${i + 1}';
+                        final updated = s['updated_at'] ?? s['created_at'];
+                        final dateStr = updated != null
+                            ? _formatDate(updated.toString())
+                            : '';
+
+                        return ListTile(
+                          leading: Icon(
+                            Icons.chat_bubble_outline,
+                            color: subtitleColor,
+                            size: 20,
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              color: titleColor,
+                              fontSize: 14,
+                              fontWeight: _sessionId == sid
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: dateStr.isNotEmpty
+                              ? Text(
+                                  dateStr,
+                                  style: TextStyle(
+                                    color: subtitleColor,
+                                    fontSize: 11,
+                                  ),
+                                )
+                              : null,
+                          onTap: sid != null ? () => _switchToSession(sid) : null,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) async {
+      await _fetchSessions();
+    });
+  }
+
+  String _formatDate(String iso) {
+    try {
+      final dt = DateTime.parse(iso);
+      final now = DateTime.now();
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+        return 'Today ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+      return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return '';
+    }
+  }
 
   @override
   void dispose() {
@@ -68,35 +289,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      _messages.add(_RevenMessage(text: text, isUser: true));
-      _messages.add(const _RevenMessage(text: 'Coming soon!!', isUser: false));
-      _messageController.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) {
-        return;
-      }
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 80,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  void _sendQuickPrompt(RevenQuickPrompt prompt) {
-    setState(() {
-      _messages.add(_RevenMessage(text: prompt.message, isUser: true));
-      _messages.add(_RevenMessage(text: prompt.reply, isUser: false));
-    });
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scrollController.hasClients) return;
       _scrollController.animateTo(
@@ -105,6 +298,52 @@ class _RevenChatPageState extends State<RevenChatPage> {
         curve: Curves.easeOutCubic,
       );
     });
+  }
+
+  Future<void> _sendToApi(String text) async {
+    if (_isLoading) return;
+    setState(() {
+      _messages.add(_RevenMessage(text: text, isUser: true));
+      _messages.add(const _RevenMessage(text: '…', isUser: false, isLoading: true));
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
+    final res = await ChatApi.sendMessage(text, sessionId: _sessionId);
+
+    if (!mounted) return;
+    setState(() {
+      _messages.removeLast();
+      _isLoading = false;
+      if (res['success'] == true) {
+        _messages.add(_RevenMessage(
+          text: res['reply'] as String? ?? 'No response.',
+          isUser: false,
+        ));
+        final sid = res['session_id'];
+        if (sid != null) {
+          _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+          _fetchSessions();
+        }
+      } else {
+        _messages.add(_RevenMessage(
+          text: res['message'] as String? ?? 'Something went wrong. Please try again.',
+          isUser: false,
+        ));
+      }
+    });
+    _scrollToBottom();
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+    _messageController.clear();
+    _sendToApi(text);
+  }
+
+  void _sendQuickPrompt(RevenQuickPrompt prompt) {
+    _sendToApi(prompt.message);
   }
 
   @override
@@ -147,11 +386,11 @@ class _RevenChatPageState extends State<RevenChatPage> {
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeOutCubic,
               padding: EdgeInsets.fromLTRB(
+                _isExpanded ? 0 : 20,
                 _isExpanded ? 0 : 14,
-                _isExpanded ? 0 : 14,
-                _isExpanded ? 0 : 14,
+                _isExpanded ? 0 : 24,
                 MediaQuery.of(context).viewInsets.bottom +
-                    (_isExpanded ? 0 : 90),
+                    (_isExpanded ? 0 : 185),
               ),
               child: Align(
                 alignment: Alignment.bottomRight,
@@ -249,6 +488,15 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                     blurRadius: 6,
                                   ),
                                 ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Chat history',
+                              onPressed: _showChatList,
+                              icon: Icon(
+                                Icons.history_rounded,
+                                color: subtitleColor,
+                                size: 20,
                               ),
                             ),
                             IconButton(
@@ -386,6 +634,61 @@ class _RevenChatPageState extends State<RevenChatPage> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+// ── Typing indicator ─────────────────────────────────────────────────────
+
+class _TypingDot extends StatefulWidget {
+  const _TypingDot({required this.delay});
+
+  final int delay;
+
+  @override
+  State<_TypingDot> createState() => _TypingDotState();
+}
+
+class _TypingDotState extends State<_TypingDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _animation = Tween<double>(begin: 0.3, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    Future.delayed(Duration(milliseconds: widget.delay * 200), () {
+      if (mounted) _controller.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (_, __) => Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: _animation.value),
+          shape: BoxShape.circle,
         ),
       ),
     );
@@ -579,6 +882,11 @@ class _PromptChip extends StatelessWidget {
 class _RevenMessage {
   final String text;
   final bool isUser;
+  final bool isLoading;
 
-  const _RevenMessage({required this.text, required this.isUser});
+  const _RevenMessage({
+    required this.text,
+    required this.isUser,
+    this.isLoading = false,
+  });
 }

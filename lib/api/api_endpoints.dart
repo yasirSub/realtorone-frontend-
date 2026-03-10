@@ -92,4 +92,9 @@ class ApiEndpoints {
 
   // ============== PHASE 6: WEEKLY REVIEW ==============
   static const String weeklyReview = '/weekly-review';
+
+  // Chat (Reven AI assistant)
+  static const String chat = '/chat';
+  static const String chatHistory = '/chat/history';
+  static String chatHistorySession(int id) => '/chat/history/$id';
 }

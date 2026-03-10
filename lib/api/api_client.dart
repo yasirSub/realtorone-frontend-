@@ -140,6 +140,7 @@ class ApiClient {
     String endpoint,
     Map<String, dynamic> data, {
     bool requiresAuth = false,
+    Duration? timeout,
   }) async {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
@@ -152,7 +153,7 @@ class ApiClient {
             headers: headers,
             body: jsonEncode(data),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(timeout ?? const Duration(seconds: 10));
       return _handleResponse(response);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
