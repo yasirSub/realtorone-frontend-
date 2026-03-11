@@ -957,6 +957,31 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
     return '$base/storage/$path';
   }
 
+  String _resolveMaterialUrl(String path) {
+    final trimmedPath = path.trim();
+    if (trimmedPath.contains('://')) return trimmedPath;
+
+    final root = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    final normalizedPath = trimmedPath.startsWith('/')
+        ? trimmedPath
+        : '/$trimmedPath';
+
+    if (normalizedPath.startsWith('/api/stream/')) {
+      return '$root$normalizedPath';
+    }
+
+    if (normalizedPath.startsWith('/storage/')) {
+      return '$root$normalizedPath';
+    }
+
+    if (normalizedPath.contains('course-assets/')) {
+      final filename = normalizedPath.split('/').last;
+      return '$root/api/stream/$filename';
+    }
+
+    return '$root/storage${normalizedPath.startsWith('/storage/') ? '' : normalizedPath}';
+  }
+
   /// For video materials without thumbnail_url, try derived URLs (e.g. same name with _thumb.jpg).
   List<String> _videoThumbnailCandidates(MaterialItem material) {
     final candidates = <String>[];
@@ -1120,11 +1145,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
           await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
         }
       } else {
-        String materialUrl = material.url!;
-        if (!materialUrl.contains('://')) {
-          materialUrl =
-              '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/storage/$materialUrl';
-        }
+        final materialUrl = _resolveMaterialUrl(material.url!);
         final uri = Uri.parse(Uri.encodeFull(materialUrl));
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1172,15 +1193,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         debugPrint('[Integrated Player] Using LOCAL FILE: $localPath');
         _videoPlayerController = VideoPlayerController.file(File(localPath));
       } else {
-        String videoUrl = material.url!;
-        if (videoUrl.contains('course-assets/')) {
-          final filename = videoUrl.split('/').last;
-          videoUrl =
-              '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/api/stream/$filename';
-        } else if (!videoUrl.contains('://')) {
-          videoUrl =
-              '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/api/stream/$videoUrl';
-        }
+        final videoUrl = _resolveMaterialUrl(material.url!);
         final encodedUrl = Uri.encodeFull(videoUrl);
         debugPrint('[Integrated Player] Target STREAM: $encodedUrl');
         _videoPlayerController = VideoPlayerController.networkUrl(
@@ -1288,10 +1301,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
     );
 
     String downloadUrl = material.url!;
-    if (!downloadUrl.contains('://')) {
-      downloadUrl =
-          '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/storage/$downloadUrl';
-    }
+    downloadUrl = _resolveMaterialUrl(downloadUrl);
 
     final String extension = material.type.toLowerCase() == 'video'
         ? 'mp4'
