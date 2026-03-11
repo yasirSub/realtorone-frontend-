@@ -411,6 +411,16 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 24),
                       _buildMenuSection('Performance', [
                         _MenuItem(
+                          icon: Icons.emoji_events_outlined,
+                          title: 'Top Realtor',
+                          subtitle:
+                              'View your leaderboard rank and score breakdown',
+                          onTap: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.leaderboard,
+                          ),
+                        ),
+                        _MenuItem(
                           icon: Icons.monetization_on_outlined,
                           title: 'Target Income',
                           subtitle:

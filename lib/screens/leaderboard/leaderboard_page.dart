@@ -11,7 +11,7 @@ class LeaderboardPage extends StatefulWidget {
 
 class _LeaderboardPageState extends State<LeaderboardPage> {
   bool _isLoading = true;
-  String _selectedCategory = 'consistency';
+  String _selectedCategory = 'top_realtor';
   List<dynamic> _categories = [];
   List<dynamic> _leaderboard = [];
   Map<String, dynamic>? _myPosition;
@@ -29,7 +29,17 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       requiresAuth: true,
     );
     if (response['success'] == true) {
-      setState(() => _categories = response['data'] ?? []);
+      setState(() {
+        _categories = response['data'] ?? [];
+        if (_categories.isNotEmpty) {
+          final hasTopRealtor = _categories.any(
+            (item) => item['key'] == 'top_realtor',
+          );
+          _selectedCategory = hasTopRealtor
+              ? 'top_realtor'
+              : (_categories.first['key'] ?? 'top_realtor');
+        }
+      });
     }
     _loadLeaderboard();
   }
@@ -107,7 +117,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Leaderboard',
+                'Top Realtor',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -115,7 +125,9 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                 ),
               ),
               Text(
-                '$_totalParticipants active agents',
+                _selectedCategory == 'top_realtor'
+                    ? '$_totalParticipants ranked this week'
+                    : '$_totalParticipants active agents',
                 style: const TextStyle(color: Colors.white54, fontSize: 13),
               ),
             ],
@@ -236,6 +248,10 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           // My position card (protective psychology)
           if (_myPosition != null) _buildMyPositionCard(),
 
+          if (_selectedCategory == 'top_realtor' &&
+              _myPosition?['metadata'] != null)
+            _buildTopRealtorBreakdown(),
+
           // Top 3 podium
           if (_leaderboard.length >= 3) _buildPodium(),
 
@@ -329,6 +345,85 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           Text(
             _myPosition!['message'] ?? '',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopRealtorBreakdown() {
+    final metadata = _myPosition?['metadata'] as Map<String, dynamic>? ?? {};
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F36),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Score Breakdown',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _metricChip(
+                  'Revenue',
+                  '${metadata['revenue_momentum'] ?? 0}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metricChip(
+                  'Consistency',
+                  '${metadata['consistency_index'] ?? 0}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _metricChip(
+                  'Weekly',
+                  '${metadata['weekly_performance'] ?? 0}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF00D4AA),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
       ),
