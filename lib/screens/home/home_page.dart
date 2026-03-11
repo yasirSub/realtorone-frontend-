@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../api/api_client.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
-import '../chatbot/chatbot_floating_button.dart';
 import 'growth_report_widget.dart';
 import 'home_activity_log_widget.dart';
 import '../../widgets/elite_loader.dart';
@@ -118,16 +117,18 @@ class _HomePageState extends State<HomePage> {
                         Positioned(
                           right: -40,
                           top: 36,
-                          child: Opacity(
-                            opacity: 0.05,
-                            child: const Icon(
-                              Icons.rocket_launch_rounded,
-                              size: 220,
-                              color: Colors.white,
-                            ),
-                          ).animate().fadeIn(duration: 1500.ms).scale(
-                                begin: const Offset(0.8, 0.8),
-                              ),
+                          child:
+                              Opacity(
+                                    opacity: 0.05,
+                                    child: const Icon(
+                                      Icons.rocket_launch_rounded,
+                                      size: 220,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  .animate()
+                                  .fadeIn(duration: 1500.ms)
+                                  .scale(begin: const Offset(0.8, 0.8)),
                         ),
                         SafeArea(
                           child: Padding(
@@ -137,41 +138,50 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Welcome back,',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ).animate().fadeIn(delay: 400.ms).slideY(
-                                      begin: 0.1,
-                                    ),
+                                      'Welcome back,',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 400.ms)
+                                    .slideY(begin: 0.1),
                                 const SizedBox(height: 4),
                                 Text(
-                                  _userData?['name']?.toString().toUpperCase() ??
-                                      'REALTOR ALPHA',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -2,
-                                    height: 0.9,
-                                  ),
-                                ).animate().fadeIn(delay: 500.ms).slideY(
-                                      begin: 0.1,
-                                    ),
+                                      _userData?['name']
+                                              ?.toString()
+                                              .toUpperCase() ??
+                                          'REALTOR ALPHA',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -2,
+                                        height: 0.9,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 500.ms)
+                                    .slideY(begin: 0.1),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'Your performance report is ready.',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.72),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ).animate().fadeIn(delay: 550.ms).slideY(
-                                      begin: 0.1,
-                                    ),
+                                      'Your performance report is ready.',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 550.ms)
+                                    .slideY(begin: 0.1),
                                 const Spacer(),
                               ],
                             ),
@@ -204,16 +214,6 @@ class _HomePageState extends State<HomePage> {
             EliteLoader.top(
               color: _getTierColor(_userData?['membership_tier']),
             ),
-          Positioned(
-            right: 20,
-            bottom: 112,
-            child: SafeArea(
-              top: false,
-              child: const ChatbotFloatingButton(),
-            ),
-          ).animate().fadeIn(delay: 500.ms).scale(
-                begin: const Offset(0.9, 0.9),
-              ),
         ],
       ),
     );
