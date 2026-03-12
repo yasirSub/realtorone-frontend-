@@ -519,38 +519,51 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 160),
         children: [
           // ── CLIENTS / REVENUE toggle ──
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _revenueTabButton(
-                icon: Icons.people_alt_rounded,
-                label: 'CLIENTS',
-                active: _revenueSubTab == 0,
-                onTap: () => setState(() => _revenueSubTab = 0),
-                isDark: isDark,
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 0),
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFE2E8F0),
               ),
-              const SizedBox(width: 28),
-              _revenueTabButton(
-                icon: Icons.attach_money_rounded,
-                label: 'REVENUE',
-                active: _revenueSubTab == 1,
-                onTap: () => setState(() {
-                  _revenueSubTab = 1;
-                  _revenueRefreshTrigger++;
-                }),
-                isDark: isDark,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: Container(
-              width: 80,
-              height: 3,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(99),
-              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.3)
+                      : Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _revenueTabButton(
+                    icon: Icons.people_alt_rounded,
+                    label: 'CLIENTS',
+                    active: _revenueSubTab == 0,
+                    onTap: () => setState(() => _revenueSubTab = 0),
+                    isDark: isDark,
+                  ),
+                ),
+                Expanded(
+                  child: _revenueTabButton(
+                    icon: Icons.attach_money_rounded,
+                    label: 'REVENUE',
+                    active: _revenueSubTab == 1,
+                    onTap: () => setState(() {
+                      _revenueSubTab = 1;
+                      _revenueRefreshTrigger++;
+                    }),
+                    isDark: isDark,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -610,34 +623,49 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     required VoidCallback onTap,
     required bool isDark,
   }) {
-    final color = active
-        ? (isDark ? Colors.white : const Color(0xFF2563EB))
-        : (isDark ? Colors.white30 : const Color(0xFF94A3B8));
+    final activeColor = isDark ? Colors.white : const Color(0xFF2563EB);
+    final inactiveColor = isDark ? Colors.white54 : const Color(0xFF64748B);
+
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: active
-                  ? (isDark ? const Color(0xFF1E3A5F) : const Color(0xFFEFF6FF))
-                  : Colors.transparent,
-              shape: BoxShape.circle,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: active
+              ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: isDark
+                        ? Colors.black.withValues(alpha: 0.3)
+                        : Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 18, color: active ? activeColor : inactiveColor),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? activeColor : inactiveColor,
+                fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                fontSize: 12,
+                letterSpacing: 0.5,
+              ),
             ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 11,
-              letterSpacing: 0.8,
-              color: color,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

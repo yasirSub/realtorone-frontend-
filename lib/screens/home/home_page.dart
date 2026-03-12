@@ -6,6 +6,7 @@ import 'growth_report_widget.dart';
 import 'home_activity_log_widget.dart';
 import '../../widgets/elite_loader.dart';
 import '../chatbot/reven_chat_page.dart';
+import '../chatbot/chatbot_floating_button.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -47,8 +48,9 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF020617) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF020617)
+          : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -215,33 +217,10 @@ class _HomePageState extends State<HomePage> {
               color: _getTierColor(_userData?['membership_tier']),
             ),
           // Reven chatbot launcher
-          Positioned(
-            right: 20,
-            bottom: 32,
-            child: GestureDetector(
-              onTap: () => RevenChatPage.show(context),
-              child: Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4F7CFF),
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          const Color(0xFF4F7CFF).withValues(alpha: 0.45),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Image.asset(
-                  'assets/images/chat-bot.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
+          const Positioned(
+            right: 16,
+            bottom: 100, // Clears the bottom navigation bar
+            child: ChatbotFloatingButton(),
           ),
         ],
       ),

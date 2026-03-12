@@ -36,8 +36,10 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
         requiresAuth: true,
       );
 
-      final hasClients = statusRes['success'] == true &&
-          (statusRes['has_clients'] == true || (statusRes['clients_count'] ?? 0) > 0);
+      final hasClients =
+          statusRes['success'] == true &&
+          (statusRes['has_clients'] == true ||
+              (statusRes['clients_count'] ?? 0) > 0);
 
       setState(() => _hasClients = hasClients);
 
@@ -324,10 +326,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
               gradient: const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E3A8A),
-                ],
+                colors: [Color(0xFF0F172A), Color(0xFF1E3A8A)],
               ),
             ),
             alignment: Alignment.bottomCenter,
@@ -419,22 +418,22 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Clients',
+                'YOUR CLIENTS',
                 style: TextStyle(
-                  color: isDark ? Colors.white70 : const Color(0xFF111827),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                  letterSpacing: 0.4,
+                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
                 ),
               ),
               IconButton(
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 icon: Icon(
-                  Icons.filter_list_rounded,
+                  Icons.sort_rounded,
                   size: 20,
                   color: _sortByPriority
-                      ? const Color(0xFF2563EB)
+                      ? const Color(0xFF667EEA)
                       : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
                 ),
                 tooltip: 'Sort by priority & progress',
@@ -442,26 +441,30 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           ..._clients.take(6).map((c) => _clientTile(c, isDark)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           SizedBox(
-            height: 44,
+            height: 48,
             child: OutlinedButton.icon(
               onPressed: _startAddFirstClient,
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF2563EB),
+                foregroundColor: const Color(0xFF667EEA),
                 side: BorderSide(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                  color: const Color(0xFF667EEA).withValues(alpha: 0.3),
+                  width: 1.5,
                 ),
+                backgroundColor: const Color(
+                  0xFF667EEA,
+                ).withValues(alpha: 0.05),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              icon: const Icon(Icons.add_rounded),
+              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
               label: const Text(
-                'New Prospect',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                'Add New Prospect',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
               ),
             ),
           ),
@@ -495,10 +498,14 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     }
 
     // Extract today's progress summary, if present
-    final progress = client is Map ? client['today_progress'] as Map<String, dynamic>? : null;
+    final progress = client is Map
+        ? client['today_progress'] as Map<String, dynamic>?
+        : null;
     final int todayPercent = progress?['percentage'] is int
         ? progress!['percentage'] as int
-        : (progress?['percentage'] is num ? (progress!['percentage'] as num).toInt() : 0);
+        : (progress?['percentage'] is num
+              ? (progress!['percentage'] as num).toInt()
+              : 0);
     final String todayStatus = (progress?['status'] ?? 'none').toString();
 
     // Main color + label used for the left bar and subtitle
@@ -506,22 +513,20 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     late final String mainLabel;
 
     if (status == 'lost') {
-      // If client is lost, always show LOST even if priority is set
       mainColor = const Color(0xFFEF4444);
-      mainLabel = 'LOST';
+      mainLabel = 'LOST DEAL';
     } else if (todayStatus == 'high') {
-      mainColor = const Color(0xFF16A34A); // strong green
-      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+      mainColor = const Color(0xFF10B981); // strong green
+      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
     } else if (todayStatus == 'medium') {
       mainColor = const Color(0xFFF59E0B); // amber
-      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
     } else if (todayStatus == 'low') {
       mainColor = const Color(0xFFF97316); // orange
-      mainLabel = 'TODAY: ${todayPercent.clamp(0, 100)}% COMPLETE';
+      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
     } else {
-      // none / no actions yet
       mainColor = const Color(0xFFDC2626); // red
-      mainLabel = 'TODAY: NOT STARTED';
+      mainLabel = 'NOT STARTED';
     }
 
     // Priority chip styling (shown near chevron)
@@ -529,89 +534,124 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     String? priorityLabel;
     if (status != 'lost') {
       if (priority == 3) {
-        // Highest priority → GOLD
-        priorityColor = const Color(0xFFFACC15); // gold
-        priorityLabel = 'HIGH PRIORITY';
+        priorityColor = const Color(0xFFF59E0B);
+        priorityLabel = 'URGENT';
       } else if (priority == 2) {
-        // Medium priority → SILVER
-        priorityColor = const Color(0xFF9CA3AF); // silver / grey
-        priorityLabel = 'LOW PRIORITY';
+        priorityColor = const Color(0xFF64748B);
+        priorityLabel = 'HIGH';
       } else {
-        // Lowest / normal (1) → no chip
         priorityColor = null;
         priorityLabel = null;
       }
     }
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(18),
       onTap: () {
         final id = client['id'];
         if (id is int) {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ClientRevenueActionsPage(
-                clientId: id,
-                clientName: name,
-              ),
+              builder: (_) =>
+                  ClientRevenueActionsPage(clientId: id, clientName: name),
             ),
           ).then((_) async {
             widget.onClientActionLogged?.call();
-            await _load(); // refresh clients + today progress after daily log actions
+            await _load();
           });
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF111827) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(16),
+          color: isDark ? const Color(0xFF111827) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.04),
+            color: mainColor.withValues(alpha: 0.15),
+            width: 1.5,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: mainColor.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
+            // User Avatar Indicator
             Container(
-              width: 6,
-              height: 34,
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: mainColor,
-                borderRadius: BorderRadius.circular(999),
+                color: mainColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: mainColor.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: TextStyle(
+                  color: mainColor,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            color:
-                                isDark ? Colors.white : const Color(0xFF111827),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
                   Text(
-                    mainLabel,
+                    name,
                     style: TextStyle(
-                      color: mainColor,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                      letterSpacing: 0.4,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: mainColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          mainLabel.contains('DONE')
+                              ? Icons.bolt_rounded
+                              : (mainLabel.contains('NOT')
+                                    ? Icons.radio_button_unchecked_rounded
+                                    : Icons.block_rounded),
+                          size: 12,
+                          color: mainColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          mainLabel,
+                          style: TextStyle(
+                            color: mainColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -685,4 +725,3 @@ class _BottomMiniTab extends StatelessWidget {
     );
   }
 }
-

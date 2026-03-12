@@ -52,10 +52,14 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
       if (mounted && res['success'] == true) {
         final d = res['data'];
         final activities = d['recent_activity'] ?? [];
-        debugPrint('[REVENUE_DEBUG] recent_activity count=${activities.length}');
+        debugPrint(
+          '[REVENUE_DEBUG] recent_activity count=${activities.length}',
+        );
         for (var i = 0; i < activities.length && i < 5; i++) {
           final a = activities[i];
-          debugPrint('[REVENUE_DEBUG]   [$i] type=${a['type']} client=${a['client_name']}');
+          debugPrint(
+            '[REVENUE_DEBUG]   [$i] type=${a['type']} client=${a['client_name']}',
+          );
         }
         if (activities.length > 5) {
           debugPrint('[REVENUE_DEBUG]   ... and ${activities.length - 5} more');
@@ -70,7 +74,9 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
           _recentActivity = activities;
         });
       } else {
-        debugPrint('[REVENUE_DEBUG] Unexpected or failed response: success=${res['success']}');
+        debugPrint(
+          '[REVENUE_DEBUG] Unexpected or failed response: success=${res['success']}',
+        );
       }
     } catch (e, st) {
       debugPrint('[REVENUE_DEBUG] ERROR: $e');
@@ -107,10 +113,15 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
         // Period toggle
         Center(
           child: Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(14),
+              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : const Color(0xFFE2E8F0),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -123,22 +134,26 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
                       _load();
                     }
                   },
+                  behavior: HitTestBehavior.opaque,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                      horizontal: 24,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
                       color: active
-                          ? (isDark ? Colors.white : Colors.white)
+                          ? (isDark ? const Color(0xFF1E293B) : Colors.white)
                           : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(999),
                       boxShadow: active
                           ? [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 6,
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.3)
+                                    : Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 10,
                                 offset: const Offset(0, 2),
                               ),
                             ]
@@ -147,13 +162,14 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
                     child: Text(
                       p[0].toUpperCase() + p.substring(1),
                       style: TextStyle(
-                        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                        fontSize: 13,
+                        fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                        fontSize: 12,
+                        letterSpacing: 0.5,
                         color: active
-                            ? const Color(0xFF2563EB)
+                            ? (isDark ? Colors.white : const Color(0xFF2563EB))
                             : (isDark
                                   ? Colors.white54
-                                  : const Color(0xFF94A3B8)),
+                                  : const Color(0xFF64748B)),
                       ),
                     ),
                   ),
@@ -163,29 +179,45 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 28),
 
         // Performance Overview label
         Center(
-          child: Text(
-            'PERFORMANCE OVERVIEW',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 10,
-              letterSpacing: 1.5,
-              color: isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color:
+                  (isDark ? const Color(0xFF60A5FA) : const Color(0xFF2563EB))
+                      .withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              'PERFORMANCE OVERVIEW',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 10,
+                letterSpacing: 1.5,
+                color: isDark
+                    ? const Color(0xFF60A5FA)
+                    : const Color(0xFF2563EB),
+              ),
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        const Center(
+        const SizedBox(height: 16),
+        Center(
           child: Text(
-            'Key Metrics',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            'Pipeline Metrics',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
 
         if (_loading)
           const Center(
@@ -222,7 +254,8 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
                   change: _changeLabel(_dealsChange),
                   changeColor: _changeColor(_dealsChange),
                   isDark: isDark,
-                  onTap: () => _showMetricDetail(context, 'deals_closed', isDark),
+                  onTap: () =>
+                      _showMetricDetail(context, 'deals_closed', isDark),
                 ),
               ),
             ],
@@ -269,37 +302,83 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
 
           // Recent Activity
           if (_recentActivity.isNotEmpty) ...[
-            const Center(
-              child: Text(
-                'Recent Activity',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AllActivitiesPage(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        (isDark
+                                ? const Color(0xFF60A5FA)
+                                : const Color(0xFF2563EB))
+                            .withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'RECENT ACTIVITY',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 10,
+                      letterSpacing: 1.5,
+                      color: isDark
+                          ? const Color(0xFF60A5FA)
+                          : const Color(0xFF2563EB),
                     ),
-                  );
-                },
-                child: Text(
-                  'VIEW ALL ACTIVITIES',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 10,
-                    letterSpacing: 1,
-                    color: isDark
-                        ? const Color(0xFF60A5FA)
-                        : const Color(0xFF2563EB),
                   ),
                 ),
-              ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AllActivitiesPage(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.1)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'VIEW ALL',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                            letterSpacing: 0.5,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 12,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF64748B),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             ...(_recentActivity.take(5).map((a) => _activityTile(a, isDark))),
           ],
         ],
@@ -334,60 +413,106 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 14),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE5E7EB),
-        ),
-        boxShadow: [
-          if (!isDark)
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF111827) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
+          boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              color: iconColor.withValues(alpha: isDark ? 0.15 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? iconColor.withValues(alpha: 0.15) : iconBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: iconColor.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 22),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: changeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: changeColor.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        change.startsWith('-') ||
+                                change == '—' ||
+                                change.contains('Lost')
+                            ? Icons.trending_flat_rounded
+                            : Icons.trending_up_rounded,
+                        color: changeColor,
+                        size: 10,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        change,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          color: changeColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                height: 1.1,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 20),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : const Color(0xFF111827),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            change,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: changeColor,
-            ),
-          ),
-        ],
-      ),
-    ),
     );
   }
 
@@ -443,23 +568,35 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
         );
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(14),
+          color: isDark ? const Color(0xFF111827) : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withValues(alpha: 0.15), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: color.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
               ),
-              child: Icon(icon, color: color, size: 16),
+              child: Icon(icon, color: color, size: 18),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,17 +604,29 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
                   Text(
                     activity['client_name'] ?? type.replaceAll('_', ' '),
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                      color: isDark ? Colors.white : const Color(0xFF111827),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                     ),
                   ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: color,
+                      ),
                     ),
                   ),
                 ],
@@ -485,14 +634,33 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
             ),
             if ((double.tryParse(activity['value']?.toString() ?? '0') ?? 0) >
                 0)
-              Text(
-                'AED ${activity['value']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                  color: Color(0xFF10B981),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'AED',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                  Text(
+                    '${activity['value']}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                ],
               ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.black38,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -651,232 +819,251 @@ class _MetricDetailSheetState extends State<_MetricDetailSheet> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _items.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Center(
-                          child: Text(
-                            _emptyMsg,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
-                            ),
-                          ),
+                ? Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Text(
+                        _emptyMsg,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF94A3B8),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                        itemCount: _items.length,
-                        itemBuilder: (ctx, i) {
-                          final item = _items[i];
-                          final clientName =
-                              item['client_name']?.toString() ?? 'Unknown';
-                          final source = item['source']?.toString();
-                          if (widget.metricType == 'hot_leads') {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : const Color(0xFFF9FAFB),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF97316)
-                                          .withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.person_rounded,
-                                      color: Color(0xFFF97316),
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          clientName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
-                                            color: isDark ? Colors.white : const Color(0xFF111827),
-                                          ),
-                                        ),
-                                        if (source != null &&
-                                            source.isNotEmpty)
-                                          Text(
-                                            source.replaceAll('_', ' '),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          } else if (widget.metricType == 'deals_closed') {
-                            final value = double.tryParse(item['value']?.toString() ?? '0') ?? 0;
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : const Color(0xFFF9FAFB),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2563EB)
-                                          .withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.celebration_rounded,
-                                      color: Color(0xFF2563EB),
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          clientName,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                            fontSize: 14,
-                                            color: isDark ? Colors.white : const Color(0xFF111827),
-                                          ),
-                                        ),
-                                        Text(
-                                          _formatDate(item['date']),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  if (value > 0)
-                                    Text(
-                                      _formatCommission(value),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13,
-                                        color: Color(0xFF10B981),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          } else if (widget.metricType == 'commission') {
-                            final commission = _getCommission(item);
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : const Color(0xFFF9FAFB),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.monetization_on_rounded,
-                                      color: Color(0xFF10B981),
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      clientName,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                        color: isDark ? Colors.white : const Color(0xFF111827),
-                                      ),
-                                    ),
-                                  ),
-                                  if (commission > 0)
-                                    Text(
-                                      _formatCommission(commission),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13,
-                                        color: Color(0xFF10B981),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            );
-                          } else {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? Colors.white.withValues(alpha: 0.06)
-                                    : const Color(0xFFF9FAFB),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF8B5CF6)
-                                          .withValues(alpha: 0.15),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.person_rounded,
-                                      color: Color(0xFF8B5CF6),
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      clientName,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                        color: isDark ? Colors.white : const Color(0xFF111827),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                        },
                       ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    itemCount: _items.length,
+                    itemBuilder: (ctx, i) {
+                      final item = _items[i];
+                      final clientName =
+                          item['client_name']?.toString() ?? 'Unknown';
+                      final source = item['source']?.toString();
+                      if (widget.metricType == 'hot_leads') {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFFF97316,
+                                  ).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFFF97316),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      clientName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF111827),
+                                      ),
+                                    ),
+                                    if (source != null && source.isNotEmpty)
+                                      Text(
+                                        source.replaceAll('_', ' '),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isDark
+                                              ? Colors.white54
+                                              : const Color(0xFF94A3B8),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      } else if (widget.metricType == 'deals_closed') {
+                        final value =
+                            double.tryParse(item['value']?.toString() ?? '0') ??
+                            0;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF2563EB,
+                                  ).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.celebration_rounded,
+                                  color: Color(0xFF2563EB),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      clientName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 14,
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF111827),
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatDate(item['date']),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isDark
+                                            ? Colors.white54
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (value > 0)
+                                Text(
+                                  _formatCommission(value),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      } else if (widget.metricType == 'commission') {
+                        final commission = _getCommission(item);
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.monetization_on_rounded,
+                                  color: Color(0xFF10B981),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  clientName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF111827),
+                                  ),
+                                ),
+                              ),
+                              if (commission > 0)
+                                Text(
+                                  _formatCommission(commission),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      } else {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.06)
+                                : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(
+                                    0xFF8B5CF6,
+                                  ).withValues(alpha: 0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_rounded,
+                                  color: Color(0xFF8B5CF6),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  clientName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF111827),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
           ),
         ],
       ),

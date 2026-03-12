@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
-import '../chatbot/chatbot_floating_button.dart';
 import 'widgets/leaderboard_header_card.dart';
 import 'widgets/leaderboard_my_rank_card.dart';
 import 'widgets/leaderboard_ranking_card.dart';
@@ -69,7 +68,6 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
-      floatingActionButton: const ChatbotFloatingButton(),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF667EEA)),
