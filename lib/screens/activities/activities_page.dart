@@ -757,7 +757,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               )) ...[
                 const SizedBox(height: 24),
                 _buildSubcategorySection(
-                  'OTHER',
+                  'GROWTH & DAILY PERFORMANCE',
                   subconsciousTypes
                       .where(
                         (t) =>
