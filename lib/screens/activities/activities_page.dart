@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../api/api_client.dart';
+import '../../api/api_endpoints.dart';
 import '../../api/activities_api.dart';
 import '../../api/user_api.dart';
 import '../../models/activity_model.dart';
@@ -7,6 +9,7 @@ import '../../widgets/elite_loader.dart';
 import '../../widgets/skill_skeleton.dart';
 import '../deal_room/deal_room_widget.dart';
 import '../deal_room/revenue_tracker_widget.dart';
+import '../learning/learning_page.dart';
 
 class ActivitiesPage extends StatefulWidget {
   const ActivitiesPage({super.key});
@@ -19,7 +22,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _currentStreak = 0;
-  int _todayPoints = 0;
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayActivities = [];
   List<Map<String, dynamic>> _activityTypes = [];
@@ -29,13 +31,25 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   final Set<String> _completedKeys = {};
   int _revenueSubTab = 0; // 0 = Clients, 1 = Revenue
   int _revenueRefreshTrigger = 0;
+  bool _isCheckingConsciousIntro = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.index == 1 && !_tabController.indexIsChanging) {
+        _maybeShowConsciousIntroDialog();
+      }
+    });
     _loadTasks();
     _loadActivities();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   List<Map<String, dynamic>> _consciousTasks = [];
@@ -94,19 +108,12 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             // Sync local state with server for interacted + completed keys
             _interactedKeys.clear();
             _completedKeys.clear();
-            _todayPoints = 0;
             for (var a in _todayActivities) {
               final type = a['type'];
               if (type != null) {
                 _interactedKeys.add(type);
                 if (a['is_completed'] == true || a['is_completed'] == 1) {
                   _completedKeys.add(type);
-                  final dynamic rawPoints = a['points'];
-                  if (rawPoints is num) {
-                    _todayPoints += rawPoints.toInt();
-                  } else if (rawPoints is String) {
-                    _todayPoints += int.tryParse(rawPoints) ?? 0;
-                  }
                 }
               }
             }
@@ -156,6 +163,207 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     );
   }
 
+  Future<void> _maybeShowConsciousIntroDialog() async {
+    if (!mounted || _isCheckingConsciousIntro) {
+      return;
+    }
+
+    _isCheckingConsciousIntro = true;
+    try {
+      final response = await ApiClient.get(
+        ApiEndpoints.clientsStatus,
+        requiresAuth: true,
+      );
+
+      final bool hasClients =
+          response['success'] == true &&
+          (response['has_clients'] == true ||
+              (response['clients_count'] ?? 0) > 0);
+
+      if (!mounted || hasClients) return;
+
+      await _showConsciousIntroDialog();
+    } catch (_) {
+      // Fail silently; no popup if client status cannot be determined.
+    } finally {
+      _isCheckingConsciousIntro = false;
+    }
+  }
+
+  Future<void> _showConsciousIntroDialog() async {
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.of(context).viewInsets.bottom + 24,
+          ),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF020617) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'What is your current situation?',
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This helps us guide your next best revenue actions.',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildSituationOption(
+                  label: 'I already have active clients',
+                  subtitle: 'Focus on serving and expanding your client base.',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 10),
+                _buildSituationOption(
+                  label: 'I have some leads but no deals yet',
+                  subtitle: 'Prioritize follow-ups and deal conversion actions.',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                  },
+                  isDark: isDark,
+                ),
+                const SizedBox(height: 10),
+                _buildSituationOption(
+                  label: "I don't have any leads yet",
+                  subtitle: 'Start with prospecting and learning foundations.',
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LearningPage(),
+                      ),
+                    );
+                  },
+                  isDark: isDark,
+                  isPrimary: true,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSituationOption({
+    required String label,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+    bool isPrimary = false,
+  }) {
+    final Color accent =
+        isPrimary ? const Color(0xFF667eea) : const Color(0xFF0EA5E9);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF020617)
+              : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: accent.withValues(alpha: isPrimary ? 0.6 : 0.25),
+            width: isPrimary ? 1.6 : 1.1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isPrimary ? Icons.bolt_rounded : Icons.check_circle_rounded,
+                size: 18,
+                color: accent,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.white
+                          : const Color(0xFF0F172A),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 14,
+              color: accent,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,45 +399,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                                   color: Color(0x40000000),
                                   offset: Offset(0, 1),
                                   blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFF10B981,
-                              ).withValues(alpha: 0.25),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(
-                                  0xFF10B981,
-                                ).withValues(alpha: 0.6),
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.star_rounded,
-                                  size: 10,
-                                  color: const Color(0xFF10B981),
-                                ),
-                                const SizedBox(width: 3),
-                                Text(
-                                  '$_todayPoints pts',
-                                  style: const TextStyle(
-                                    color: Color(0xFF10B981),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.3,
-                                  ),
                                 ),
                               ],
                             ),
@@ -297,12 +466,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                             const Color(0xFFFFB347),
                             Icons.local_fire_department_rounded,
                           ),
-                          _buildMiniBadge(
-                            'POINTS',
-                            '$_todayPoints',
-                            const Color(0xFF10B981),
-                            Icons.star_rounded,
-                          ),
                         ],
                       ),
                     ),
@@ -326,8 +489,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   letterSpacing: 1.5,
                 ),
                 tabs: const [
-                  Tab(text: 'IDENTITY CONDITIONING'),
-                  Tab(text: 'REVENUE ACTIONS'),
+                  Tab(text: 'SUBCONSCIOUS'),
+                  Tab(text: 'CONSCIOUS'),
                 ],
               ),
             ),
@@ -732,42 +895,65 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                 ),
               )
             else ...[
-              // 1. Manual Identity Activities
-              _buildSubcategorySection(
-                'MANUAL IDENTITY ACTIVITIES',
-                subconsciousTypes
-                    .where((t) => t['subcategory'] == 'manual')
-                    .toList(),
-                0,
-              ),
-              const SizedBox(height: 24),
-              // 2. Verified Identity Activities
-              _buildSubcategorySection(
-                'VERIFIED IDENTITY ACTIVITIES',
-                subconsciousTypes
-                    .where((t) => t['subcategory'] == 'verified')
-                    .toList(),
-                50,
-              ),
-              // Custom/other types without subcategory
-              if (subconsciousTypes.any(
-                (t) =>
-                    t['subcategory'] != 'manual' &&
-                    t['subcategory'] != 'verified',
-              )) ...[
-                const SizedBox(height: 24),
-                _buildSubcategorySection(
-                  'GROWTH & DAILY PERFORMANCE',
-                  subconsciousTypes
+              // Group into Mindset & Inner Strength vs Growth & Daily Performance
+              Builder(
+                builder: (context) {
+                  final mindsetOrder = <String, int>{
+                    'Visualization': 0,
+                    'Affirmations': 1,
+                    'Belief Exercise': 2,
+                    'Identity Statement': 3,
+                    'Gratitude Journaling': 4,
+                    'Calm Reset': 5,
+                    'Audio Reprogramming': 6,
+                  };
+
+                  final mindsetNames = mindsetOrder.keys.toSet();
+
+                  final mindsetTypes = subconsciousTypes
                       .where(
                         (t) =>
-                            t['subcategory'] != 'manual' &&
-                            t['subcategory'] != 'verified',
+                            t['name'] != null &&
+                            mindsetNames.contains(t['name'] as String),
                       )
-                      .toList(),
-                  100,
-                ),
-              ],
+                      .toList()
+                    ..sort((a, b) {
+                      final aName = a['name'] as String? ?? '';
+                      final bName = b['name'] as String? ?? '';
+                      return (mindsetOrder[aName] ?? 999)
+                          .compareTo(mindsetOrder[bName] ?? 999);
+                    });
+
+                  final growthTypes = subconsciousTypes
+                      .where((t) {
+                        final name = (t['name'] ?? '') as String;
+                        if (name == 'Webinar Attendance') return false;
+                        return name == 'Morning Focus Ritual' ||
+                            name == 'Mindset Training' ||
+                            !mindsetNames.contains(name);
+                      }).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (mindsetTypes.isNotEmpty) ...[
+                        _buildSubcategorySection(
+                          'MINDSET & INNER STRENGTH',
+                          mindsetTypes,
+                          0,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                      if (growthTypes.isNotEmpty)
+                        _buildSubcategorySection(
+                          'GROWTH & DAILY PERFORMANCE',
+                          growthTypes,
+                          50,
+                        ),
+                    ],
+                  );
+                },
+              ),
             ],
 
             const SizedBox(height: 32),
@@ -813,7 +999,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
   Widget _buildActivityTypeCard(Map<String, dynamic> activityType) {
     final String name = activityType['name'] ?? 'Activity';
-    final int points = activityType['points'] ?? 5;
     final String category = activityType['category'] ?? '';
     final Color color = category == 'conscious'
         ? const Color(0xFF667eea)
@@ -893,22 +1078,20 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      isInteracted
-                          ? (isCompleted ? 'COMPLETED' : 'SKIPPED')
-                          : '+$points POINTS',
-                      style: TextStyle(
-                        color: isInteracted
-                            ? (isCompleted
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFEF4444))
-                            : color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1,
+                    if (isInteracted) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        isCompleted ? 'COMPLETED' : 'SKIPPED',
+                        style: TextStyle(
+                          color: isCompleted
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -1147,20 +1330,12 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             _todayActivities = List<Map<String, dynamic>>.from(
               activitiesResponse['data'] ?? [],
             );
-            // Recalculate points from fresh server data
-            _todayPoints = 0;
             _completedKeys.clear();
             for (final a in _todayActivities) {
               final type = a['type'];
               if (type != null &&
                   (a['is_completed'] == true || a['is_completed'] == 1)) {
                 _completedKeys.add(type);
-                final dynamic rawPoints = a['points'];
-                if (rawPoints is num) {
-                  _todayPoints += rawPoints.toInt();
-                } else if (rawPoints is String) {
-                  _todayPoints += int.tryParse(rawPoints) ?? 0;
-                }
               }
             }
           });
