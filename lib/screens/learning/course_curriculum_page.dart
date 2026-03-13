@@ -213,9 +213,10 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
               ),
             ),
             // Course thumbnail (only when URL works; never show broken icon)
-            if (_course?.thumbnailUrl != null)
+            if (_course?.thumbnailUrl != null &&
+                _course!.thumbnailUrl!.isNotEmpty)
               Image.network(
-                _course!.thumbnailUrl!,
+                _fullThumbnailUrl(_course!.thumbnailUrl!) ?? '',
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
@@ -949,12 +950,15 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   String? _fullThumbnailUrl(String? path) {
     if (path == null || path.isEmpty) return null;
     if (path.contains('://')) return path;
+
+    final trimmed = path.trim();
     final base = ApiEndpoints.baseUrl.replaceAll('/api', '');
-    // Backend often stores paths like "course-assets/..." and serves from storage
-    if (path.startsWith('course-assets/')) {
-      return '$base/storage/$path';
+
+    if (trimmed.startsWith('/')) {
+      return '$base$trimmed';
     }
-    return '$base/storage/$path';
+
+    return '$base/storage/$trimmed';
   }
 
   String _resolveMaterialUrl(String path) {
@@ -1224,17 +1228,15 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
       // Cinematic Thumbnail Integration
       Widget? placeholder;
       if (material.thumbnailUrl != null) {
-        String thumbUrl = material.thumbnailUrl!;
-        if (!thumbUrl.contains('://')) {
-          thumbUrl =
-              '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/storage/$thumbUrl';
+        final thumbUrl = _fullThumbnailUrl(material.thumbnailUrl!);
+        if (thumbUrl != null && thumbUrl.isNotEmpty) {
+          debugPrint('[Integrated Player] Thumbnail: $thumbUrl');
+          placeholder = Image.network(
+            thumbUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: Colors.black),
+          );
         }
-        debugPrint('[Integrated Player] Thumbnail: $thumbUrl');
-        placeholder = Image.network(
-          thumbUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Container(color: Colors.black),
-        );
       }
 
       _chewieController = ChewieController(
