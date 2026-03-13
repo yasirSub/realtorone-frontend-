@@ -53,16 +53,36 @@ class _LearningPageState extends State<LearningPage>
 
   int _getTierWeight(String tier) {
     switch (tier.toLowerCase()) {
-      case 'titan': return 3;
-      case 'rainmaker': return 2;
-      case 'consultant': return 1;
-      case 'free': return 0;
-      default: return 1; // Default to consultant for safety
+      case 'titan':
+        return 3;
+      case 'rainmaker':
+        return 2;
+      case 'consultant':
+        return 1;
+      case 'free':
+        return 0;
+      default:
+        return 1; // Default to consultant for safety
     }
   }
 
   bool _isTierUnlocked(String requiredTier) {
     return _getTierWeight(_userTier) >= _getTierWeight(requiredTier);
+  }
+
+  String _resolveAssetUrl(String rawUrl) {
+    final trimmed = rawUrl.trim();
+    if (trimmed.isEmpty) return trimmed;
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    final host = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    if (trimmed.startsWith('/')) {
+      return '$host$trimmed';
+    }
+
+    return '$host/storage/$trimmed';
   }
 
   @override
@@ -102,8 +122,14 @@ class _LearningPageState extends State<LearningPage>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildTacticalBadge('KNOWLEDGE VAULT', const Color(0xFF4ECDC4).withOpacity(0.8)),
-                              _buildTacticalBadge(_userTier.toUpperCase(), const Color(0xFFFFB347)),
+                              _buildTacticalBadge(
+                                'KNOWLEDGE VAULT',
+                                const Color(0xFF4ECDC4).withOpacity(0.8),
+                              ),
+                              _buildTacticalBadge(
+                                _userTier.toUpperCase(),
+                                const Color(0xFFFFB347),
+                              ),
                             ],
                           ),
                           const Spacer(),
@@ -193,7 +219,7 @@ class _LearningPageState extends State<LearningPage>
 
   Widget _buildTieredList() {
     final List<String> tiers = ['Consultant', 'Rainmaker', 'Titan'];
-    
+
     // Gather all courses from all modules
     final allCourses = <CourseModel>[];
     for (var module in _modules) {
@@ -205,9 +231,11 @@ class _LearningPageState extends State<LearningPage>
       itemCount: tiers.length,
       itemBuilder: (context, index) {
         final tier = tiers[index];
-        
+
         // Filter courses by their OWN minTier property
-        final tierCourses = allCourses.where((c) => c.minTier.toLowerCase() == tier.toLowerCase()).toList();
+        final tierCourses = allCourses
+            .where((c) => c.minTier.toLowerCase() == tier.toLowerCase())
+            .toList();
 
         if (tierCourses.isEmpty) return const SizedBox.shrink();
 
@@ -230,10 +258,14 @@ class _LearningPageState extends State<LearningPage>
 
   Color _getTierColor(String tier) {
     switch (tier.toLowerCase()) {
-      case 'titan': return const Color(0xFFF59E0B);
-      case 'rainmaker': return const Color(0xFF6366F1);
-      case 'consultant': return const Color(0xFF10B981);
-      default: return const Color(0xFF6366f1);
+      case 'titan':
+        return const Color(0xFFF59E0B);
+      case 'rainmaker':
+        return const Color(0xFF6366F1);
+      case 'consultant':
+        return const Color(0xFF10B981);
+      default:
+        return const Color(0xFF6366f1);
     }
   }
 
@@ -288,7 +320,8 @@ class _LearningPageState extends State<LearningPage>
         action: SnackBarAction(
           label: 'VIEW PLANS',
           textColor: const Color(0xFF4ECDC4),
-          onPressed: () => Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
+          onPressed: () =>
+              Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
         ),
       ),
     );
@@ -326,16 +359,23 @@ class _LearningPageState extends State<LearningPage>
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty)
+                    if (course.thumbnailUrl != null &&
+                        course.thumbnailUrl!.isNotEmpty)
                       Image.network(
-                        course.thumbnailUrl!.contains('://') ? course.thumbnailUrl! : '${ApiEndpoints.baseUrl.replaceAll('/api', '')}/storage/${course.thumbnailUrl}',
+                        _resolveAssetUrl(course.thumbnailUrl!),
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.grey),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.broken_image_rounded,
+                              color: Colors.grey,
+                            ),
                       )
                     else
                       Center(
                         child: Icon(
-                          isLocked ? Icons.lock_outline_rounded : Icons.play_circle_fill_rounded,
+                          isLocked
+                              ? Icons.lock_outline_rounded
+                              : Icons.play_circle_fill_rounded,
                           color: moduleColor.withOpacity(0.4),
                           size: 32,
                         ),
@@ -344,17 +384,24 @@ class _LearningPageState extends State<LearningPage>
                       Container(
                         color: Colors.white.withOpacity(0.3),
                         child: const Center(
-                          child: Icon(Icons.lock_rounded, color: Color(0xFF64748B), size: 24),
+                          child: Icon(
+                            Icons.lock_rounded,
+                            color: Color(0xFF64748B),
+                            size: 24,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
-              
+
               // Course Content
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -367,7 +414,9 @@ class _LearningPageState extends State<LearningPage>
                               style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 13,
-                                color: isLocked ? const Color(0xFF64748B) : const Color(0xFF1E293B),
+                                color: isLocked
+                                    ? const Color(0xFF64748B)
+                                    : const Color(0xFF1E293B),
                                 letterSpacing: -0.3,
                               ),
                               maxLines: 1,
@@ -396,7 +445,9 @@ class _LearningPageState extends State<LearningPage>
                           child: LinearProgressIndicator(
                             value: course.progressPercent / 100,
                             backgroundColor: Colors.grey[100],
-                            valueColor: AlwaysStoppedAnimation<Color>(moduleColor),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              moduleColor,
+                            ),
                             minHeight: 2,
                           ),
                         ),
@@ -434,7 +485,9 @@ class _LearningPageState extends State<LearningPage>
         color: isLocked ? Colors.grey.withOpacity(0.1) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: isLocked ? Colors.grey.withOpacity(0.2) : color.withOpacity(0.2),
+          color: isLocked
+              ? Colors.grey.withOpacity(0.2)
+              : color.withOpacity(0.2),
           width: 0.8,
         ),
       ),
@@ -507,10 +560,7 @@ class _LearningPageState extends State<LearningPage>
     Navigator.pushNamed(
       context,
       AppRoutes.courseCurriculum,
-      arguments: {
-        'courseId': course.id,
-        'courseTitle': course.title,
-      },
+      arguments: {'courseId': course.id, 'courseTitle': course.title},
     );
   }
 }
