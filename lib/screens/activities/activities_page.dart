@@ -884,7 +884,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               const SizedBox(height: 32),
             ],
 
-            // Identity Conditioning: Manual & Verified subcategories
+            // Backend-driven identity sections
             if (_isLoading && subconsciousTypes.isEmpty)
               const SkillSkeleton(itemCount: 3)
             else if (subconsciousTypes.isEmpty)
@@ -895,65 +895,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                 ),
               )
             else ...[
-              // Group into Mindset & Inner Strength vs Growth & Daily Performance
-              Builder(
-                builder: (context) {
-                  final mindsetOrder = <String, int>{
-                    'Visualization': 0,
-                    'Affirmations': 1,
-                    'Belief Exercise': 2,
-                    'Identity Statement': 3,
-                    'Gratitude Journaling': 4,
-                    'Calm Reset': 5,
-                    'Audio Reprogramming': 6,
-                  };
-
-                  final mindsetNames = mindsetOrder.keys.toSet();
-
-                  final mindsetTypes = subconsciousTypes
-                      .where(
-                        (t) =>
-                            t['name'] != null &&
-                            mindsetNames.contains(t['name'] as String),
-                      )
-                      .toList()
-                    ..sort((a, b) {
-                      final aName = a['name'] as String? ?? '';
-                      final bName = b['name'] as String? ?? '';
-                      return (mindsetOrder[aName] ?? 999)
-                          .compareTo(mindsetOrder[bName] ?? 999);
-                    });
-
-                  final growthTypes = subconsciousTypes
-                      .where((t) {
-                        final name = (t['name'] ?? '') as String;
-                        if (name == 'Webinar Attendance') return false;
-                        return name == 'Morning Focus Ritual' ||
-                            name == 'Mindset Training' ||
-                            !mindsetNames.contains(name);
-                      }).toList();
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (mindsetTypes.isNotEmpty) ...[
-                        _buildSubcategorySection(
-                          'MINDSET & INNER STRENGTH',
-                          mindsetTypes,
-                          0,
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                      if (growthTypes.isNotEmpty)
-                        _buildSubcategorySection(
-                          'GROWTH & DAILY PERFORMANCE',
-                          growthTypes,
-                          50,
-                        ),
-                    ],
-                  );
-                },
-              ),
+              ..._buildBackendDrivenSections(subconsciousTypes),
             ],
 
             const SizedBox(height: 32),
@@ -997,6 +939,62 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     );
   }
 
+  List<Widget> _buildBackendDrivenSections(List<Map<String, dynamic>> types) {
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    final sectionOrder = <String, int>{};
+
+    final sortedTypes = [...types]..sort((a, b) {
+      final aSectionOrder = (a['section_order'] as num?)?.toInt() ?? 999;
+      final bSectionOrder = (b['section_order'] as num?)?.toInt() ?? 999;
+      if (aSectionOrder != bSectionOrder) {
+        return aSectionOrder.compareTo(bSectionOrder);
+      }
+
+      final aItemOrder = (a['item_order'] as num?)?.toInt() ?? 999;
+      final bItemOrder = (b['item_order'] as num?)?.toInt() ?? 999;
+      if (aItemOrder != bItemOrder) {
+        return aItemOrder.compareTo(bItemOrder);
+      }
+
+      final aName = (a['name'] ?? '') as String;
+      final bName = (b['name'] ?? '') as String;
+      return aName.compareTo(bName);
+    });
+
+    for (final type in sortedTypes) {
+      final title =
+          ((type['section_title'] as String?)?.trim().isNotEmpty ?? false)
+          ? (type['section_title'] as String).toUpperCase()
+          : 'IDENTITY CONDITIONING';
+      grouped.putIfAbsent(title, () => []);
+      grouped[title]!.add(type);
+      sectionOrder.putIfAbsent(
+        title,
+        () => (type['section_order'] as num?)?.toInt() ?? 999,
+      );
+    }
+
+    final orderedSections = grouped.entries.toList()
+      ..sort(
+        (a, b) => (sectionOrder[a.key] ?? 999).compareTo(
+          sectionOrder[b.key] ?? 999,
+        ),
+      );
+
+    final widgets = <Widget>[];
+    for (int index = 0; index < orderedSections.length; index++) {
+      final entry = orderedSections[index];
+      widgets.add(
+        _buildSubcategorySection(entry.key, entry.value, index * 50),
+      );
+      if (index < orderedSections.length - 1) {
+        widgets.add(const SizedBox(height: 24));
+      }
+    }
+
+    return widgets;
+  }
+
   Widget _buildActivityTypeCard(Map<String, dynamic> activityType) {
     final String name = activityType['name'] ?? 'Activity';
     final String category = activityType['category'] ?? '';
@@ -1021,193 +1019,156 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
     return Opacity(
       opacity: isInteracted ? 0.6 : 1.0,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: isInteracted ? Colors.grey[50] : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isInteracted
-                ? Colors.black.withValues(alpha: 0.01)
-                : Colors.black.withValues(alpha: 0.03),
+      child: InkWell(
+        onTap: isInteracted ? null : () => _showActivityTaskPopup(activityType),
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: isInteracted ? Colors.grey[50] : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isInteracted
+                  ? Colors.black.withValues(alpha: 0.01)
+                  : Colors.black.withValues(alpha: 0.03),
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: isInteracted
-                      ? (isCompleted
-                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                            : const Color(0xFFEF4444).withValues(alpha: 0.1))
-                      : color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isInteracted
-                      ? (isCompleted
-                            ? Icons.check_circle_rounded
-                            : Icons.cancel_rounded)
-                      : _getIconForType(activityType['type_key']),
-                  color: isInteracted
-                      ? (isCompleted
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFEF4444))
-                      : color,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: isInteracted
-                            ? const Color(0xFF64748B)
-                            : const Color(0xFF1E293B),
-                        decoration: isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                      ),
-                    ),
-                    if (isInteracted) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        isCompleted ? 'COMPLETED' : 'SKIPPED',
-                        style: TextStyle(
-                          color: isCompleted
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isInteracted
+                        ? (isCompleted
+                              ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                              : const Color(0xFFEF4444).withValues(alpha: 0.1))
+                        : color.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isInteracted
+                        ? (isCompleted
+                              ? Icons.check_circle_rounded
+                              : Icons.cancel_rounded)
+                        : _getIconForType(activityType['type_key']),
+                    color: isInteracted
+                        ? (isCompleted
                               ? const Color(0xFF10B981)
-                              : const Color(0xFFEF4444),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1,
+                              : const Color(0xFFEF4444))
+                        : color,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: isInteracted
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF1E293B),
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (isInteracted)
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isCompleted && existingLog.isNotEmpty
-                          ? Icons.check_circle_rounded
-                          : (isInteracted && existingLog.isEmpty
-                                ? Icons.hourglass_top_rounded
-                                : Icons.cancel_rounded),
-                      color: isCompleted
-                          ? const Color(0xFF10B981)
-                          : (existingLog.isEmpty
-                                ? Colors.grey
-                                : const Color(0xFFEF4444)),
-                      size: 28,
-                    ),
-                    if (isInteracted)
-                      Container(
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              (isCompleted
-                                      ? const Color(0xFF10B981)
-                                      : Colors.orange)
-                                  .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          'LIVE',
+                      if (isInteracted) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          isCompleted ? 'COMPLETED' : 'SKIPPED',
                           style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
                             color: isCompleted
                                 ? const Color(0xFF10B981)
-                                : Colors.orange,
-                          ),
-                        ),
-                      ),
-                  ],
-                )
-              else
-                // YES/NO Buttons
-                Row(
-                  children: [
-                    // NO Button
-                    GestureDetector(
-                      onTap: () =>
-                          _logActivityType(activityType, completed: false),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(
-                              0xFFEF4444,
-                            ).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Text(
-                          'NO',
-                          style: TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
+                                : const Color(0xFFEF4444),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 1,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // YES Button
-                    GestureDetector(
-                      onTap: () =>
-                          _logActivityType(activityType, completed: true),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(
-                              0xFF10B981,
-                            ).withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: const Text(
-                          'YES',
-                          style: TextStyle(
-                            color: Color(0xFF10B981),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    ],
+                  ),
                 ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                if (isInteracted)
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isCompleted && existingLog.isNotEmpty
+                            ? Icons.check_circle_rounded
+                            : (isInteracted && existingLog.isEmpty
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.cancel_rounded),
+                        color: isCompleted
+                            ? const Color(0xFF10B981)
+                            : (existingLog.isEmpty
+                                  ? Colors.grey
+                                  : const Color(0xFFEF4444)),
+                        size: 28,
+                      ),
+                      if (isInteracted)
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                (isCompleted
+                                        ? const Color(0xFF10B981)
+                                        : Colors.orange)
+                                    .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'LIVE',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w900,
+                              color: isCompleted
+                                  ? const Color(0xFF10B981)
+                                  : Colors.orange,
+                            ),
+                          ),
+                        ),
+                    ],
+                  )
+                else
+                  // Open details popup first, then YES/NO inside it.
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: color.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'OPEN',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+                          ),
         ),
       ),
     );
@@ -1215,6 +1176,190 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
   IconData _getIconForType(String? typeKey) {
     return _getActivityTypeIcon(typeKey);
+  }
+
+  Future<void> _showActivityTaskPopup(Map<String, dynamic> activityType) async {
+    final String name = activityType['name'] ?? 'Activity';
+    final int todayDay = (activityType['today_day_number'] as num?)?.toInt() ?? 1;
+    final String taskDescription =
+        (activityType['task_description'] ?? activityType['description'] ?? '')
+            .toString()
+            .trim();
+    final String scriptIdea =
+        (activityType['video_reel_script_idea'] ?? activityType['script_idea'] ?? '')
+            .toString()
+            .trim();
+    final String feedback = (activityType['daily_feedback'] ?? '').toString().trim();
+
+    if (!mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final bgColor = isDark ? const Color(0xFF020617) : Colors.white;
+
+        return SafeArea(
+          top: false,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              18,
+              20,
+              MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'DAY $todayDay TASK',
+                  style: const TextStyle(
+                    color: Color(0xFF667eea),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (taskDescription.isNotEmpty) ...[
+                  _buildPopupInfoCard(
+                    title: 'Task Description',
+                    text: taskDescription,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (scriptIdea.isNotEmpty) ...[
+                  _buildPopupInfoCard(
+                    title: 'Video/Reel Script Idea',
+                    text: scriptIdea,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (feedback.isNotEmpty) ...[
+                  _buildPopupInfoCard(
+                    title: 'Feedback',
+                    text: feedback,
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (taskDescription.isEmpty && scriptIdea.isEmpty && feedback.isEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: const Text(
+                      'No day-wise note set yet. You can still mark this activity as YES/NO.',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildActionBtn('NO', const Color(0xFFEF4444), () {
+                        Navigator.of(context).pop();
+                        _logActivityType(activityType, completed: false);
+                      }),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildActionBtn('YES', const Color(0xFF10B981), () {
+                        Navigator.of(context).pop();
+                        _logActivityType(activityType, completed: true);
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPopupInfoCard({
+    required String title,
+    required String text,
+    required bool isDark,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              fontSize: 14,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   IconData _getActivityTypeIcon(String? typeKey) {

@@ -1,6 +1,7 @@
+import 'app_config.dart';
+
 class ApiEndpoints {
-  // VPS backend used by the mobile app builds.
-  static const String baseUrl = 'http://187.77.184.129:8000/api';
+  static String get baseUrl => AppConfig.apiBaseUrl;
 
   // Auth endpoints
   static const String login = '/login';
