@@ -112,6 +112,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             _isPremium = subRes['is_premium'] == true;
             _currentTier = subRes['membership_tier'] ?? 'Consultant';
             _expiresAt = subRes['expires_at'];
+
+            // If user is already premium, pre-select their current package
+            // so "Manage billing" (1/6/12 months) is one tap.
+            final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
+            _selectedPackageId = _isPremium ? currentPkgId : null;
           }
           _isLoading = false;
         });
@@ -285,6 +290,28 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         .toLowerCase();
   }
 
+  Color _getGlowForSelectedPackage() {
+    const defaultGlow = Color(0xFF667eea);
+    if (_selectedPackageId == null) return defaultGlow;
+
+    dynamic selectedPkg;
+    for (final p in _packages) {
+      final id = (p['id'] as num?)?.toInt();
+      if (id != null && id == _selectedPackageId) {
+        selectedPkg = p;
+        break;
+      }
+    }
+    if (selectedPkg == null) return defaultGlow;
+
+    final name = selectedPkg['name']?.toString() ?? '';
+    final lower = name.toLowerCase();
+    if (lower.contains('titan')) return _tierGlow['Titan'] ?? defaultGlow;
+    if (lower.contains('rainmaker')) return _tierGlow['Rainmaker'] ?? defaultGlow;
+    // Default to Consultant styling for everything else (Consultant / Free / Silver legacy)
+    return _tierGlow['Consultant'] ?? defaultGlow;
+  }
+
   /// Filter packages to avoid duplicate tier cards. When subscribed, prefer the package matching current tier.
   List<dynamic> get _displayPackages {
     final byTier = <String, dynamic>{};
@@ -309,9 +336,17 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   }
 
   double _calculatePrice(Map<String, dynamic> pkg) {
-    double price =
-        (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) *
-        _selectedMonths;
+    final baseMonthly =
+        (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0);
+
+    // Match UI "savings" labels with real pricing sent to backend.
+    final durationDiscountFactor = _selectedMonths == 6
+        ? 0.9
+        : _selectedMonths == 12
+            ? 0.8
+            : 1.0;
+
+    double price = baseMonthly * _selectedMonths * durationDiscountFactor;
     if (_validatedCoupon != null) {
       final discount = (_validatedCoupon!['discount_percentage'] as num?) ?? 0;
       price = price * (1 - discount / 100);
@@ -526,10 +561,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final gradients =
         _tierGradients[_currentTier] ??
         [const Color(0xFF64748B), const Color(0xFF475569)];
+    final glowColor = _tierGlow[_currentTier] ?? const Color(0xFF667eea);
     final expDate = _expiresAt != null ? DateTime.tryParse(_expiresAt!) : null;
     final daysLeft = expDate != null
         ? expDate.difference(DateTime.now()).inDays
         : 0;
+
+    final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -585,18 +623,50 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'ACTIVE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'ACTIVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () {
+                    if (currentPkgId == null) return;
+                    setState(() => _selectedPackageId = currentPkgId);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: glowColor.withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: glowColor.withOpacity(0.35)),
+                    ),
+                    child: const Text(
+                      'EDIT BILLING',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -612,20 +682,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: [1, 3, 6, 12].map((m) {
+        // Required by UI spec:
+        // - 1 month
+        // - 6th monthly (6 months)
+        // - 1 yearly (12 months)
+        children: [1, 6, 12].map((m) {
           final isSelected = _selectedMonths == m;
           final label = m == 1
-              ? '1 Mo'
-              : m == 12
-              ? '1 Year'
-              : '$m Mo';
-          final savings = m == 3
-              ? '-5%'
+              ? '1 Month'
               : m == 6
-              ? '-10%'
-              : m == 12
-              ? '-20%'
-              : null;
+                  ? '6 Monthly'
+                  : '1 Yearly';
+
+          final savings = m == 6 ? '-10%' : m == 12 ? '-20%' : null;
+          final glowColor = _getGlowForSelectedPackage();
 
           return Expanded(
             child: GestureDetector(
@@ -635,7 +705,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF667eea)
+                      ? glowColor
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -741,10 +811,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         : null;
 
     return GestureDetector(
-          onTap: isFree || isCurrentTier
+          // Allow selecting the current tier too (so users can renew for 1/6/12 months).
+          // Keep "Free" disabled.
+          onTap: isFree
               ? null
               : () =>
-                    setState(() => _selectedPackageId = isSelected ? null : id),
+                  setState(() => _selectedPackageId = isSelected ? null : id),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
@@ -877,7 +949,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                           )
                         else ...[
                           Text(
-                            '\$${priceMonthly.toStringAsFixed(0)}',
+                            'AED ${_calculatePrice(pkg).toStringAsFixed(0)}',
                             style: TextStyle(
                               color: isTitan
                                   ? const Color(0xFFF59E0B)
@@ -890,8 +962,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          const Text(
-                            '/month',
+                          Text(
+                            // Billing suffix changes with selected duration
+                            _selectedMonths == 1
+                                ? '/month'
+                                : _selectedMonths == 6
+                                    ? '/6 months'
+                                    : '/year',
                             style: TextStyle(
                               color: Color(0xFF64748B),
                               fontSize: 10,
@@ -951,7 +1028,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 ],
 
                 // Select action
-                if (!isFree && !isCurrentTier) ...[
+                if (!isFree) ...[
                   const SizedBox(height: 14),
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
@@ -965,7 +1042,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                     ),
                     child: Center(
                       child: Text(
-                        isSelected ? '✓ SELECTED' : 'SELECT PLAN',
+                        isSelected
+                            ? '✓ SELECTED'
+                            : isCurrentTier
+                                ? 'RENEW'
+                                : 'SELECT PLAN',
                         style: TextStyle(
                           color: isSelected ? Colors.white : glowColor,
                           fontSize: 12,
@@ -1123,6 +1204,18 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     final name = pkg['name']?.toString() ?? 'Plan';
     final totalPrice = _calculatePrice(pkg);
+    final durationText = _selectedMonths == 1
+        ? '1 month'
+        : _selectedMonths == 6
+            ? '6th monthly'
+            : '1 yearly';
+
+    final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
+    final selectedPkgId = (pkg['id'] as num?)?.toInt();
+    final isRenewing =
+        _isPremium && currentPkgId != null && selectedPkgId == currentPkgId;
+    final buttonLabel = isRenewing ? 'RENEW' : 'SUBSCRIBE NOW';
+    final glowColor = _getGlowForSelectedPackage();
 
     return ClipRRect(
       child: BackdropFilter(
@@ -1151,7 +1244,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '$name · $_selectedMonths ${_selectedMonths == 1 ? 'month' : 'months'}',
+                        '$name · $durationText',
                         style: TextStyle(
                           color: isDark
                               ? Colors.white70
@@ -1162,7 +1255,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '\$${totalPrice.toStringAsFixed(2)}',
+                        'AED ${totalPrice.toStringAsFixed(2)}',
                         style: TextStyle(
                           color: isDark
                               ? Colors.white
@@ -1177,7 +1270,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 ElevatedButton(
                   onPressed: _isPurchasing ? null : _purchasePackage,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF667eea),
+                    backgroundColor: glowColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 32,
                       vertical: 16,
@@ -1186,11 +1279,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 8,
-                    shadowColor: const Color(0xFF667eea).withOpacity(0.3),
+                    shadowColor: glowColor.withOpacity(0.3),
                   ),
-                  child: const Text(
-                    'SUBSCRIBE NOW',
-                    style: TextStyle(
+                  child: Text(
+                    buttonLabel,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,
                       fontSize: 13,
