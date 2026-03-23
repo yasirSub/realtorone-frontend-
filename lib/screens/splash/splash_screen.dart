@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../routes/app_routes.dart';
+import '../../services/push_notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -66,6 +67,8 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.pushReplacementNamed(context, AppRoutes.login);
       return;
     }
+
+    await PushNotificationService.syncTokenWithBackend();
 
     try {
       final response = await ApiClient.get('/user/profile', requiresAuth: true);

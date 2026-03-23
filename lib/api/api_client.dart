@@ -7,6 +7,9 @@ import 'api_endpoints.dart';
 class ApiClient {
   static String? _token;
 
+  /// Optional hook (e.g. remove FCM token from backend before clearing session).
+  static Future<void> Function()? beforeClearToken;
+
   // Get token from storage (public for file uploads)
   static Future<String?> getToken() async {
     if (_token != null) return _token;
@@ -24,6 +27,9 @@ class ApiClient {
 
   // Clear token
   static Future<void> clearToken() async {
+    try {
+      await beforeClearToken?.call();
+    } catch (_) {}
     _token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');

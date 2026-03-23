@@ -1,11 +1,22 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
+import 'api/api_client.dart';
+import 'services/push_notification_service.dart';
 
-void main() {
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiClient.beforeClearToken = PushNotificationService.unregisterBackendToken;
+  final firebaseOk = await PushNotificationService.initializeApp();
+  if (firebaseOk) {
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  }
+  PushNotificationService.attachNavigatorKey(appNavigatorKey);
   runApp(
     MultiProvider(
       providers: [ChangeNotifierProvider(create: (_) => ThemeProvider())],
@@ -22,6 +33,7 @@ class RealtorOneApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'RealtorOne',
       debugShowCheckedModeBanner: false,
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,

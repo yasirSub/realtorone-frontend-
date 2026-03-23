@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/api_client.dart';
 import '../../api/auth_api.dart';
+import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 
@@ -46,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
 
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
+        await PushNotificationService.syncTokenWithBackend();
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name']);
         await prefs.setString('user_email', response['user']['email']);
