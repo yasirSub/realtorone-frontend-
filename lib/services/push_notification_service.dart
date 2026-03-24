@@ -101,15 +101,20 @@ class PushNotificationService {
 
   static Future<void> storeNotificationFromMessage(RemoteMessage message) async {
     final data = message.data;
-    final title = message.notification?.title ?? (data['title'] ?? 'RealtorOne').toString();
+    final recurrenceType = (data['recurrence_type'] ?? '').toString();
+    final titleBase = message.notification?.title ?? (data['title'] ?? 'RealtorOne').toString();
     final body = message.notification?.body ?? (data['body'] ?? '').toString();
+    final title = _applyGreetingIfNeeded(recurrenceType, titleBase);
+    final styleFromPayload = (data['display_style'] ?? 'standard').toString();
+    final style = _applyDailySurfaceStyleIfNeeded(recurrenceType, styleFromPayload);
 
     final item = <String, dynamic>{
       'id': message.messageId ?? DateTime.now().microsecondsSinceEpoch.toString(),
       'title': title,
       'body': body,
-      'style': (data['display_style'] ?? 'standard').toString(),
+      'style': style,
       'deep_link': (data['deep_link'] ?? '').toString(),
+      'recurrence_type': recurrenceType,
       'banner_subtitle': (data['banner_subtitle'] ?? '').toString(),
       'banner_cta_label': (data['banner_cta_label'] ?? '').toString(),
       'banner_accent_color': (data['banner_accent_color'] ?? '').toString(),
@@ -137,9 +142,14 @@ class PushNotificationService {
       await storeNotificationFromMessage(message);
 
       final data = message.data;
-      final style = data['display_style'] ?? 'standard';
-      final title = message.notification?.title ?? data['title'] ?? 'RealtorOne';
+      final recurrenceType = (data['recurrence_type'] ?? '').toString();
+      final styleFromPayload = (data['display_style'] ?? 'standard').toString();
+      final style = _applyDailySurfaceStyleIfNeeded(recurrenceType, styleFromPayload);
+      final titleBase = message.notification?.title ?? data['title'] ?? 'RealtorOne';
+      final title = _applyGreetingIfNeeded(recurrenceType, titleBase.toString());
       final body = message.notification?.body ?? data['body'] ?? '';
+      final deepLink = (data['deep_link'] ?? '').trim();
+      final cta = (data['banner_cta_label'] ?? 'Open').toString().trim().isNotEmpty ? (data['banner_cta_label'] ?? 'Open').toString().trim() : 'Open';
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final ctx = _navigatorKey?.currentContext;
@@ -154,7 +164,7 @@ class PushNotificationService {
               : 'Open';
           final accent = _parseBannerAccent(data['banner_accent_color']);
           final imageUrl = (data['banner_image_url'] ?? '').trim();
-          final deepLink = (data['deep_link'] ?? '').trim();
+          // banner already uses deepLink above
 
           ScaffoldMessenger.of(ctx).clearMaterialBanners();
           ScaffoldMessenger.of(ctx).showMaterialBanner(
@@ -213,8 +223,24 @@ class PushNotificationService {
             ),
           );
         } else if (style != 'silent') {
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(content: Text('$title: $body'), behavior: SnackBarBehavior.floating),
+          final messenger = ScaffoldMessenger.of(ctx);
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('$title: $body'),
+              behavior: SnackBarBehavior.floating,
+              action: (deepLink.isNotEmpty)
+                  ? SnackBarAction(
+                      label: cta.toUpperCase(),
+                      onPressed: () async {
+                        final uri = Uri.tryParse(deepLink);
+                        if (uri == null) return;
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                    )
+                  : null,
+            ),
           );
         }
       });
@@ -263,5 +289,32 @@ class PushNotificationService {
       await ApiClient.delete('/user/push-token', requiresAuth: true);
       await _messaging.deleteToken();
     } catch (_) {}
+  }
+
+  static String _applyGreetingIfNeeded(String recurrenceType, String title) {
+    // Only auto-generate greetings for daily recurring broadcasts.
+    if (recurrenceType != 'daily') return title;
+
+    final now = DateTime.now();
+    final hour = now.hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : (hour < 17 ? 'Good afternoon' : 'Good evening');
+
+    // Avoid double-prefix if the admin already used a greeting.
+    final t = title.trim();
+    if (t.startsWith(greeting)) return title;
+    return '$greeting: $title';
+  }
+
+  static String _applyDailySurfaceStyleIfNeeded(String recurrenceType, String styleFromPayload) {
+    if (recurrenceType != 'daily') return styleFromPayload;
+    if (styleFromPayload == 'silent') return 'silent';
+
+    final hour = DateTime.now().hour;
+    // Morning: banner, Afternoon: snackbar, Evening: banner.
+    if (hour < 12) return 'banner';
+    if (hour < 17) return 'standard';
+    return 'banner';
   }
 }
