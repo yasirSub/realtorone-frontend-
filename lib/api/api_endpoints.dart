@@ -26,6 +26,7 @@ class ApiEndpoints {
   static const String pointsHistory = '/user/points-history';
 
   // Diagnosis endpoints
+  static const String diagnosisQuestions = '/diagnosis/questions';
   static const String diagnosisSubmit = '/diagnosis/submit';
 
   // Activities endpoints

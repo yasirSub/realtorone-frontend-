@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../../api/diagnosis_api.dart';
 import '../../routes/app_routes.dart';
 
 class DiagnosisQuestionsPage extends StatefulWidget {
@@ -12,6 +13,7 @@ class DiagnosisQuestionsPage extends StatefulWidget {
 class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
   final PageController _pageController = PageController();
   int _currentQuestion = 0;
+  bool _isLoading = true;
   final Map<int, int> _answers = {};
   final Map<String, int> _blockerScores = {
     'leadGeneration': 0,
@@ -19,149 +21,30 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
     'closing': 0,
     'discipline': 0,
   };
+  List<DiagnosisQuestion> _questions = [];
 
-  final List<_DiagnosisQuestionData> _questions = [
-    _DiagnosisQuestionData(
-      id: 1,
-      question: 'How often do you get new client inquiries?',
-      options: [
-        _OptionData(
-          'Rarely - I struggle to find new leads',
-          'leadGeneration',
-          3,
-        ),
-        _OptionData('Sometimes - It\'s inconsistent', 'leadGeneration', 2),
-        _OptionData('Often - I have a steady flow', 'leadGeneration', 1),
-        _OptionData(
-          'Always - I have more than I can handle',
-          'leadGeneration',
-          0,
-        ),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 2,
-      question: 'When meeting a high-value client, how do you feel?',
-      options: [
-        _OptionData('Very nervous - I doubt myself', 'confidence', 3),
-        _OptionData(
-          'Somewhat nervous - I need more experience',
-          'confidence',
-          2,
-        ),
-        _OptionData('Confident but careful', 'confidence', 1),
-        _OptionData('Completely confident - I know my stuff', 'confidence', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 3,
-      question: 'How many of your interested leads convert to actual deals?',
-      options: [
-        _OptionData('Very few - Less than 10%', 'closing', 3),
-        _OptionData('Some - Around 10-25%', 'closing', 2),
-        _OptionData('Good rate - Around 25-40%', 'closing', 1),
-        _OptionData('Excellent - Over 40%', 'closing', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 4,
-      question: 'How consistent are you with your daily work routine?',
-      options: [
-        _OptionData(
-          'Not consistent - I work when I feel like it',
-          'discipline',
-          3,
-        ),
-        _OptionData('Somewhat - I try but get distracted', 'discipline', 2),
-        _OptionData(
-          'Mostly consistent - I have good days and bad',
-          'discipline',
-          1,
-        ),
-        _OptionData(
-          'Very consistent - I follow my schedule daily',
-          'discipline',
-          0,
-        ),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 5,
-      question: 'What is your biggest challenge right now?',
-      options: [
-        _OptionData('Finding enough potential clients', 'leadGeneration', 3),
-        _OptionData('Feeling confident in negotiations', 'confidence', 3),
-        _OptionData('Converting inquiries into signed deals', 'closing', 3),
-        _OptionData('Staying focused and productive daily', 'discipline', 3),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 6,
-      question: 'How do you handle objections from clients?',
-      options: [
-        _OptionData('I struggle and often lose the deal', 'closing', 3),
-        _OptionData('I try but don\'t have a clear strategy', 'closing', 2),
-        _OptionData('I handle most, but some throw me off', 'closing', 1),
-        _OptionData('I confidently address all objections', 'closing', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 7,
-      question: 'How would you rate your market knowledge?',
-      options: [
-        _OptionData('Basic - I\'m still learning', 'confidence', 3),
-        _OptionData('Developing - I know some areas well', 'confidence', 2),
-        _OptionData(
-          'Good - I\'m knowledgeable about most areas',
-          'confidence',
-          1,
-        ),
-        _OptionData('Expert - I know the market inside out', 'confidence', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 8,
-      question: 'How do you typically start your work day?',
-      options: [
-        _OptionData(
-          'No set routine - I just react to what comes',
-          'discipline',
-          3,
-        ),
-        _OptionData('I check messages but no real plan', 'discipline', 2),
-        _OptionData('I have a loose routine I follow', 'discipline', 1),
-        _OptionData('I have a strict routine and task list', 'discipline', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 9,
-      question: 'How active are you in generating your own leads?',
-      options: [
-        _OptionData(
-          'Not active - I wait for leads to come',
-          'leadGeneration',
-          3,
-        ),
-        _OptionData('Somewhat - It is not systematic', 'leadGeneration', 2),
-        _OptionData(
-          'Active - I have some lead gen activities',
-          'leadGeneration',
-          1,
-        ),
-        _OptionData('Very active - Multiple lead sources', 'leadGeneration', 0),
-      ],
-    ),
-    _DiagnosisQuestionData(
-      id: 10,
-      question: 'When you don\'t close a deal, what usually happens?',
-      options: [
-        _OptionData('I don\'t know why - it just fails', 'closing', 3),
-        _OptionData('Client finds a better deal elsewhere', 'confidence', 2),
-        _OptionData('I lose momentum in follow-ups', 'discipline', 2),
-        _OptionData('I analyze and learn from each loss', 'closing', 0),
-      ],
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      final remote = await DiagnosisApi.getQuestions();
+      if (!mounted) return;
+      setState(() {
+        _questions = remote;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _questions = [];
+        _isLoading = false;
+      });
+    }
+  }
 
   void _selectOption(int questionId, int optionIndex) {
     setState(() {
@@ -210,6 +93,27 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF1E293B),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF4ECDC4)),
+        ),
+      );
+    }
+
+    if (_questions.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF1E293B),
+        body: Center(
+          child: Text(
+            'No signup questions configured.',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
+      );
+    }
+
     final progress = (_currentQuestion + 1) / _questions.length;
 
     return Scaffold(
@@ -277,7 +181,7 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
     );
   }
 
-  Widget _buildQuestionCard(_DiagnosisQuestionData question) {
+  Widget _buildQuestionCard(DiagnosisQuestion question) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
@@ -318,7 +222,7 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
     );
   }
 
-  Widget _buildOption(int questionId, int idx, _OptionData option) {
+  Widget _buildOption(int questionId, int idx, DiagnosisQuestionOption option) {
     final isSelected = _answers[questionId] == idx;
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -362,22 +266,4 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
       ),
     ).animate().fadeIn(delay: (idx * 100).ms).slideX(begin: 0.05);
   }
-}
-
-class _DiagnosisQuestionData {
-  final int id;
-  final String question;
-  final List<_OptionData> options;
-  _DiagnosisQuestionData({
-    required this.id,
-    required this.question,
-    required this.options,
-  });
-}
-
-class _OptionData {
-  final String text;
-  final String blockerType;
-  final int score;
-  _OptionData(this.text, this.blockerType, this.score);
 }

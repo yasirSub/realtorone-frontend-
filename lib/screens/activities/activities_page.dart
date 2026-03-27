@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:audio_waveforms/audio_waveforms.dart' show WaveformExtractionController;
 import 'package:audioplayers/audioplayers.dart';
@@ -1050,6 +1051,13 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         (activityType['daily_audio_url'] ?? activityType['audio_url'] ?? '')
             .toString()
             .trim();
+    final int requiredListenPercent = ((activityType['daily_required_listen_percent'] ??
+                activityType['required_listen_percent'] ??
+                0) as num?)
+            ?.toInt() ??
+        0;
+    final bool requireUserResponse =
+        (activityType['daily_require_user_response'] ?? false) == true;
     if (audioUrl.isNotEmpty && !audioUrl.startsWith('http')) {
       final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
       audioUrl = base + (audioUrl.startsWith('/') ? audioUrl : '/$audioUrl');
@@ -1068,14 +1076,18 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         scriptIdea: scriptIdea,
         feedback: feedback,
         audioUrl: audioUrl,
+        requiredListenPercent: requiredListenPercent.clamp(0, 100),
+        requireUserResponse: requireUserResponse,
         activityType: activityType,
         onCancel: () => Navigator.of(context).pop(),
-        onSubmit: (String userResponse) {
+        onSubmit: (String userResponse, int listenedPercent) {
           Navigator.of(context).pop();
           _logActivityType(
             activityType,
             completed: true,
             userResponse: userResponse,
+            listenedPercent: listenedPercent,
+            requiredListenPercent: requiredListenPercent.clamp(0, 100),
           );
         },
         buildPopupInfoCard: _buildPopupInfoCard,
@@ -1181,6 +1193,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     Map<String, dynamic> activityType, {
     bool completed = false,
     String? userResponse,
+    int? listenedPercent,
+    int? requiredListenPercent,
   }) async {
     final String typeKey = activityType['type_key'] ?? '';
     final String name = activityType['name'] ?? 'Unknown';
@@ -1213,6 +1227,13 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         category: category,
         durationMinutes: 30,
         description: userResponse,
+        notes: jsonEncode({
+          if (listenedPercent != null) 'audio_listened_percent': listenedPercent,
+          if (requiredListenPercent != null)
+            'audio_required_percent': requiredListenPercent,
+          if (requiredListenPercent != null && listenedPercent != null)
+            'audio_requirement_met': listenedPercent >= requiredListenPercent,
+        }),
       );
 
       debugPrint(
@@ -1499,10 +1520,15 @@ class _WaveformSeekBar extends StatelessWidget {
 }
 
 class _TaskAudioPlayer extends StatefulWidget {
-  const _TaskAudioPlayer({required this.audioUrl, required this.isDark});
+  const _TaskAudioPlayer({
+    required this.audioUrl,
+    required this.isDark,
+    this.onMaxProgressPercentChanged,
+  });
 
   final String audioUrl;
   final bool isDark;
+  final ValueChanged<int>? onMaxProgressPercentChanged;
 
   @override
   State<_TaskAudioPlayer> createState() => _TaskAudioPlayerState();
@@ -1521,6 +1547,18 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
   /// RMS peaks from native decode ([audio_waveforms]); null until loaded or on failure.
   List<double>? _waveformHeights;
   int _waveformLoadToken = 0;
+  int _maxProgressPercent = 0;
+
+  void _emitProgressPercentIfNeeded() {
+    final totalSec = _duration.inSeconds;
+    if (totalSec <= 0) return;
+    final posSec = _position.inSeconds.clamp(0, totalSec);
+    final currentPercent = ((posSec / totalSec) * 100).round().clamp(0, 100);
+    if (currentPercent > _maxProgressPercent) {
+      _maxProgressPercent = currentPercent;
+      widget.onMaxProgressPercentChanged?.call(_maxProgressPercent);
+    }
+  }
 
   static String _formatDuration(Duration d) {
     final m = d.inMinutes;
@@ -1574,6 +1612,7 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
         if (pos != null) _position = pos;
         if (dur != null && dur > Duration.zero) _duration = dur;
       });
+      _emitProgressPercentIfNeeded();
     } catch (_) {}
   }
 
@@ -1607,10 +1646,14 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
     _player.onDurationChanged.listen((d) {
       if (!_isDisposed && mounted && d > Duration.zero) {
         setState(() => _duration = d);
+        _emitProgressPercentIfNeeded();
       }
     });
     _player.onPositionChanged.listen((p) {
-      if (!_isDisposed && mounted) setState(() => _position = p);
+      if (!_isDisposed && mounted) {
+        setState(() => _position = p);
+        _emitProgressPercentIfNeeded();
+      }
     });
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _startWaveformExtraction());
@@ -1865,6 +1908,8 @@ class _ActivityTaskModalContent extends StatefulWidget {
     required this.scriptIdea,
     required this.feedback,
     required this.audioUrl,
+    required this.requiredListenPercent,
+    required this.requireUserResponse,
     required this.activityType,
     required this.onCancel,
     required this.onSubmit,
@@ -1878,9 +1923,11 @@ class _ActivityTaskModalContent extends StatefulWidget {
   final String scriptIdea;
   final String feedback;
   final String audioUrl;
+  final int requiredListenPercent;
+  final bool requireUserResponse;
   final Map<String, dynamic> activityType;
   final VoidCallback onCancel;
-  final void Function(String userResponse) onSubmit;
+  final void Function(String userResponse, int listenedPercent) onSubmit;
   final Widget Function({
     required String title,
     required String text,
@@ -1902,6 +1949,7 @@ class _ActivityTaskModalContent extends StatefulWidget {
 
 class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
   late final TextEditingController _textController;
+  int _maxListenedPercent = 0;
 
   @override
   void initState() {
@@ -1922,7 +1970,10 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
     final wordCount = userText.isEmpty
         ? 0
         : userText.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-    final canSubmit = wordCount >= 2;
+    final meetsResponseRule = !widget.requireUserResponse || wordCount >= 2;
+    final meetsAudioRule = widget.requiredListenPercent <= 0 ||
+        _maxListenedPercent >= widget.requiredListenPercent;
+    final canSubmit = meetsResponseRule && meetsAudioRule;
 
     return SafeArea(
       top: false,
@@ -2055,7 +2106,66 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                 const SizedBox(height: 16),
                 // Show audio player first when available (primary media for Audio Reprogramming, etc.)
                 if (widget.audioUrl.isNotEmpty) ...[
-                  _TaskAudioPlayer(audioUrl: widget.audioUrl, isDark: isDark),
+                  _TaskAudioPlayer(
+                    audioUrl: widget.audioUrl,
+                    isDark: isDark,
+                    onMaxProgressPercentChanged: (p) {
+                      if (!mounted) return;
+                      setState(() {
+                        if (p > _maxListenedPercent) {
+                          _maxListenedPercent = p;
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  if (widget.requiredListenPercent > 0)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: (_maxListenedPercent >=
+                                      widget.requiredListenPercent)
+                              ? const Color(0xFF10B981).withValues(alpha: 0.35)
+                              : const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Text(
+                        'Audio progress: $_maxListenedPercent% / required ${widget.requiredListenPercent}%',
+                        style: TextStyle(
+                          color: (_maxListenedPercent >=
+                                      widget.requiredListenPercent)
+                              ? const Color(0xFF10B981)
+                              : (isDark
+                                  ? const Color(0xFFFCD34D)
+                                  : const Color(0xFFB45309)),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  if (widget.requiredListenPercent > 0 &&
+                      _maxListenedPercent < widget.requiredListenPercent) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Listen at least ${widget.requiredListenPercent}% to enable submit.',
+                      style: TextStyle(
+                        color: isDark
+                            ? const Color(0xFFFCD34D)
+                            : const Color(0xFFB45309),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                 ],
                 if (widget.scriptIdea.isNotEmpty) ...[
@@ -2103,56 +2213,58 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                TextField(
-                  controller: _textController,
-                  onChanged: (_) => setState(() {}),
-                  maxLines: 4,
-                  minLines: 2,
-                  decoration: InputDecoration(
-                    hintText: 'Write your response... (min 2 words to submit)',
-                    hintStyle: TextStyle(
-                      color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                if (widget.requireUserResponse) ...[
+                  TextField(
+                    controller: _textController,
+                    onChanged: (_) => setState(() {}),
+                    maxLines: 4,
+                    minLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'Write your response... (min 2 words to submit)',
+                      hintStyle: TextStyle(
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        fontSize: 14,
+                      ),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? Colors.white10
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? Colors.white10
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF667eea),
+                          width: 1.5,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                       fontSize: 14,
-                    ),
-                    filled: true,
-                    fillColor: isDark
-                        ? const Color(0xFF0F172A)
-                        : const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: isDark
-                            ? Colors.white10
-                            : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: isDark
-                            ? Colors.white10
-                            : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF667eea),
-                        width: 1.5,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -2167,7 +2279,10 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                       child: widget.buildActionBtn(
                         'SUBMIT',
                         const Color(0xFF10B981),
-                        () => widget.onSubmit(_textController.text.trim()),
+                        () => widget.onSubmit(
+                          _textController.text.trim(),
+                          _maxListenedPercent,
+                        ),
                         enabled: canSubmit,
                       ),
                     ),

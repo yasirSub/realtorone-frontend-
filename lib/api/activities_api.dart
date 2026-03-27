@@ -16,6 +16,7 @@ class ActivitiesApi {
   static Future<Map<String, dynamic>> createActivity({
     required String title,
     String? description,
+    String? notes,
     required String type,
     required String category,
     int? durationMinutes,
@@ -27,6 +28,7 @@ class ActivitiesApi {
       'category': category,
     };
     if (description != null) data['description'] = description;
+    if (notes != null) data['notes'] = notes;
     if (durationMinutes != null) data['duration_minutes'] = durationMinutes;
     if (scheduledAt != null) data['scheduled_at'] = scheduledAt;
 
