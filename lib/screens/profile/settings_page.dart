@@ -5,6 +5,7 @@ import '../../api/api_client.dart';
 import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
 import '../../providers/theme_provider.dart';
+import '../legal/legal_document_webview_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -17,6 +18,14 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _pushNotifications = true;
   bool _emailUpdates = true;
+
+  void _openLegalInApp(String slug) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => LegalDocumentWebViewPage(slug: slug),
+      ),
+    );
+  }
 
   void _showChangePasswordDialog() {
     final currentPasswordController = TextEditingController();
@@ -185,9 +194,47 @@ class _SettingsPageState extends State<SettingsPage> {
             child: const Text('KEEP ACCOUNT'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _logout();
+              setState(() => _isLoading = true);
+              try {
+                final response = await UserApi.requestAccountDeletion();
+                if (mounted) {
+                  if (response['success'] == true ||
+                      response['status'] == 'ok') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Account deletion requested. Pending admin review.',
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
+                    _logout();
+                  } else {
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          response['message'] ?? 'Failed to submit request.',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  setState(() => _isLoading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Connection error. Please try again.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('DELETE', style: TextStyle(color: Colors.red)),
           ),
@@ -294,41 +341,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ], isDark),
               const SizedBox(height: 24),
-              _buildSection('Support & Help'),
-              _buildSettingsCard([
-                _buildSettingsItem(
-                  icon: Icons.help_outline_rounded,
-                  title: 'Help Center',
-                  subtitle: 'Tutorials and FAQs',
-                  onTap: () {},
-                ),
-                _buildSettingsItem(
-                  icon: Icons.chat_bubble_outline_rounded,
-                  title: 'Contact Support',
-                  subtitle: 'Chat with our elite team',
-                  onTap: () {},
-                ),
-                _buildSettingsItem(
-                  icon: Icons.star_outline_rounded,
-                  title: 'Rate App',
-                  subtitle: 'Help us improve your experience',
-                  onTap: () {},
-                ),
-              ], isDark),
-              const SizedBox(height: 24),
               _buildSection('Legal'),
               _buildSettingsCard([
                 _buildSettingsItem(
                   icon: Icons.privacy_tip_outlined,
                   title: 'Privacy Policy',
-                  subtitle: 'How we handle your data',
-                  onTap: () {},
+                  subtitle:
+                      'How we handle your data — opens in app (admin-editable)',
+                  onTap: () => _openLegalInApp('privacy'),
                 ),
                 _buildSettingsItem(
-                  icon: Icons.description_outlined,
-                  title: 'Terms of Service',
-                  subtitle: 'App usage guidelines',
-                  onTap: () {},
+                  icon: Icons.gavel_outlined,
+                  title: 'Terms & Conditions',
+                  subtitle: 'Terms of service — opens in app (admin-editable)',
+                  onTap: () => _openLegalInApp('terms'),
                 ),
               ], isDark),
               const SizedBox(height: 32),

@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -138,6 +139,33 @@ class ApiClient {
     final keys = prefs.getKeys().where((k) => k.startsWith('cache_'));
     for (final key in keys) {
       await prefs.remove(key);
+    }
+  }
+
+  /// Multipart upload (e.g. Excel import). Field name must match API (`file`).
+  static Future<Map<String, dynamic>> postMultipartFile(
+    String endpoint, {
+    required String filePath,
+    String fieldName = 'file',
+    bool requiresAuth = true,
+    Duration timeout = const Duration(seconds: 120),
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiEndpoints.baseUrl}$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Accept'] = 'application/json';
+      if (requiresAuth) {
+        final token = await getToken();
+        if (token != null) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+      }
+      request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
+      final streamed = await request.send().timeout(timeout);
+      final response = await http.Response.fromStream(streamed);
+      return _handleResponse(response);
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
     }
   }
 

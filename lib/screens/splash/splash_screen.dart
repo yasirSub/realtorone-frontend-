@@ -217,10 +217,10 @@ class _SplashScreenState extends State<SplashScreen>
                               .animate(onPlay: (c) => c.repeat())
                               .rotate(duration: 15.seconds, begin: 1, end: 0),
 
-                          // Logo Glass Container
+                          // Brand logo (replaces default rocket icon)
                           Container(
-                            width: 110,
-                            height: 110,
+                            width: 120,
+                            height: 120,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               gradient: LinearGradient(
@@ -241,27 +241,27 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ],
                             ),
-                            child:
-                                Icon(
-                                      Icons.rocket_launch_rounded,
-                                      size: 50,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                    )
-                                    .animate(
-                                      onPlay: (c) => c.repeat(reverse: true),
-                                    )
-                                    .scale(
-                                      begin: const Offset(0.9, 0.9),
-                                      end: const Offset(1.1, 1.1),
-                                      duration: 2.seconds,
-                                    )
-                                    .shimmer(
-                                      delay: 1.seconds,
-                                      duration: 2.seconds,
-                                    ),
-                          ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Image.asset(
+                                'assets/images/logo.png',
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                              ),
+                            ),
+                          )
+                              .animate(
+                                onPlay: (c) => c.repeat(reverse: true),
+                              )
+                              .scale(
+                                begin: const Offset(0.96, 0.96),
+                                end: const Offset(1.04, 1.04),
+                                duration: 2.seconds,
+                              )
+                              .shimmer(
+                                delay: 1.seconds,
+                                duration: 2.seconds,
+                              ),
                         ],
                       ),
                     )
@@ -270,23 +270,6 @@ class _SplashScreenState extends State<SplashScreen>
                     .scale(curve: Curves.easeOutBack),
 
                 const Spacer(flex: 1),
-
-                // Brand Identity
-                const Text(
-                      'REALTORONE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 12,
-                        height: 1,
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(delay: 500.ms)
-                    .shimmer(delay: 2.seconds, duration: 2.seconds),
-
-                const SizedBox(height: 16),
 
                 Container(
                   padding: const EdgeInsets.symmetric(

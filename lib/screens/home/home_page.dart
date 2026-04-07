@@ -69,9 +69,10 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
                   elevation: 0,
                   centerTitle: false,
-                  title: const Text(
-                    'REALTORONE',
-                    style: TextStyle(color: Colors.white24, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 4),
+                  title: Image.asset(
+                    'assets/images/logo.png',
+                    height: 32,
+                    fit: BoxFit.contain,
                   ),
                   actions: [
                     ValueListenableBuilder<int>(

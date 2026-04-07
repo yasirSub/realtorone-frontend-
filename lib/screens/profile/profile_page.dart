@@ -427,15 +427,6 @@ class _ProfilePageState extends State<ProfilePage> {
                               'AED ${_userData?['target_monthly_income'] ?? '---'}',
                           onTap: () {},
                         ),
-                        _MenuItem(
-                          icon: Icons.psychology_outlined,
-                          title: 'My Challenges',
-                          subtitle:
-                              _userData?['diagnosis_blocker'] ??
-                              'Lead Generation',
-                          onTap: () =>
-                              Navigator.pushNamed(context, AppRoutes.diagnosis),
-                        ),
                       ], isDark),
                       const SizedBox(height: 24),
 

@@ -528,31 +528,70 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
     return 'REVENUE ACTION';
   }
 
+  String _humanizeLeadStage(String raw) {
+    final t = raw.toLowerCase();
+    if (t.contains('cold')) return 'COLD CALLING';
+    if (t.contains('follow')) return 'FOLLOW-UP';
+    if (t.contains('client meeting') || t.contains('clint')) {
+      return 'CLIENT MEETING';
+    }
+    if (t.contains('negotiation') || t.contains('site')) {
+      return 'DEAL NEGOTIATION';
+    }
+    if (t.contains('deal close') || t.contains('closure')) {
+      return 'DEAL CLOSURE';
+    }
+    return raw.toUpperCase();
+  }
+
+  /// Badge text: CRM pipeline stage from notes when present (matches Deal Room stages).
+  String _activitySubtitle(dynamic activity) {
+    final type = activity['type']?.toString() ?? '';
+    if (type == 'deal_closed') return 'DEAL CLOSED';
+    if (type == 'commission') return 'COMMISSION';
+    try {
+      final notes = activity['notes'];
+      Map<String, dynamic>? map;
+      if (notes is String && notes.isNotEmpty) {
+        map = jsonDecode(notes) as Map<String, dynamic>?;
+      } else if (notes is Map) {
+        map = Map<String, dynamic>.from(notes as Map);
+      }
+      final stage = map?['lead_stage']?.toString().trim();
+      if (stage != null && stage.isNotEmpty) {
+        return _humanizeLeadStage(stage);
+      }
+    } catch (_) {}
+    if (type == 'revenue_action') return _getActionLabel(activity);
+    if (type == 'hot_lead') return 'HOT LEAD';
+    return type.replaceAll('_', ' ').toUpperCase();
+  }
+
   Widget _activityTile(dynamic activity, bool isDark) {
     final type = activity['type'] ?? '';
     IconData icon;
     Color color;
-    String subtitle;
+    late final String subtitle;
     switch (type) {
       case 'hot_lead':
         icon = Icons.local_fire_department_rounded;
         color = const Color(0xFFF97316);
-        subtitle = 'HOT LEAD';
+        subtitle = _activitySubtitle(activity);
         break;
       case 'deal_closed':
         icon = Icons.celebration_rounded;
         color = const Color(0xFF22C55E);
-        subtitle = 'DEAL CLOSED';
+        subtitle = _activitySubtitle(activity);
         break;
       case 'commission':
         icon = Icons.monetization_on_rounded;
         color = const Color(0xFF10B981);
-        subtitle = 'COMMISSION';
+        subtitle = _activitySubtitle(activity);
         break;
       case 'revenue_action':
         icon = Icons.task_alt_rounded;
         color = const Color(0xFF6366F1);
-        subtitle = _getActionLabel(activity);
+        subtitle = _activitySubtitle(activity);
         break;
       default:
         icon = Icons.circle;

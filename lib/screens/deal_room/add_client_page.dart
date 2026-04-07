@@ -17,7 +17,7 @@ class _AddClientPageState extends State<AddClientPage> {
   final _emailController = TextEditingController();
 
   String? _leadSource;
-  String? _leadStage;
+  String? _leadStage = 'cold calling';
   String _priority = '2'; // 1 = Normal, 2 = High, 3 = Urgent
   bool _isSaving = false;
 
@@ -39,11 +39,11 @@ class _AddClientPageState extends State<AddClientPage> {
   ];
 
   static const _leadStages = <String>[
-    'New',
-    'Follow-up Required',
-    'Meeting Done',
-    'Negotiation',
-    'Closed / Lost',
+    'cold calling',
+    'follow up back',
+    'client meeting',
+    'deal negotiation',
+    'deal close',
   ];
 
   static const _priorityLevels = <({String label, String value})>[
@@ -69,7 +69,7 @@ class _AddClientPageState extends State<AddClientPage> {
         'priority_level': int.tryParse(_priority),
       });
 
-      final status = _leadStage == 'Closed / Lost' ? 'lost' : 'active';
+      final status = _leadStage == 'deal close' ? 'lost' : 'active';
 
       final response = await ApiClient.post(
         ApiEndpoints.clients,

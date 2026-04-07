@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
@@ -19,27 +20,35 @@ class RevenChatPage extends StatefulWidget {
       barrierDismissible: true,
       barrierColor: Colors.black.withValues(alpha: 0.20),
       transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder: (ctx, _, __) => const RevenChatPage(),
+      pageBuilder: (ctx, _, _) => const RevenChatPage(),
       transitionBuilder: (ctx, animation, _, child) {
-        final curved = CurvedAnimation(
+        final openCurve = CurvedAnimation(
           parent: animation,
-          curve: Curves.easeOutBack,
+          curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeInCubic,
         );
-        return FadeTransition(
-          opacity: Tween<double>(
-            begin: 0,
-            end: 1,
-          ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0.12, 0.15),
-              end: Offset.zero,
-            ).animate(curved),
-            child: ScaleTransition(
-              scale: Tween<double>(begin: 0.45, end: 1).animate(curved),
+
+        final t = openCurve.value.clamp(0.0, 1.0);
+        final slideX = lerpDouble(0.22, 0.0, t) ?? 0.0;
+        final slideY = lerpDouble(0.30, 0.0, t) ?? 0.0;
+        final squashX = lerpDouble(0.24, 1.0, t) ?? 1.0;
+        final squashY = lerpDouble(0.08, 1.0, t) ?? 1.0;
+        final widthFactor = lerpDouble(0.28, 1.0, t) ?? 1.0;
+        final heightFactor = lerpDouble(0.12, 1.0, t) ?? 1.0;
+
+        return Opacity(
+          opacity: lerpDouble(0.0, 1.0, t) ?? 1.0,
+          child: Transform.translate(
+            offset: Offset(slideX * 100, slideY * 100),
+            child: Align(
               alignment: Alignment.bottomRight,
-              child: child,
+              widthFactor: widthFactor,
+              heightFactor: heightFactor,
+              child: Transform(
+                alignment: Alignment.bottomRight,
+                transform: Matrix4.diagonal3Values(squashX, squashY, 1.0),
+                child: child,
+              ),
             ),
           ),
         );

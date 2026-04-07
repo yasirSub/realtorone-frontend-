@@ -1,6 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart' show MissingPluginException, rootBundle;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 import 'add_client_page.dart';
@@ -16,6 +25,9 @@ class DealRoomWidget extends StatefulWidget {
 }
 
 class _DealRoomWidgetState extends State<DealRoomWidget> {
+  static const String _dealRoomTemplateAsset =
+      'assets/templates/deal_room_clients_template.xlsx';
+
   bool _isLoading = true;
   bool _hasClients = true;
   List<dynamic> _clients = [];
@@ -136,6 +148,122 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     return 0;
   }
 
+  String? _readLeadStageRaw(dynamic client) {
+    if (client is! Map) return null;
+    final notes = client['notes'];
+    if (notes is! String || notes.isEmpty) return null;
+    try {
+      final m = jsonDecode(notes);
+      if (m is! Map) return null;
+      final raw = m['lead_stage']?.toString().trim();
+      if (raw == null || raw.isEmpty) return null;
+      return raw;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// CRM stage shown on the client tile chip (consistent wording).
+  String _stageChipLabel(String? raw) {
+    if (raw == null || raw.isEmpty) return 'Cold calling';
+    final t = raw.toLowerCase();
+    if (t.contains('site') || t.contains('visite')) return 'Deal negotiation';
+    if (t.contains('clint')) return 'Client meeting';
+    if (t.contains('cold')) return 'Cold calling';
+    if (t.contains('follow')) return 'Follow-up';
+    if (t.contains('client meeting')) return 'Client meeting';
+    if (t.contains('negotiation')) return 'Deal negotiation';
+    if (t.contains('deal close') || t == 'deal close') return 'Deal closure';
+    return raw
+        .split(' ')
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  Color _stageAccentColor(String? raw) {
+    if (raw == null || raw.isEmpty) return const Color(0xFF2563EB);
+    final t = raw.toLowerCase();
+    if (t.contains('cold')) return const Color(0xFF2563EB);
+    if (t.contains('follow')) return const Color(0xFF0D9488);
+    if (t.contains('client meeting') || t.contains('clint'))
+      return const Color(0xFF7C3AED);
+    if (t.contains('negotiation') ||
+        t.contains('site') ||
+        t.contains('visite')) {
+      return const Color(0xFFEA580C);
+    }
+    if (t.contains('deal close') ||
+        (t.contains('close') && t.contains('deal'))) {
+      return const Color(0xFF16A34A);
+    }
+    return const Color(0xFF64748B);
+  }
+
+  _SourceChipData _sourceChipData(dynamic sourceRaw) {
+    final raw = (sourceRaw ?? '').toString().trim();
+    if (raw.isEmpty) {
+      return const _SourceChipData(
+        label: 'Unknown',
+        icon: Icons.help_outline_rounded,
+        color: Color(0xFF64748B),
+      );
+    }
+
+    final s = raw.toLowerCase();
+    if (s.contains('whatsapp') || s == 'wa') {
+      return const _SourceChipData(
+        label: 'WhatsApp',
+        icon: FontAwesomeIcons.whatsapp,
+        color: Color(0xFF16A34A),
+        isFa: true,
+      );
+    }
+    if (s.contains('insta')) {
+      return const _SourceChipData(
+        label: 'Instagram',
+        icon: FontAwesomeIcons.instagram,
+        color: Color(0xFFDB2777),
+        isFa: true,
+      );
+    }
+    if (s.contains('cold') || s.contains('call') || s.contains('phone')) {
+      return const _SourceChipData(
+        label: 'Cold call',
+        icon: Icons.call_rounded,
+        color: Color(0xFF2563EB),
+      );
+    }
+    if (s.contains('content')) {
+      return const _SourceChipData(
+        label: 'Content',
+        icon: Icons.movie_creation_outlined,
+        color: Color(0xFF7C3AED),
+      );
+    }
+    if (s.contains('referral')) {
+      return const _SourceChipData(
+        label: 'Referral',
+        icon: Icons.group_add_rounded,
+        color: Color(0xFFF59E0B),
+      );
+    }
+
+    return _SourceChipData(
+      label: raw,
+      icon: Icons.label_rounded,
+      color: const Color(0xFF64748B),
+    );
+  }
+
+  int _pipelineDayNumber(dynamic client) {
+    if (client is! Map) return 1;
+    final c = client['created_at'];
+    if (c == null) return 1;
+    final dt = DateTime.tryParse(c.toString());
+    if (dt == null) return 1;
+    return DateTime.now().difference(dt).inDays + 1;
+  }
+
   Future<void> _startAddFirstClient() async {
     final proceed = await showDialog<bool>(
       context: context,
@@ -143,14 +271,299 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     );
     if (proceed != true || !mounted) return;
 
-    final created = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const AddClientPage()),
+    final choice = await _showAddMethodDialog();
+    if (choice == null || !mounted) return;
+
+    if (choice == 'manual') {
+      final created = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const AddClientPage()),
+      );
+
+      if (created == true && mounted) {
+        await _load();
+      }
+    } else if (choice == 'excel') {
+      await _importExcelClients();
+    }
+  }
+
+  Future<void> _importExcelClients() async {
+    if (kIsWeb) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Excel import is available in the mobile app.'),
+        ),
+      );
+      return;
+    }
+    // Use FileType.any (not custom): some builds miss the native "custom" handler
+    // until a full reinstall. Filter to .xlsx below.
+    final FilePickerResult? pick;
+    try {
+      pick = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: false,
+      );
+    } on MissingPluginException catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(seconds: 8),
+          content: Text(
+            'File picker is not loaded. Fully stop the app, then run: '
+            'flutter clean && flutter run '
+            '(hot reload cannot register new native plugins).',
+          ),
+        ),
+      );
+      return;
+    }
+    if (pick == null || pick.files.isEmpty) return;
+    final f = pick.files.single;
+    final path = f.path;
+    final name = f.name;
+    final isXlsx =
+        name.toLowerCase().endsWith('.xlsx') ||
+        (path != null && path.toLowerCase().endsWith('.xlsx'));
+    if (!isXlsx) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an Excel file (.xlsx).')),
+      );
+      return;
+    }
+    if (path == null || path.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not read the file path. Try saving the sheet locally first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const Center(child: CircularProgressIndicator()),
     );
 
-    if (created == true && mounted) {
-      await _load();
+    final res = await ApiClient.postMultipartFile(
+      ApiEndpoints.clientsImportExcel,
+      filePath: path,
+    );
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+
+    final ok = res['success'] == true;
+    final msg =
+        res['message']?.toString() ??
+        (ok ? 'Import complete' : 'Import failed');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: ok ? Colors.green.shade800 : Colors.red.shade800,
+      ),
+    );
+    if (ok) await _load();
+  }
+
+  /// Copies the bundled Deal Room Excel template to a temp file and opens the share sheet
+  /// so the user can save it to Files / Downloads / Drive.
+  Future<void> _downloadDealRoomTemplate(BuildContext messengerContext) async {
+    if (kIsWeb) {
+      if (!messengerContext.mounted) return;
+      ScaffoldMessenger.of(messengerContext).showSnackBar(
+        const SnackBar(
+          content: Text('Template download is available in the mobile app.'),
+        ),
+      );
+      return;
     }
+    try {
+      final data = await rootBundle.load(_dealRoomTemplateAsset);
+      final bytes = data.buffer.asUint8List();
+      final dir = await getTemporaryDirectory();
+      final file = File(
+        '${dir.path}/RealtorOne_Deal_Room_Clients_Template.xlsx',
+      );
+      await file.writeAsBytes(bytes, flush: true);
+      if (!messengerContext.mounted) return;
+      await Share.shareXFiles(
+        [
+          XFile(
+            file.path,
+            mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            name: 'RealtorOne_Deal_Room_Clients_Template.xlsx',
+          ),
+        ],
+        subject: 'RealtorOne — Deal Room import template',
+        text: 'Fill this sheet, then tap Update Excel Sheet to import.',
+      );
+    } catch (e, st) {
+      debugPrint('Template download failed: $e\n$st');
+      if (!messengerContext.mounted) return;
+      ScaffoldMessenger.of(messengerContext).showSnackBar(
+        SnackBar(
+          content: Text('Could not open template: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _showAddMethodDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'How to add clients?',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _methodOp(
+                    icon: Icons.upload_file_rounded,
+                    title: 'Update Excel Sheet',
+                    subtitle:
+                        'Use the same columns as our template, then upload',
+                    color: const Color(0xFF10B981),
+                    onTap: () => Navigator.pop(ctx, 'excel'),
+                    isDark: isDark,
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        foregroundColor: const Color(0xFF059669),
+                      ),
+                      onPressed: () => _downloadDealRoomTemplate(context),
+                      icon: const Icon(Icons.download_rounded, size: 17),
+                      label: const Text(
+                        'Download sheet format',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _methodOp(
+                icon: Icons.person_add_rounded,
+                title: 'Add Manually',
+                subtitle: 'Enter client details one by one',
+                color: const Color(0xFF2563EB),
+                onTap: () => Navigator.pop(ctx, 'manual'),
+                isDark: isDark,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _methodOp({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(icon, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: color),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _privacyDialog(BuildContext ctx) {
@@ -383,7 +796,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
           ),
         ],
       ),
-    );
+    ).animate().fade(duration: 400.ms).slideY(begin: 0.05, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
   }
 
   Widget _clientsList() {
@@ -442,7 +855,10 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
             ],
           ),
           const SizedBox(height: 12),
-          ..._clients.take(6).map((c) => _clientTile(c, isDark)),
+          ..._clients.take(6).toList().asMap().entries.map((entry) => _clientTile(entry.value, isDark)
+              .animate()
+              .fade(duration: 300.ms, delay: (50 * entry.key).ms)
+              .slideY(begin: 0.1, end: 0, duration: 300.ms, delay: (50 * entry.key).ms)),
           const SizedBox(height: 16),
           SizedBox(
             height: 48,
@@ -470,7 +886,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
           ),
         ],
       ),
-    );
+    ).animate().fade(duration: 400.ms).slideY(begin: 0.05, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
   }
 
   Widget _clientTile(dynamic client, bool isDark) {
@@ -506,28 +922,20 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
         : (progress?['percentage'] is num
               ? (progress!['percentage'] as num).toInt()
               : 0);
-    final String todayStatus = (progress?['status'] ?? 'none').toString();
 
-    // Main color + label used for the left bar and subtitle
+    // Tile accent follows CRM pipeline stage (same vocabulary as Deal Room detail), not daily %.
+    final String? rawStage = _readLeadStageRaw(client);
     late final Color mainColor;
     late final String mainLabel;
 
     if (status == 'lost') {
       mainColor = const Color(0xFFEF4444);
-      mainLabel = 'LOST DEAL';
-    } else if (todayStatus == 'high') {
-      mainColor = const Color(0xFF10B981); // strong green
-      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
-    } else if (todayStatus == 'medium') {
-      mainColor = const Color(0xFFF59E0B); // amber
-      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
-    } else if (todayStatus == 'low') {
-      mainColor = const Color(0xFFF97316); // orange
-      mainLabel = '${todayPercent.clamp(0, 100)}% DONE';
+      mainLabel = 'Lost deal';
     } else {
-      mainColor = const Color(0xFFDC2626); // red
-      mainLabel = 'NOT STARTED';
+      mainColor = _stageAccentColor(rawStage);
+      mainLabel = _stageChipLabel(rawStage);
     }
+    final sourceData = _sourceChipData(client is Map ? client['source'] : null);
 
     // Priority chip styling (shown near chevron)
     Color? priorityColor;
@@ -564,7 +972,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF111827) : Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -619,40 +1027,102 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    status == 'lost'
+                        ? 'Not in active pipeline'
+                        : 'Day ${_pipelineDayNumber(client)} · ${todayPercent.clamp(0, 100)}% of today\'s tasks',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: mainColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          mainLabel.contains('DONE')
-                              ? Icons.bolt_rounded
-                              : (mainLabel.contains('NOT')
-                                    ? Icons.radio_button_unchecked_rounded
-                                    : Icons.block_rounded),
-                          size: 12,
-                          color: mainColor,
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          mainLabel,
-                          style: TextStyle(
-                            color: mainColor,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 10,
-                            letterSpacing: 0.5,
+                        decoration: BoxDecoration(
+                          color: mainColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: mainColor.withValues(alpha: 0.35),
+                            width: 1,
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              status == 'lost'
+                                  ? Icons.block_rounded
+                                  : Icons.signpost_rounded,
+                              size: 12,
+                              color: mainColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              mainLabel.toUpperCase(),
+                              style: TextStyle(
+                                color: mainColor,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 9,
+                                letterSpacing: 0.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (status != 'lost')
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: sourceData.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: sourceData.color.withValues(alpha: 0.34),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              sourceData.isFa
+                                  ? FaIcon(
+                                      sourceData.icon,
+                                      size: 12,
+                                      color: sourceData.color,
+                                    )
+                                  : Icon(
+                                      sourceData.icon,
+                                      size: 12,
+                                      color: sourceData.color,
+                                    ),
+                              const SizedBox(width: 4),
+                              Text(
+                                sourceData.label,
+                                style: TextStyle(
+                                  color: sourceData.color,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 9,
+                                  letterSpacing: 0.15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -724,4 +1194,18 @@ class _BottomMiniTab extends StatelessWidget {
       ],
     );
   }
+}
+
+class _SourceChipData {
+  final String label;
+  final dynamic icon;
+  final Color color;
+  final bool isFa;
+
+  const _SourceChipData({
+    required this.label,
+    required this.icon,
+    required this.color,
+    this.isFa = false,
+  });
 }

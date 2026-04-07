@@ -73,7 +73,18 @@ class ApiEndpoints {
   // Clients (results-based) helper endpoints
   static const String clientsStatus = '/clients/status';
   static const String clients = '/clients';
+  static const String clientsImportExcel = '/clients/import-excel';
   static String clientActions(int id) => '/clients/$id/actions';
+  static String clientColdCallingTouch(int id) => '/clients/$id/cold-calling/touch';
+  static const String clientsColdCallingToday = '/clients/cold-calling/today';
+  static String clientFollowUpTouch(int id) => '/clients/$id/follow-up/touch';
+  static const String clientsFollowUpToday = '/clients/follow-up/today';
+  static String clientClientMeetingTouch(int id) => '/clients/$id/client-meeting/touch';
+  static const String clientsClientMeetingToday = '/clients/client-meeting/today';
+  static String clientDealNegotiationTouch(int id) => '/clients/$id/deal-negotiation/touch';
+  static const String clientsDealNegotiationToday = '/clients/deal-negotiation/today';
+  static String clientDealClosureTouch(int id) => '/clients/$id/deal-closure/touch';
+  static const String clientsDealClosureToday = '/clients/deal-closure/today';
   static String clientDailyProgress(int id) => '/clients/$id/daily-progress';
   static String clientActivities(int id) => '/clients/$id/activities';
   static String clientActionLog(int id) => '/clients/$id/action-log';
@@ -100,4 +111,10 @@ class ApiEndpoints {
   static const String chatHistory = '/chat/history';
   static String chatHistorySession(int id) => '/chat/history/$id';
   static String chatDeleteSession(int id) => '/chat/history/$id';
+
+  // Account Deletion
+  static const String requestDeletion = '/user/request-deletion';
+
+  /// Public legal HTML (Privacy / Terms) — no auth.
+  static String legalDocument(String slug) => '/legal-documents/$slug';
 }
