@@ -28,52 +28,92 @@ class MaintenancePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF6366F1), Color(0xFF22C55E)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.5),
-                          blurRadius: 40,
-                          spreadRadius: 4,
+                   const Spacer(),
+                  // Animated Illustration or Icon
+                  Animate(
+                    effects: const [
+                      FadeEffect(duration: Duration(milliseconds: 800)),
+                      ScaleEffect(
+                          duration: Duration(milliseconds: 800),
+                          begin: Offset(0.8, 0.8)),
+                    ],
+                    child: Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF6366F1),
+                            const Color(0xFF6366F1).withValues(alpha: 0.7),
+                          ],
                         ),
-                      ],
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFF6366F1).withValues(alpha: 0.4),
+                            blurRadius: 40,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.settings_suggest_rounded,
+                        size: 64,
+                        color: Colors.white,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.engineering_rounded,
-                      size: 42,
-                      color: Colors.white,
+                  )
+                      .animate(onPlay: (controller) => controller.repeat())
+                      .shimmer(
+                          duration: const Duration(seconds: 3),
+                          color: Colors.white24),
+                  const SizedBox(height: 48),
+                  const Text(
+                    'SYSTEM OPTIMIZATION',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFF6366F1),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2.0,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 16),
                   Text(
                     l10n.maintenanceTitle,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 22,
+                      fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
+                      letterSpacing: -0.5,
+                      height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message.isNotEmpty ? message : l10n.maintenanceBody,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFCBD5F5),
-                      fontSize: 14,
-                      height: 1.5,
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Text(
+                      message.isNotEmpty ? message : l10n.maintenanceBody,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFCBD5F1),
+                        fontSize: 15,
+                        height: 1.6,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(
@@ -84,20 +124,43 @@ class MaintenancePage extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(52),
+                      minimumSize: const Size.fromHeight(60),
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(18),
                       ),
+                    ).copyWith(
+                      overlayColor: WidgetStateProperty.all(
+                          Colors.white.withValues(alpha: 0.1)),
                     ),
                     child: Text(
-                      l10n.maintenanceRetry,
+                      l10n.maintenanceRetry.toUpperCase(),
                       style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),
                   const Spacer(),
+                  Text(
+                    'REALTORONE v$version',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
                   if (version.isNotEmpty)
                     Opacity(
                       opacity: 0.6,

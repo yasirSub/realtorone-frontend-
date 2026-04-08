@@ -150,52 +150,47 @@ class _SplashScreenState extends State<SplashScreen>
   Future<_AppRuntimeConfig> _fetchAppConfig() async {
     try {
       final response = await ApiClient.getPublic('/app-config');
-      if (response is Map<String, dynamic>) {
-        final data = (response['data'] as Map?) ?? <String, dynamic>{};
-        final maintenanceEnabled = data['maintenance_enabled'] == true;
-        final maintenanceMessage =
-            (data['maintenance_message'] as String?) ?? '';
-        final minAndroid =
-            (data['min_android_version'] as String?)?.trim() ?? '';
-        final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
-        final androidStore =
-            (data['android_store_url'] as String?)?.trim() ?? '';
-        final iosStore = (data['ios_store_url'] as String?)?.trim() ?? '';
+      final data = (response['data'] as Map?) ?? <String, dynamic>{};
+      final maintenanceEnabled = data['maintenance_enabled'] == true;
+      final maintenanceMessage = (data['maintenance_message'] as String?) ?? '';
+      final minAndroid = (data['min_android_version'] as String?)?.trim() ?? '';
+      final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
+      final androidStore = (data['android_store_url'] as String?)?.trim() ?? '';
+      final iosStore = (data['ios_store_url'] as String?)?.trim() ?? '';
 
-        final info = await PackageInfo.fromPlatform();
-        final currentVersion = info.version;
+      final info = await PackageInfo.fromPlatform();
+      final currentVersion = info.version;
 
-        final bool isAndroid =
-            defaultTargetPlatform == TargetPlatform.android;
-        final bool isIos = defaultTargetPlatform == TargetPlatform.iOS;
+      final bool isAndroid = defaultTargetPlatform == TargetPlatform.android;
+      final bool isIos = defaultTargetPlatform == TargetPlatform.iOS;
 
-        final String minForPlatform = isAndroid
-            ? minAndroid
-            : isIos
-                ? minIos
-                : '';
-        final String storeForPlatform = isAndroid
-            ? androidStore
-            : isIos
-                ? iosStore
-                : '';
+      final String minForPlatform = isAndroid
+          ? minAndroid
+          : isIos
+          ? minIos
+          : '';
+      final String storeForPlatform = isAndroid
+          ? androidStore
+          : isIos
+          ? iosStore
+          : '';
 
-        final requiresUpdate = minForPlatform.isNotEmpty &&
-            _compareSemanticVersion(currentVersion, minForPlatform) < 0;
+      final requiresUpdate =
+          minForPlatform.isNotEmpty &&
+          _compareSemanticVersion(currentVersion, minForPlatform) < 0;
 
-        return _AppRuntimeConfig(
-          maintenanceEnabled: maintenanceEnabled,
-          maintenanceMessage: maintenanceMessage,
-          minAndroidVersion: minAndroid,
-          minIosVersion: minIos,
-          androidStoreUrl: androidStore,
-          iosStoreUrl: iosStore,
-          currentVersion: currentVersion,
-          requiresUpdate: requiresUpdate,
-          minVersionForPlatform: minForPlatform,
-          storeUrlForPlatform: storeForPlatform,
-        );
-      }
+      return _AppRuntimeConfig(
+        maintenanceEnabled: maintenanceEnabled,
+        maintenanceMessage: maintenanceMessage,
+        minAndroidVersion: minAndroid,
+        minIosVersion: minIos,
+        androidStoreUrl: androidStore,
+        iosStoreUrl: iosStore,
+        currentVersion: currentVersion,
+        requiresUpdate: requiresUpdate,
+        minVersionForPlatform: minForPlatform,
+        storeUrlForPlatform: storeForPlatform,
+      );
     } catch (_) {
       // Swallow errors; app will continue with normal startup.
     }
@@ -341,49 +336,44 @@ class _SplashScreenState extends State<SplashScreen>
 
                           // Brand logo (replaces default rocket icon)
                           Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.1),
-                                  Colors.white.withValues(alpha: 0.02),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFF6366F1,
-                                  ).withValues(alpha: 0.2),
-                                  blurRadius: 40,
-                                  spreadRadius: 2,
+                                width: 120,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0.1),
+                                      Colors.white.withValues(alpha: 0.02),
+                                    ],
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF6366F1,
+                                      ).withValues(alpha: 0.2),
+                                      blurRadius: 40,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Image.asset(
-                                'assets/images/logo.png',
-                                fit: BoxFit.contain,
-                                alignment: Alignment.center,
-                              ),
-                            ),
-                          )
-                              .animate(
-                                onPlay: (c) => c.repeat(reverse: true),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Image.asset(
+                                    'assets/images/logo.png',
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.center,
+                                  ),
+                                ),
                               )
+                              .animate(onPlay: (c) => c.repeat(reverse: true))
                               .scale(
                                 begin: const Offset(0.96, 0.96),
                                 end: const Offset(1.04, 1.04),
                                 duration: 2.seconds,
                               )
-                              .shimmer(
-                                delay: 1.seconds,
-                                duration: 2.seconds,
-                              ),
+                              .shimmer(delay: 1.seconds, duration: 2.seconds),
                         ],
                       ),
                     )
@@ -557,4 +547,3 @@ class _AppRuntimeConfig {
   final String minVersionForPlatform;
   final String storeUrlForPlatform;
 }
-
