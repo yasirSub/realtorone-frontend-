@@ -25,6 +25,8 @@ import '../screens/chatbot/reven_chat_page.dart';
 import '../screens/learning/course_curriculum_page.dart';
 import '../screens/learning/video_player_page.dart';
 import '../screens/learning/course_exam_page.dart';
+import '../screens/system/maintenance_page.dart';
+import '../screens/system/update_required_page.dart';
 
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
@@ -49,6 +51,22 @@ class RouteConfig {
       AppRoutes.leaderboard: (context) => const LeaderboardPage(),
       AppRoutes.badges: (context) => const BadgesPage(),
       AppRoutes.revenChat: (context) => const RevenChatPage(),
+      AppRoutes.maintenance: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments
+            as Map<String, dynamic>? ?? <String, dynamic>{};
+        return MaintenancePage(
+          message: (args['message'] as String?) ?? '',
+        );
+      },
+      AppRoutes.updateRequired: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments
+            as Map<String, dynamic>? ?? <String, dynamic>{};
+        return UpdateRequiredPage(
+          minVersion: (args['minVersion'] as String?) ?? '',
+          storeUrl: (args['storeUrl'] as String?) ?? '',
+          platformLabel: (args['platformLabel'] as String?) ?? 'mobile',
+        );
+      },
       AppRoutes.courseCurriculum: (context) {
         final args =
             ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;

@@ -26,10 +26,11 @@ class DefaultFirebaseOptions {
     storageBucket: 'realtor-one.firebasestorage.app',
   );
 
-  // iOS still needs a real GoogleService-Info.plist and values from flutterfire configure.
+  // Matches ios/Runner/GoogleService-Info.plist. After registering the iOS app in Firebase
+  // (or running `flutterfire configure` on a Mac), replace GOOGLE_APP_ID / apiKey if they differ.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_IOS_KEY',
-    appId: '1:790178174861:ios:REPLACE_WITH_IOS_APP_ID',
+    apiKey: 'AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg',
+    appId: '1:790178174861:ios:000000000000000000000000',
     messagingSenderId: '790178174861',
     projectId: 'realtor-one',
     storageBucket: 'realtor-one.firebasestorage.app',

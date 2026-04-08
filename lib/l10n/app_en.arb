@@ -1,0 +1,161 @@
+{
+  "@@locale": "en",
+  "appTitle": "RealtorOne",
+  "settingsScreenTitle": "SETTINGS",
+  "settingsSectionAccountSecurity": "ACCOUNT & SECURITY",
+  "settingsSectionAppPreferences": "APP PREFERENCES",
+  "settingsSectionLegal": "LEGAL",
+  "settingsEditProfileTitle": "Edit Profile",
+  "settingsEditProfileSubtitle": "Update your professional info",
+  "settingsChangePasswordTitle": "Change Password",
+  "settingsChangePasswordSubtitle": "Keep your account secure",
+  "settingsLanguageTitle": "Language",
+  "settingsLanguageSubtitleEnglish": "English",
+  "settingsLanguageSubtitleArabic": "Arabic (UAE)",
+  "settingsNewLeadAlertsTitle": "New Lead Alerts",
+  "settingsNewLeadAlertsSubtitle": "Instant notification for new leads",
+  "settingsWeeklyReportsTitle": "Weekly Performance Reports",
+  "settingsWeeklyReportsSubtitle": "Get growth insights via email",
+  "settingsDarkModeTitle": "Dark Mode",
+  "settingsDarkModeSubtitle": "Switch to a darker interface",
+  "settingsPrivacyTitle": "Privacy Policy",
+  "settingsPrivacySubtitle": "How we handle your data — opens in app (admin-editable)",
+  "settingsTermsTitle": "Terms & Conditions",
+  "settingsTermsSubtitle": "Terms of service — opens in app (admin-editable)",
+  "settingsDeleteAccount": "DELETE ACCOUNT",
+  "settingsLogout": "LOGOUT",
+  "settingsLoggingOut": "LOGGING OUT...",
+  "settingsVersion": "Version 1.2.4",
+  "languagePickerTitle": "Choose language",
+  "languageEnglish": "English",
+  "languageArabicUae": "العربية (الإمارات)",
+  "navHome": "HOME",
+  "navTasks": "TASKS",
+  "navLearn": "LEARN",
+  "navProfile": "PROFILE",
+  "homeWelcomeBack": "Welcome back,",
+  "homePerformanceReady": "Your performance report is ready.",
+  "homeGuestName": "REALTOR ALPHA",
+  "homeTodayFocus": "Today Focus",
+  "homeTasksProgress": "{done} / {total} tasks done · {pct}%",
+  "@homeTasksProgress": {
+    "placeholders": {
+      "done": {"type": "int"},
+      "total": {"type": "int"},
+      "pct": {"type": "int"}
+    }
+  },
+  "homeHotLeads": "Hot leads",
+  "homeAtRisk4x": "At risk 4x",
+  "homeNurture": "Nurture",
+  "homeRemaining": "Remaining",
+  "homeOpenTasks": "Open Tasks",
+  "homeOpenPipeline": "Open Pipeline",
+  "homeNotificationsTooltip": "Notifications",
+  "activityLogTitle": "ACTIVITY LOG",
+  "activityLogSubtitle": "Today's recent actions and progress",
+  "activityLogOpen": "Open",
+  "activityLogStreak": "STREAK",
+  "activityLogPoints": "POINTS",
+  "activityLogEmpty": "No activity logged today yet.",
+  "growthPotential": "Growth Potential",
+  "executionRate": "Execution Rate",
+  "tourQuickLabel": "QUICK TOUR",
+  "tourStepCounter": "STEP {current} OF {total}",
+  "@tourStepCounter": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "tourSkipTooltip": "Skip tour",
+  "tourBack": "← Back",
+  "tourContinue": "CONTINUE",
+  "tourGetStarted": "GET STARTED",
+  "tourSkipEntire": "Skip entire tour",
+  "tourSemantics": "Quick tour, step {current} of {total}: {title}",
+  "@tourSemantics": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"},
+      "title": {"type": "String"}
+    }
+  },
+  "tourWelcomeTitle": "Welcome to RealtorOne",
+  "tourWelcomeBody": "This short walkthrough highlights where to execute daily work—momentum, Tasks, learning, and your account.",
+  "tourSubconsciousTitle": "Tasks — Subconscious workspace",
+  "tourSubconsciousBody": "Open Tasks, then use Subconscious for identity conditioning: journaling, guided audio, affirmations, and inner-game work. Logging here keeps your streak and discipline signal accurate.",
+  "tourDealRoomTitle": "Tasks — Deal Room (Clients)",
+  "tourDealRoomBody": "Under Conscious, this Clients control switches between Deal Room (pipeline and client actions) and Revenue tracking. Deal Room is where you run lead follow-up and client momentum.",
+  "tourLearnTitle": "Learning hub",
+  "tourLearnBody": "Courses and modules live here — use Learn when you’re ready to stack skills after your tasks.",
+  "tourProfileTitle": "Profile & settings",
+  "tourProfileBody": "Subscription, account details, and preferences are under Profile.",
+  "profileSectionSettings": "Profile Settings",
+  "profileSectionPerformance": "Performance",
+  "profileSectionMyPlan": "My Plan",
+  "profileSectionAccount": "Account Settings",
+  "profileEditTitle": "Edit Profile",
+  "profileEditSubtitle": "Manage your personal info",
+  "profileTopRealtorTitle": "Top Realtor",
+  "profileTopRealtorSubtitle": "View your leaderboard rank and score breakdown",
+  "profileConsultantPlan": "Consultant Plan",
+  "profilePlanSuffix": " Plan",
+  "profilePremiumSubtitle": "Tap to manage your subscription",
+  "profileUpgradeSubtitle": "Upgrade to unlock premium features",
+  "profileAppSettingsTitle": "App Settings",
+  "profileAppSettingsSubtitle": "Security, notifications, and more",
+  "profileLogout": "LOGOUT",
+  "profileDefaultName": "Realtor Name",
+  "profileVerifiedElite": "VERIFIED ELITE",
+  "profilePercentReady": "{pct}% READY",
+  "@profilePercentReady": {
+    "placeholders": {
+      "pct": {"type": "int"}
+    }
+  },
+  "profileStatPoints": "POINTS",
+  "profileStatExecution": "EXECUTION",
+  "profileStatPlan": "PLAN",
+  "profileFooterBrand": "REALTOR ONE",
+  "profileVersion": "Version 1.2.4",
+  "profilePercentComplete": "{pct}% COMPLETE",
+  "@profilePercentComplete": {
+    "placeholders": {
+      "pct": {"type": "int"}
+    }
+  },
+  "profileUpdatePhoto": "UPDATE PHOTO",
+  "profileCamera": "Camera",
+  "profileGallery": "Gallery",
+  "profileLogoutDialogSemantics": "Confirm log out",
+  "profileLogoutDialogTitle": "Log out",
+  "profileLogoutDialogMessage": "Are you sure you want to log out of your account?",
+  "profileLogoutDialogCancel": "Cancel",
+  "profileLogoutDialogConfirm": "Log out",
+  "maintenanceTitle": "We\u2019ll be right back",
+  "maintenanceBody": "We\u2019re performing a short maintenance window to upgrade RealtorOne. Your dashboard and clients are safe in the background.",
+  "maintenanceRetry": "TRY AGAIN",
+  "maintenanceVersionLabel": "Running app version {version}",
+  "@maintenanceVersionLabel": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "updateTitle": "Update required",
+  "updateBody": "To keep your {platform} app secure and in sync with the latest features, please update to the latest version.",
+  "@updateBody": {
+    "placeholders": {
+      "platform": {"type": "String"}
+    }
+  },
+  "updateVersionDetails": "Current: {current} \u2022 Required: {required}",
+  "@updateVersionDetails": {
+    "placeholders": {
+      "current": {"type": "String"},
+      "required": {"type": "String"}
+    }
+  },
+  "updateButtonLabel": "GO TO STORE",
+  "updateContinueLabel": "Continue without updating"
+}

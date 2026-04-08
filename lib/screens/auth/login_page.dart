@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../api/api_client.dart';
 import '../../api/auth_api.dart';
 import '../../services/push_notification_service.dart';
@@ -21,6 +23,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  static const String _googleWebClientId = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+    defaultValue: '',
+  );
+  late final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: _googleWebClientId.isEmpty ? null : _googleWebClientId,
+  );
 
   @override
   void dispose() {
@@ -85,6 +94,96 @@ class _LoginPageState extends State<LoginPage> {
       setState(() {
         _errorMessage = 'Connection error. Check your network.';
       });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      debugPrint('[GOOGLE LOGIN] Started');
+      await _googleSignIn.signOut();
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        debugPrint('[GOOGLE LOGIN] User cancelled account picker');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      debugPrint('[GOOGLE LOGIN] Selected account: ${account.email}');
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      debugPrint(
+        '[GOOGLE LOGIN] idToken present: ${idToken != null && idToken.isNotEmpty}',
+      );
+      if (idToken == null || idToken.isEmpty) {
+        throw Exception(
+          _googleWebClientId.isEmpty
+              ? 'Google id token missing. Pass --dart-define=GOOGLE_WEB_CLIENT_ID=<web-client-id>.apps.googleusercontent.com'
+              : 'Google id token missing. Check Firebase OAuth config and SHA fingerprints.',
+        );
+      }
+
+      final response = await AuthApi.loginWithGoogle(
+        idToken: idToken,
+        email: account.email,
+        name: account.displayName,
+        photoUrl: account.photoUrl,
+      );
+      debugPrint('[GOOGLE LOGIN] Backend response: $response');
+
+      if (!mounted) return;
+      if (response['status'] == 'ok' && response['token'] != null) {
+        await ApiClient.setToken(response['token']);
+        await PushNotificationService.syncTokenWithBackend();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', response['user']['name'] ?? '');
+        await prefs.setString('user_email', response['user']['email'] ?? '');
+        await prefs.setBool('hasSeenOnboarding', true);
+        await ApiClient.clearCache();
+
+        final profile = await ApiClient.get('/user/profile', requiresAuth: true);
+        if (!mounted) return;
+        if (profile['success'] == true) {
+          final userData = profile['data'];
+          if (userData['is_profile_complete'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+          } else if (userData['has_completed_diagnosis'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.main);
+          }
+        } else {
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
+        }
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Google login failed.';
+        });
+        debugPrint('[GOOGLE LOGIN] Failed at backend: $_errorMessage');
+      }
+    } on PlatformException catch (e) {
+      debugPrint(
+        '[GOOGLE LOGIN] PlatformException code=${e.code} message=${e.message}',
+      );
+      if (mounted) {
+        setState(() {
+          _errorMessage =
+              'Google login failed (${e.code}). ${e.message ?? ''}'.trim();
+        });
+      }
+    } catch (e) {
+      debugPrint('[GOOGLE LOGIN] Exception: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Google login failed. $e';
+        });
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -251,10 +350,11 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Icon(
-                        Icons.rocket_launch_rounded,
-                        size: 80,
-                        color: Color(0xFF667eea),
+                      Image.asset(
+                        'assets/images/logo.png',
+                        width: 92,
+                        height: 92,
+                        fit: BoxFit.contain,
                       ).animate().fadeIn(duration: 800.ms).scale(delay: 200.ms),
                       const SizedBox(height: 32),
                       const Text(
@@ -576,8 +676,10 @@ class _LoginPageState extends State<LoginPage> {
     required String label,
     required Color color,
   }) {
+    final isGoogle = label.toLowerCase() == 'google';
+    final enabled = isGoogle && !_isLoading;
     return Opacity(
-      opacity: 0.5, // Faded to show it's disabled
+      opacity: enabled ? 1 : 0.5,
       child: Container(
         height: 60,
         width: 130,
@@ -589,7 +691,7 @@ class _LoginPageState extends State<LoginPage> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: null, // Disabled
+            onTap: enabled ? _handleGoogleLogin : null,
             borderRadius: BorderRadius.circular(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

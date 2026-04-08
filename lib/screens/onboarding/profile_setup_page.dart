@@ -1,9 +1,12 @@
 import 'dart:io';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/realtorone_brand.dart';
 import '../../widgets/elite_loader.dart';
 
 class ProfileSetupPage extends StatefulWidget {
@@ -368,7 +371,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: const Color(0xFF667eea).withValues(alpha: 0.05),
+                color: RealtorOneBrand.seed.withValues(alpha: 0.05),
                 shape: BoxShape.circle,
               ),
             ),
@@ -921,147 +924,214 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
 
   Widget _buildSuccessOverlay() {
     return Positioned.fill(
-      child: Container(
-        color: const Color(
-          0xFF020617,
-        ).withValues(alpha: 0.98), // Deep Elite Background
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Background Pulsing Effect
-            Container(
-                  width: 300,
-                  height: 300,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        const Color(0xFF6366F1).withValues(alpha: 0.2),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                )
-                .animate(onPlay: (c) => c.repeat(reverse: true))
-                .scale(
-                  begin: const Offset(0.8, 0.8),
-                  end: const Offset(1.5, 1.5),
-                  duration: 2.seconds,
-                ),
-
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            color: RealtorOneBrand.scaffoldDark.withValues(alpha: 0.88),
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                // Glassmorphic Icon Container
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                        blurRadius: 30,
-                        spreadRadius: -5,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: RealtorOneGridPainter(
+                        color: Colors.white.withValues(alpha: 0.03),
                       ),
-                    ],
+                    ),
                   ),
-                  child: Center(
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: const BoxDecoration(
+                ),
+                // Soft dual-accent glow (matches splash)
+                Container(
+                      width: 320,
+                      height: 320,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                        gradient: RadialGradient(
                           colors: [
-                            Color(0xFF6366F1), // Indigo
-                            Color(0xFF8B5CF6), // Violet
+                            RealtorOneBrand.accentIndigo.withValues(
+                              alpha: 0.22,
+                            ),
+                            RealtorOneBrand.accentTeal.withValues(alpha: 0.08),
+                            Colors.transparent,
                           ],
                         ),
                       ),
-                      child: const Icon(
-                        Icons.verified_user_rounded,
-                        color: Colors.white,
-                        size: 48,
-                      ),
+                    )
+                    .animate(onPlay: (c) => c.repeat(reverse: true))
+                    .scale(
+                      begin: const Offset(0.85, 0.85),
+                      end: const Offset(1.35, 1.35),
+                      duration: 2.4.seconds,
+                      curve: Curves.easeInOut,
                     ),
-                  ).animate().scale(curve: Curves.elasticOut, duration: 800.ms),
-                ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
 
-                const SizedBox(height: 48),
-
-                // Tactical Welcome Text
-                Text(
-                  'WELCOME AGENT ${_firstNameController.text.toUpperCase()}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 2.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2),
-
-                const SizedBox(height: 12),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: const Text(
-                    'CLEARANCE GRANTED: LEVEL 1',
-                    style: TextStyle(
-                      color: Color(0xFF818CF8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ).animate().fadeIn(delay: 500.ms),
-
-                const SizedBox(height: 60),
-
-                // Loading Bar
-                SizedBox(
-                  width: 200,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const LinearProgressIndicator(
-                        backgroundColor: Colors.white12,
-                        valueColor: AlwaysStoppedAnimation(Color(0xFF6366F1)),
-                        minHeight: 2,
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'INITIALIZING STRATEGY PROTOCOLS...',
-                        style: TextStyle(
-                          color: Colors.white38,
-                          fontSize: 10,
-                          letterSpacing: 1,
+                      Container(
+                        width: 124,
+                        height: 124,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.12),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: RealtorOneBrand.accentTeal.withValues(
+                                alpha: 0.2,
+                              ),
+                              blurRadius: 28,
+                              spreadRadius: -4,
+                            ),
+                            BoxShadow(
+                              color: RealtorOneBrand.accentIndigo.withValues(
+                                alpha: 0.25,
+                              ),
+                              blurRadius: 36,
+                              spreadRadius: -8,
+                            ),
+                          ],
                         ),
-                      ).animate().fadeIn(delay: 800.ms),
+                        child: Center(
+                          child: Container(
+                            width: 84,
+                            height: 84,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RealtorOneBrand.splashGradient,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x404ECDC4),
+                                  blurRadius: 20,
+                                  spreadRadius: -2,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.verified_rounded,
+                              color: Colors.white,
+                              size: 46,
+                            ),
+                          ),
+                        ).animate().scale(
+                          curve: Curves.elasticOut,
+                          duration: 820.ms,
+                        ),
+                      ).animate().fadeIn(duration: 400.ms).slideY(
+                        begin: 0.15,
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      Text(
+                        'WELCOME AGENT ${_firstNameController.text.toUpperCase()}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.8,
+                          height: 1.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ).animate().fadeIn(delay: 280.ms).slideY(begin: 0.12),
+
+                      const SizedBox(height: 10),
+
+                      Text(
+                        'Your profile is secured. Opening diagnosis next.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.52),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                          letterSpacing: 0.2,
+                        ),
+                        textAlign: TextAlign.center,
+                      ).animate().fadeIn(delay: 360.ms),
+
+                      const SizedBox(height: 20),
+
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(22),
+                          gradient: LinearGradient(
+                            colors: [
+                              RealtorOneBrand.accentIndigo.withValues(
+                                alpha: 0.15,
+                              ),
+                              RealtorOneBrand.accentTeal.withValues(
+                                alpha: 0.1,
+                              ),
+                            ],
+                          ),
+                          border: Border.all(
+                            color: RealtorOneBrand.accentTeal.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          'CLEARANCE GRANTED: LEVEL 1',
+                          style: TextStyle(
+                            color: RealtorOneBrand.accentTeal.withValues(
+                              alpha: 0.95,
+                            ),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.6,
+                          ),
+                        ),
+                      ).animate().fadeIn(delay: 480.ms),
+
+                      const SizedBox(height: 48),
+
+                      SizedBox(
+                        width: 220,
+                        child: Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: const SizedBox(
+                                height: 6,
+                                child: LinearProgressIndicator(
+                                  backgroundColor: Color(0x14FFFFFF),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    RealtorOneBrand.accentTeal,
+                                  ),
+                                  minHeight: 6,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              'INITIALIZING STRATEGY PROTOCOLS…',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.38),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
+                            ).animate().fadeIn(delay: 720.ms),
+                          ],
+                        ),
+                      ).animate().fadeIn(delay: 560.ms),
                     ],
                   ),
-                ).animate().fadeIn(delay: 600.ms),
+                ),
               ],
             ),
-          ],
+          ),
         ),
-      ).animate().fadeIn(duration: 300.ms),
+      ).animate().fadeIn(duration: 280.ms),
     );
   }
 }

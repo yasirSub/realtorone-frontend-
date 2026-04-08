@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import '../../api/chat_api.dart';
+import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
 
 // ignore_for_file: unused_element
@@ -161,25 +162,42 @@ class _RevenChatPageState extends State<RevenChatPage> {
   }
 
   Future<void> _deleteSession(int sid) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await RealtorOneDialogScaffold.show<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete chat?'),
-        content: const Text(
-          'This chat will be permanently deleted. You can\'t undo this.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      semanticsLabel: 'Confirm delete chat',
+      builder: (d) {
+        final isDark = Theme.of(d).brightness == Brightness.dark;
+        return RealtorOneDialogScaffold(
+          title: 'Delete chat?',
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(d, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+          child: Text(
+            'This chat will be permanently deleted. You can\'t undo this.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+        );
+      },
     );
     if (confirm != true || !mounted) return;
     try {
@@ -519,22 +537,16 @@ class _RevenChatPageState extends State<RevenChatPage> {
           _RevenMessage(
             text: res['reply'] as String? ?? 'No response.',
             isUser: false,
-            courses: courses != null
-                ? courses
-                      .map(
+            courses: courses?.map(
                         (e) =>
                             e is Map<String, dynamic> ? e : <String, dynamic>{},
                       )
-                      .toList()
-                : null,
-            commands: commands != null
-                ? commands
-                      .map(
+                      .toList(),
+            commands: commands?.map(
                         (e) =>
                             e is Map<String, dynamic> ? e : <String, dynamic>{},
                       )
-                      .toList()
-                : null,
+                      .toList(),
             createdAt: DateTime.now(),
           ),
         );
@@ -908,7 +920,7 @@ class _TypingDotState extends State<_TypingDot>
     final color = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
     return AnimatedBuilder(
       animation: _animation,
-      builder: (_, __) => Container(
+      builder: (_, _) => Container(
         width: 6,
         height: 6,
         decoration: BoxDecoration(

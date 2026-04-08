@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -12,8 +13,16 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
+import '../../theme/realtorone_brand.dart';
 import 'add_client_page.dart';
 import 'client_revenue_actions_page.dart';
+
+enum _DealRoomListFilter {
+  all,
+  notAttemptedFour,
+  nurture,
+  other,
+}
 
 class DealRoomWidget extends StatefulWidget {
   final VoidCallback? onClientActionLogged;
@@ -33,6 +42,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   List<dynamic> _clients = [];
   List<dynamic> _originalClients = [];
   bool _sortByPriority = false;
+  _DealRoomListFilter _listFilter = _DealRoomListFilter.all;
 
   @override
   void initState() {
@@ -79,13 +89,6 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     }
   }
 
-  void _toggleSortByPriority() {
-    setState(() {
-      _sortByPriority = !_sortByPriority;
-      _applySort();
-    });
-  }
-
   void _applySort() {
     if (_clients.isEmpty) return;
 
@@ -106,11 +109,161 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
 
       final int da = _extractTodayPercent(a);
       final int db = _extractTodayPercent(b);
-      // Higher completion percentage first
-      return db.compareTo(da);
+      final int byToday = db.compareTo(da);
+      if (byToday != 0) return byToday;
+
+      final nameA = (a is Map ? (a['client_name'] ?? '') : '').toString().toLowerCase();
+      final nameB = (b is Map ? (b['client_name'] ?? '') : '').toString().toLowerCase();
+      return nameA.compareTo(nameB);
     });
 
     _clients = sorted;
+  }
+
+  String _filterLabel(_DealRoomListFilter f) {
+    switch (f) {
+      case _DealRoomListFilter.all:
+        return 'All shortlists';
+      case _DealRoomListFilter.notAttemptedFour:
+        return 'Not attempted 4×';
+      case _DealRoomListFilter.nurture:
+        return 'Nurture list only';
+      case _DealRoomListFilter.other:
+        return 'Other pipeline only';
+    }
+  }
+
+  void _showListOptionsSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    var filter = _listFilter;
+    var sort = _sortByPriority;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                20 + MediaQuery.of(ctx).padding.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Clients view',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Pick a shortlist to focus on. Sort applies within that list.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.3,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._DealRoomListFilter.values.map(
+                    (f) => RadioListTile<_DealRoomListFilter>(
+                      contentPadding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      value: f,
+                      groupValue: filter,
+                      activeColor: const Color(0xFF667EEA),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setModal(() => filter = v);
+                      },
+                      title: Text(
+                        _filterLabel(f),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: sort,
+                    activeColor: const Color(0xFF667EEA),
+                    title: Text(
+                      'Sort by priority',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Urgent first, then today’s task %, then name',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      ),
+                    ),
+                    onChanged: (v) => setModal(() => sort = v),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF667EEA),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _listFilter = filter;
+                          _sortByPriority = sort;
+                          _applySort();
+                        });
+                        Navigator.pop(sheetCtx);
+                      },
+                      child: const Text(
+                        'Apply',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   int _extractPriority(dynamic client) {
@@ -185,8 +338,9 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     final t = raw.toLowerCase();
     if (t.contains('cold')) return const Color(0xFF2563EB);
     if (t.contains('follow')) return const Color(0xFF0D9488);
-    if (t.contains('client meeting') || t.contains('clint'))
+    if (t.contains('client meeting') || t.contains('clint')) {
       return const Color(0xFF7C3AED);
+    }
     if (t.contains('negotiation') ||
         t.contains('site') ||
         t.contains('visite')) {
@@ -262,6 +416,93 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     final dt = DateTime.tryParse(c.toString());
     if (dt == null) return 1;
     return DateTime.now().difference(dt).inDays + 1;
+  }
+
+  Map<String, dynamic>? _notesMap(dynamic client) {
+    if (client is! Map) return null;
+    final notes = client['notes'];
+    if (notes is! String || notes.trim().isEmpty) return null;
+    try {
+      final parsed = jsonDecode(notes);
+      if (parsed is Map<String, dynamic>) return parsed;
+    } catch (_) {}
+    return null;
+  }
+
+  int _maxAttemptCountFromNotes(dynamic client) {
+    final map = _notesMap(client);
+    if (map == null) return 0;
+    final cc = map['cold_calling'];
+    if (cc is! Map) return 0;
+
+    final callA = int.tryParse((cc['call_attempt'] ?? '0').toString()) ?? 0;
+    final waA = int.tryParse((cc['wa_attempt'] ?? '0').toString()) ?? 0;
+    return callA > waA ? callA : waA;
+  }
+
+  bool _isNurtureClient(dynamic client) {
+    final map = _notesMap(client);
+    if (map == null) return false;
+
+    final pkg = (map['lead_package'] ?? '').toString().toLowerCase().trim();
+    if (pkg == 'nurture') return true;
+
+    final stageRaw = (map['lead_stage'] ?? '').toString().toLowerCase();
+    if (stageRaw.contains('nurture') ||
+        stageRaw.contains('retarget') ||
+        stageRaw.contains('stall')) {
+      return true;
+    }
+
+    bool stageIsNurture(dynamic stage) {
+      if (stage is! Map) return false;
+      final bucket = (stage['bucket'] ?? '').toString().toLowerCase();
+      return bucket == 'nurture_whatsapp' ||
+          bucket == 'retargeting' ||
+          bucket == 'stalled' ||
+          bucket == 'nutshell';
+    }
+
+    return stageIsNurture(map['cold_calling']) ||
+        stageIsNurture(map['follow_up']) ||
+        stageIsNurture(map['client_meeting']) ||
+        stageIsNurture(map['deal_negotiation']) ||
+        stageIsNurture(map['deal_closure']);
+  }
+
+  Widget _groupSection({
+    required String title,
+    required String subtitle,
+    required List<dynamic> items,
+    required bool isDark,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        Text(
+          title,
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(
+            color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...items.map((c) => _clientTile(c, isDark)),
+      ],
+    );
   }
 
   Future<void> _startAddFirstClient() async {
@@ -422,89 +663,186 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
 
   Future<String?> _showAddMethodDialog() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return showDialog<String>(
+    return showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF0F172A) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) {
+        final bottomInset = MediaQuery.paddingOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 12,
+            right: 12,
+            bottom: 12 + bottomInset,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [
+                            const Color(0xEE0F172A),
+                            const Color(0xEE1E293B),
+                          ]
+                        : [
+                            Colors.white.withValues(alpha: 0.97),
+                            const Color(0xFFF8FAFC),
+                          ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha: isDark ? 0.35 : 0.12,
+                      ),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 36,
+                          height: 4,
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white24
+                                : const Color(0xFFCBD5E1),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Add clients',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Pick how you want to load your Deal Room — bulk import or one-by-one.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                          color: isDark
+                              ? Colors.white60
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      _methodOp(
+                        icon: Icons.table_chart_rounded,
+                        title: 'Import from Excel',
+                        subtitle:
+                            'Match our template columns, then upload your .xlsx file.',
+                        accent: RealtorOneBrand.accentTeal,
+                        onTap: () => Navigator.pop(ctx, 'excel'),
+                        isDark: isDark,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 4),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () =>
+                                _downloadDealRoomTemplate(ctx),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 8,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.download_rounded,
+                                    size: 18,
+                                    color: RealtorOneBrand.accentTeal,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Download template (.xlsx)',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: RealtorOneBrand.accentTeal,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _methodOp(
+                        icon: Icons.person_add_alt_1_rounded,
+                        title: 'Add manually',
+                        subtitle:
+                            'Enter name, contact, and notes in a guided form.',
+                        accent: RealtorOneBrand.accentIndigo,
+                        onTap: () => Navigator.pop(ctx, 'manual'),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: TextButton.styleFrom(
+                            foregroundColor: isDark
+                                ? Colors.white.withValues(alpha: 0.45)
+                                : const Color(0xFF64748B),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'How to add clients?',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _methodOp(
-                    icon: Icons.upload_file_rounded,
-                    title: 'Update Excel Sheet',
-                    subtitle:
-                        'Use the same columns as our template, then upload',
-                    color: const Color(0xFF10B981),
-                    onTap: () => Navigator.pop(ctx, 'excel'),
-                    isDark: isDark,
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: const Color(0xFF059669),
-                      ),
-                      onPressed: () => _downloadDealRoomTemplate(context),
-                      icon: const Icon(Icons.download_rounded, size: 17),
-                      label: const Text(
-                        'Download sheet format',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _methodOp(
-                icon: Icons.person_add_rounded,
-                title: 'Add Manually',
-                subtitle: 'Enter client details one by one',
-                color: const Color(0xFF2563EB),
-                onTap: () => Navigator.pop(ctx, 'manual'),
-                isDark: isDark,
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -512,55 +850,96 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     required IconData icon,
     required String title,
     required String subtitle,
-    required Color color,
+    required Color accent,
     required VoidCallback onTap,
     required bool isDark,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              child: Icon(icon, color: Colors.white),
+    final titleColor =
+        isDark ? Colors.white : const Color(0xFF0F172A);
+    final subColor =
+        isDark ? Colors.white54 : const Color(0xFF64748B);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        splashColor: accent.withValues(alpha: 0.12),
+        highlightColor: accent.withValues(alpha: 0.06),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: accent.withValues(alpha: isDark ? 0.09 : 0.07),
+            border: Border.all(
+              color: accent.withValues(alpha: isDark ? 0.28 : 0.22),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.white54 : Colors.black54,
-                    ),
-                  ),
-                ],
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: isDark ? 0.12 : 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
               ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [accent, Color.lerp(accent, Colors.black, 0.15)!],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: -0.2,
+                          color: titleColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w600,
+                          color: subColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: accent.withValues(alpha: 0.85),
+                  size: 26,
+                ),
+              ],
             ),
-            Icon(Icons.chevron_right_rounded, color: color),
-          ],
+          ),
         ),
       ),
     );
@@ -802,6 +1181,17 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   Widget _clientsList() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
+    final visibleClients = _clients.take(12).toList();
+    final notAttemptedFourTimes = visibleClients
+        .where((c) => _maxAttemptCountFromNotes(c) >= 4)
+        .toList();
+    final nurtureClients = visibleClients.where(_isNurtureClient).toList();
+    final otherClients = visibleClients
+        .where(
+          (c) =>
+              !notAttemptedFourTimes.contains(c) && !nurtureClients.contains(c),
+        )
+        .toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -839,26 +1229,56 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                   letterSpacing: 1.2,
                 ),
               ),
-              IconButton(
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                icon: Icon(
-                  Icons.sort_rounded,
-                  size: 20,
-                  color: _sortByPriority
-                      ? const Color(0xFF667EEA)
-                      : (isDark ? Colors.white54 : const Color(0xFF9CA3AF)),
+              Tooltip(
+                message: 'Filter shortlist & sort',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _showListOptionsSheet,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.filter_list_rounded,
+                        size: 22,
+                        color: (_listFilter != _DealRoomListFilter.all ||
+                                _sortByPriority)
+                            ? const Color(0xFF667EEA)
+                            : (isDark
+                                  ? Colors.white54
+                                  : const Color(0xFF9CA3AF)),
+                      ),
+                    ),
+                  ),
                 ),
-                tooltip: 'Sort by priority & progress',
-                onPressed: _toggleSortByPriority,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ..._clients.take(6).toList().asMap().entries.map((entry) => _clientTile(entry.value, isDark)
-              .animate()
-              .fade(duration: 300.ms, delay: (50 * entry.key).ms)
-              .slideY(begin: 0.1, end: 0, duration: 300.ms, delay: (50 * entry.key).ms)),
+          if (_listFilter == _DealRoomListFilter.all ||
+              _listFilter == _DealRoomListFilter.notAttemptedFour)
+            _groupSection(
+              title: 'NOT ATTEMPTED 4 TIMES',
+              subtitle: 'Clients with 4+ unanswered cold touch attempts',
+              items: notAttemptedFourTimes,
+              isDark: isDark,
+            ),
+          if (_listFilter == _DealRoomListFilter.all ||
+              _listFilter == _DealRoomListFilter.nurture)
+            _groupSection(
+              title: 'NURTURE LIST',
+              subtitle: 'Stalled / retargeting / nurture-stage clients',
+              items: nurtureClients,
+              isDark: isDark,
+            ),
+          if (_listFilter == _DealRoomListFilter.all ||
+              _listFilter == _DealRoomListFilter.other)
+            _groupSection(
+              title: 'OTHER CLIENTS',
+              subtitle: 'All remaining active clients in your pipeline',
+              items: otherClients,
+              isDark: isDark,
+            ),
           const SizedBox(height: 16),
           SizedBox(
             height: 48,
@@ -935,7 +1355,11 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       mainColor = _stageAccentColor(rawStage);
       mainLabel = _stageChipLabel(rawStage);
     }
-    final sourceData = _sourceChipData(client is Map ? client['source'] : null);
+    final sourceData = _sourceChipData(
+      client is Map ? client['source'] : null,
+    );
+    final isNurture = _isNurtureClient(client);
+    const nurtureChipColor = Color(0xFF059669);
 
     // Priority chip styling (shown near chevron)
     Color? priorityColor;
@@ -1117,6 +1541,41 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                                   fontWeight: FontWeight.w800,
                                   fontSize: 9,
                                   letterSpacing: 0.15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (status != 'lost' && isNurture)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: nurtureChipColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: nurtureChipColor.withValues(alpha: 0.4),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.eco_rounded,
+                                size: 12,
+                                color: nurtureChipColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'NURTURE',
+                                style: TextStyle(
+                                  color: nurtureChipColor,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 9,
+                                  letterSpacing: 0.35,
                                 ),
                               ),
                             ],

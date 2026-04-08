@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../api/user_api.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/elite_loader.dart';
 import '../../routes/app_routes.dart';
 
@@ -46,13 +47,14 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
       return const SizedBox(height: 120, child: Center(child: EliteLoader()));
     }
 
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, AppRoutes.reports),
       child: Row(
         children: [
           Expanded(
             child: _buildMetricCard(
-              'Growth Potential',
+              l10n.growthPotential,
               '$_growthScore',
               const Color(0xFF667eea),
               Icons.trending_up_rounded,
@@ -62,7 +64,7 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
           const SizedBox(width: 16),
           Expanded(
             child: _buildMetricCard(
-              'Execution Rate',
+              l10n.executionRate,
               '$_executionRate%',
               const Color(0xFF4ECDC4),
               Icons.bolt_rounded,

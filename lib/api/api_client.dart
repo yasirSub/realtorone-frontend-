@@ -101,6 +101,11 @@ class ApiClient {
     }
   }
 
+  /// Public GET helper without auth, for non-cached configuration like /app-config.
+  static Future<Map<String, dynamic>> getPublic(String endpoint) {
+    return get(endpoint, requiresAuth: false, useCache: false);
+  }
+
   static Future<void> _saveToCache(
     String key,
     Map<String, dynamic> data,

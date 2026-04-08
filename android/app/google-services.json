@@ -12,7 +12,28 @@
           "package_name": "com.example.realtorone"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "790178174861-65h5bnlumu3354qmf11sbskha2o4ldsr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.realtorone",
+            "certificate_hash": "560505cb32764b6c888b540ead6404ab5fda8bc7"
+          }
+        },
+        {
+          "client_id": "790178174861-d6h2u1usksor0onhm4qo6nnnv245jkp8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.realtorone",
+            "certificate_hash": "bb2eac8017653035cce02548780cdce08a342c54"
+          }
+        },
+        {
+          "client_id": "790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg"
@@ -20,7 +41,57 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790178174861:android:ea2bcd806e5996417ccfc4",
+        "android_client_info": {
+          "package_name": "com.realtorone.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "790178174861-0n4a8e4j4e79n919pbvoe5mup64n2qu6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.realtorone.app",
+            "certificate_hash": "bb2eac8017653035cce02548780cdce08a342c54"
+          }
+        },
+        {
+          "client_id": "790178174861-tf62802f2nqr12q1etfmjcc9pf56nn34.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.realtorone.app",
+            "certificate_hash": "560505cb32764b6c888b540ead6404ab5fda8bc7"
+          }
+        },
+        {
+          "client_id": "790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -10,15 +10,46 @@ import '../../api/api_endpoints.dart';
 import '../../api/activities_api.dart';
 import '../../api/user_api.dart';
 import '../../models/activity_model.dart';
+import '../../theme/realtorone_brand.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/realtor_one_dialog_scaffold.dart';
 import '../../widgets/skill_skeleton.dart';
 import 'activity_waveform_download.dart';
 import '../deal_room/deal_room_widget.dart';
 import '../deal_room/revenue_tracker_widget.dart';
 import '../learning/learning_page.dart';
 
+/// Targets Tasks tab/sub-tabs during the main app tour (see [MainNavigation]).
+class ActivitiesTourSync {
+  ActivitiesTourSync({required this.tabIndex, this.revenueSubTab});
+
+  /// 0 = Subconscious, 1 = Conscious (revenue actions).
+  final int tabIndex;
+
+  /// 0 = Clients (Deal Room), 1 = Revenue — only applies on Conscious tab.
+  final int? revenueSubTab;
+}
+
 class ActivitiesPage extends StatefulWidget {
-  const ActivitiesPage({super.key});
+  const ActivitiesPage({
+    super.key,
+    this.tourSyncNotifier,
+    this.tourActive,
+    this.tourSubconsciousTabKey,
+    this.tourConsciousTabKey,
+    this.tourDealRoomClientsPillKey,
+  });
+
+  /// Parent pushes tab + Deal Room targets while the app tour is open.
+  final ValueNotifier<ActivitiesTourSync?>? tourSyncNotifier;
+
+  /// When true, conscious-tab intro dialogs are suppressed (tour is controlling UI).
+  final ValueNotifier<bool>? tourActive;
+
+  /// Spotlight targets for the main app tour (measured by [MainNavigation]).
+  final GlobalKey? tourSubconsciousTabKey;
+  final GlobalKey? tourConsciousTabKey;
+  final GlobalKey? tourDealRoomClientsPillKey;
 
   @override
   State<ActivitiesPage> createState() => _ActivitiesPageState();
@@ -38,6 +69,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   int _revenueSubTab = 0; // 0 = Clients, 1 = Revenue
   int _revenueRefreshTrigger = 0;
   bool _isCheckingConsciousIntro = false;
+  void Function()? _tourSyncListener;
 
   @override
   void initState() {
@@ -48,12 +80,32 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         _maybeShowConsciousIntroDialog();
       }
     });
+    _tourSyncListener = _applyTourSyncFromNotifier;
+    widget.tourSyncNotifier?.addListener(_tourSyncListener!);
     _loadTasks();
     _loadActivities();
   }
 
+  void _applyTourSyncFromNotifier() {
+    final sync = widget.tourSyncNotifier?.value;
+    if (!mounted || sync == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_tabController.index != sync.tabIndex) {
+        _tabController.animateTo(sync.tabIndex);
+      }
+      if (sync.revenueSubTab != null &&
+          _revenueSubTab != sync.revenueSubTab) {
+        setState(() => _revenueSubTab = sync.revenueSubTab!);
+      }
+    });
+  }
+
   @override
   void dispose() {
+    if (_tourSyncListener != null) {
+      widget.tourSyncNotifier?.removeListener(_tourSyncListener!);
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -170,6 +222,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }
 
   Future<void> _maybeShowConsciousIntroDialog() async {
+    if (widget.tourActive?.value == true) return;
     if (!mounted || _isCheckingConsciousIntro) {
       return;
     }
@@ -486,9 +539,15 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   fontSize: 13,
                   letterSpacing: 1.5,
                 ),
-                tabs: const [
-                  Tab(text: 'SUBCONSCIOUS'),
-                  Tab(text: 'CONSCIOUS'),
+                tabs: [
+                  Tab(
+                    key: widget.tourSubconsciousTabKey,
+                    text: 'SUBCONSCIOUS',
+                  ),
+                  Tab(
+                    key: widget.tourConsciousTabKey,
+                    text: 'CONSCIOUS',
+                  ),
                 ],
               ),
             ),
@@ -606,6 +665,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         children: [
           // ── CLIENTS / REVENUE toggle ──
           Container(
+            key: widget.tourDealRoomClientsPillKey,
             margin: const EdgeInsets.symmetric(horizontal: 0),
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
@@ -758,11 +818,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddSubconsciousActivity,
-        backgroundColor: const Color(0xFFf093fb),
-        child: const Icon(Icons.add_rounded, color: Colors.white),
-      ).animate().scale(delay: 300.ms),
     );
   }
 
@@ -1228,9 +1283,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         durationMinutes: 30,
         description: userResponse,
         notes: jsonEncode({
-          if (listenedPercent != null) 'audio_listened_percent': listenedPercent,
-          if (requiredListenPercent != null)
-            'audio_required_percent': requiredListenPercent,
+          'audio_listened_percent': ?listenedPercent,
+          'audio_required_percent': ?requiredListenPercent,
           if (requiredListenPercent != null && listenedPercent != null)
             'audio_requirement_met': listenedPercent >= requiredListenPercent,
         }),
@@ -1282,140 +1336,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     } catch (e) {
       debugPrint('ACTIVITY_LOG_DEBUG: ERROR logging activity: $e');
     }
-  }
-
-  void _showAddSubconsciousActivity() {
-    final titleController = TextEditingController();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            24,
-            24,
-            MediaQuery.of(context).viewInsets.bottom + 24,
-          ),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white12 : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'ADD CUSTOM ACTIVITY',
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF1E293B),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Add your own identity conditioning activity',
-                style: TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextField(
-                controller: titleController,
-                autofocus: true,
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF1E293B),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Activity name...',
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.white24 : const Color(0xFF94A3B8),
-                    fontWeight: FontWeight.w500,
-                  ),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF0F172A)
-                      : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final title = titleController.text.trim();
-                    if (title.isEmpty) return;
-                    Navigator.pop(context);
-
-                    setState(() => _isLoading = true);
-                    try {
-                      final response = await ActivitiesApi.createActivity(
-                        title: title,
-                        type: 'custom',
-                        category: 'subconscious',
-                        durationMinutes: 10,
-                      );
-                      if (response['success'] == true) {
-                        _loadActivities();
-                        _showCompletionFeedback('Activity added successfully!');
-                      }
-                    } catch (e) {
-                      debugPrint('Error creating activity: $e');
-                      if (mounted) setState(() => _isLoading = false);
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFf093fb),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text(
-                    'ADD ACTIVITY',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 }
 
@@ -2048,38 +1968,37 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () => showDialog<void>(
+                          onTap: () => RealtorOneDialogScaffold.show<void>(
                             context: context,
-                            builder: (ctx) => AlertDialog(
-                              backgroundColor: isDark
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              title: const Text(
-                                'Task Description',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              content: Text(
-                                widget.taskDescription,
-                                style: TextStyle(
-                                  color: isDark
-                                      ? Colors.white70
-                                      : const Color(0xFF475569),
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                              ),
+                            semanticsLabel: 'Task description',
+                            builder: (d) => RealtorOneDialogScaffold(
+                              title: 'Task description',
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.of(ctx).pop(),
-                                  child: const Text('Got it'),
+                                  onPressed: () => Navigator.pop(d),
+                                  child: Text(
+                                    'Got it',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: isDark
+                                          ? RealtorOneBrand.accentTeal
+                                          : const Color(0xFF667eea),
+                                    ),
+                                  ),
                                 ),
                               ],
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  widget.taskDescription,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white70
+                                        : const Color(0xFF475569),
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                           borderRadius: BorderRadius.circular(20),

@@ -5,6 +5,7 @@ class ApiEndpoints {
 
   // Auth endpoints
   static const String login = '/login';
+  static const String googleLogin = '/login/google';
   static const String register = '/register';
   static const String logout = '/logout';
   static const String health = '/health';

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../api/activities_api.dart';
+import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 
@@ -76,6 +77,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
     final surfaceColor = isDark ? const Color(0xFF1E293B) : Colors.white;
     final borderColor = isDark
         ? const Color(0xFF334155)
@@ -108,7 +110,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'ACTIVITY LOG',
+                    l10n.activityLogTitle,
                     style: TextStyle(
                       color: titleColor,
                       fontSize: 18,
@@ -118,7 +120,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Today\'s recent actions and progress',
+                    l10n.activityLogSubtitle,
                     style: TextStyle(
                       color: bodyColor,
                       fontSize: 12,
@@ -130,7 +132,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
               TextButton(
                 onPressed: () =>
                     Navigator.pushNamed(context, AppRoutes.activities),
-                child: const Text('Open'),
+                child: Text(l10n.activityLogOpen),
               ),
             ],
           ),
@@ -138,13 +140,13 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
           Row(
             children: [
               _buildStatChip(
-                label: 'STREAK',
+                label: l10n.activityLogStreak,
                 value: '$_currentStreak',
                 color: const Color(0xFFF59E0B),
               ),
               const SizedBox(width: 10),
               _buildStatChip(
-                label: 'POINTS',
+                label: l10n.activityLogPoints,
                 value: '$_todayPoints',
                 color: const Color(0xFF10B981),
               ),
@@ -164,7 +166,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
-                'No activity logged today yet.',
+                l10n.activityLogEmpty,
                 style: TextStyle(
                   color: bodyColor,
                   fontSize: 13,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import '../../api/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/push_notification_service.dart';
@@ -55,6 +57,38 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Splash duration coordinated with animation - Reduced for speed
     await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Fetch remote app config (maintenance + min versions) before deciding navigation.
+    try {
+      final config = await _fetchAppConfig();
+      if (!mounted) return;
+
+      if (config.maintenanceEnabled) {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.maintenance,
+          arguments: {'message': config.maintenanceMessage},
+        );
+        return;
+      }
+
+      if (config.requiresUpdate) {
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.updateRequired,
+          arguments: {
+            'minVersion': config.minVersionForPlatform,
+            'storeUrl': config.storeUrlForPlatform,
+            'platformLabel': defaultTargetPlatform == TargetPlatform.iOS
+                ? 'iOS'
+                : 'Android',
+          },
+        );
+        return;
+      }
+    } catch (e) {
+      // Fail open: continue with normal flow if config cannot be fetched or parsed.
+    }
 
     if (!mounted) return;
 
@@ -111,6 +145,105 @@ class _SplashScreenState extends State<SplashScreen>
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     }
+  }
+
+  Future<_AppRuntimeConfig> _fetchAppConfig() async {
+    try {
+      final response = await ApiClient.getPublic('/app-config');
+      if (response is Map<String, dynamic>) {
+        final data = (response['data'] as Map?) ?? <String, dynamic>{};
+        final maintenanceEnabled = data['maintenance_enabled'] == true;
+        final maintenanceMessage =
+            (data['maintenance_message'] as String?) ?? '';
+        final minAndroid =
+            (data['min_android_version'] as String?)?.trim() ?? '';
+        final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
+        final androidStore =
+            (data['android_store_url'] as String?)?.trim() ?? '';
+        final iosStore = (data['ios_store_url'] as String?)?.trim() ?? '';
+
+        final info = await PackageInfo.fromPlatform();
+        final currentVersion = info.version;
+
+        final bool isAndroid;
+        final bool isIos;
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          isAndroid = true;
+          isIos = false;
+        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+          isAndroid = false;
+          isIos = true;
+        } else {
+          isAndroid = false;
+          isIos = false;
+        }
+
+        final String minForPlatform;
+        final String storeForPlatform;
+        if (isAndroid) {
+          minForPlatform = minAndroid;
+          storeForPlatform = androidStore;
+        } else if (isIos) {
+          minForPlatform = minIos;
+          storeForPlatform = iosStore;
+        } else {
+          minForPlatform = '';
+          storeForPlatform = '';
+        }
+
+        final requiresUpdate = minForPlatform.isNotEmpty &&
+            _compareSemanticVersion(currentVersion, minForPlatform) < 0;
+
+        return _AppRuntimeConfig(
+          maintenanceEnabled: maintenanceEnabled,
+          maintenanceMessage: maintenanceMessage,
+          minAndroidVersion: minAndroid,
+          minIosVersion: minIos,
+          androidStoreUrl: androidStore,
+          iosStoreUrl: iosStore,
+          currentVersion: currentVersion,
+          requiresUpdate: requiresUpdate,
+          minVersionForPlatform: minForPlatform,
+          storeUrlForPlatform: storeForPlatform,
+        );
+      }
+    } catch (_) {
+      // Swallow errors; app will continue with normal startup.
+    }
+
+    final info = await PackageInfo.fromPlatform();
+    return _AppRuntimeConfig(
+      maintenanceEnabled: false,
+      maintenanceMessage: '',
+      minAndroidVersion: '',
+      minIosVersion: '',
+      androidStoreUrl: '',
+      iosStoreUrl: '',
+      currentVersion: info.version,
+      requiresUpdate: false,
+      minVersionForPlatform: '',
+      storeUrlForPlatform: '',
+    );
+  }
+
+  int _compareSemanticVersion(String a, String b) {
+    List<int> parseParts(String v) {
+      return v.split('.').map((e) {
+        final n = int.tryParse(e);
+        return n ?? 0;
+      }).toList();
+    }
+
+    final pa = parseParts(a);
+    final pb = parseParts(b);
+    final maxLen = pa.length > pb.length ? pa.length : pb.length;
+    for (var i = 0; i < maxLen; i++) {
+      final va = i < pa.length ? pa[i] : 0;
+      final vb = i < pb.length ? pb[i] : 0;
+      if (va > vb) return 1;
+      if (va < vb) return -1;
+    }
+    return 0;
   }
 
   @override
@@ -409,3 +542,30 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
+
+class _AppRuntimeConfig {
+  _AppRuntimeConfig({
+    required this.maintenanceEnabled,
+    required this.maintenanceMessage,
+    required this.minAndroidVersion,
+    required this.minIosVersion,
+    required this.androidStoreUrl,
+    required this.iosStoreUrl,
+    required this.currentVersion,
+    required this.requiresUpdate,
+    required this.minVersionForPlatform,
+    required this.storeUrlForPlatform,
+  });
+
+  final bool maintenanceEnabled;
+  final String maintenanceMessage;
+  final String minAndroidVersion;
+  final String minIosVersion;
+  final String androidStoreUrl;
+  final String iosStoreUrl;
+  final String currentVersion;
+  final bool requiresUpdate;
+  final String minVersionForPlatform;
+  final String storeUrlForPlatform;
+}
+

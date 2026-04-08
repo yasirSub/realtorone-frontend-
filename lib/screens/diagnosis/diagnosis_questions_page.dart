@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/diagnosis_api.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/realtorone_brand.dart';
 
 class DiagnosisQuestionsPage extends StatefulWidget {
   const DiagnosisQuestionsPage({super.key});
@@ -64,6 +65,20 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
     }
   }
 
+  /// Jumps to the last question; on that screen SKIP finishes to results.
+  void _skipToFinalQuestion() {
+    final lastIndex = _questions.length - 1;
+    if (_currentQuestion >= lastIndex) {
+      _calculateResults();
+      return;
+    }
+    _pageController.animateToPage(
+      lastIndex,
+      duration: const Duration(milliseconds: 480),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   void _calculateResults() {
     _blockerScores.updateAll((key, value) => 0);
     for (final entry in _answers.entries) {
@@ -95,16 +110,18 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xFF1E293B),
+        backgroundColor: RealtorOneBrand.scaffoldDark,
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF4ECDC4)),
+          child: CircularProgressIndicator(
+            color: RealtorOneBrand.accentTeal,
+          ),
         ),
       );
     }
 
     if (_questions.isEmpty) {
       return const Scaffold(
-        backgroundColor: Color(0xFF1E293B),
+        backgroundColor: RealtorOneBrand.scaffoldDark,
         body: Center(
           child: Text(
             'No signup questions configured.',
@@ -117,63 +134,134 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
     final progress = (_currentQuestion + 1) / _questions.length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E293B),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildProgressHeader(progress),
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const NeverScrollableScrollPhysics(),
-                onPageChanged: (index) =>
-                    setState(() => _currentQuestion = index),
-                itemCount: _questions.length,
-                itemBuilder: (context, index) =>
-                    _buildQuestionCard(_questions[index]),
+      backgroundColor: RealtorOneBrand.scaffoldDark,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: RealtorOneGridPainter(
+                  color: Colors.white.withValues(alpha: 0.028),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            top: -80,
+            right: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: RealtorOneBrand.seed.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildProgressHeader(progress),
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (index) =>
+                        setState(() => _currentQuestion = index),
+                    itemCount: _questions.length,
+                    itemBuilder: (context, index) =>
+                        _buildQuestionCard(_questions[index]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildProgressHeader(double progress) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'QUESTION ${_currentQuestion + 1}/${_questions.length}',
-                style: const TextStyle(
-                  color: Colors.white60,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.45),
                   fontWeight: FontWeight.w900,
-                  fontSize: 11,
-                  letterSpacing: 1.5,
+                  fontSize: 10,
+                  letterSpacing: 1.8,
                 ),
               ),
               Text(
                 '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  color: Color(0xFF4ECDC4),
+                style: TextStyle(
+                  color: RealtorOneBrand.accentTeal,
                   fontWeight: FontWeight.w900,
-                  fontSize: 13,
+                  fontSize: 14,
+                  shadows: [
+                    Shadow(
+                      color: RealtorOneBrand.accentTeal.withValues(
+                        alpha: 0.35,
+                      ),
+                      blurRadius: 12,
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 6,
-              backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF4ECDC4)),
+          const SizedBox(height: 14),
+          _buildGradientProgressBar(progress),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradientProgressBar(double progress) {
+    final clamped = progress.clamp(0.0, 1.0);
+    return SizedBox(
+      height: 8,
+      width: double.infinity,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              color: Colors.white.withValues(alpha: 0.06),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.06),
+              ),
+            ),
+          ),
+          FractionallySizedBox(
+            widthFactor: clamped <= 0 ? 0.001 : clamped,
+            alignment: Alignment.centerLeft,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                gradient: const LinearGradient(
+                  colors: [
+                    RealtorOneBrand.accentIndigo,
+                    RealtorOneBrand.accentTeal,
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: RealtorOneBrand.accentTeal.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    spreadRadius: -2,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -182,37 +270,49 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
   }
 
   Widget _buildQuestionCard(DiagnosisQuestion question) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
           Text(
             question.question,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.w900,
-              height: 1.1,
-              letterSpacing: -1,
+              height: 1.15,
+              letterSpacing: -0.6,
             ),
-          ).animate().fadeIn().slideY(begin: 0.1),
-          const SizedBox(height: 40),
+          ).animate().fadeIn().slideY(begin: 0.08),
+          const SizedBox(height: 28),
           ...question.options.asMap().entries.map(
             (entry) => _buildOption(question.id, entry.key, entry.value),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _nextQuestion,
+              onPressed: _skipToFinalQuestion,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
               child: const Text(
-                'Skip',
+                'SKIP',
                 style: TextStyle(
-                  color: Colors.white60,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
+                  color: RealtorOneBrand.accentTeal,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 10,
+                  letterSpacing: 1.6,
                 ),
               ),
             ),
@@ -225,45 +325,70 @@ class _DiagnosisQuestionsPageState extends State<DiagnosisQuestionsPage> {
   Widget _buildOption(int questionId, int idx, DiagnosisQuestionOption option) {
     final isSelected = _answers[questionId] == idx;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: InkWell(
-        onTap: () => _selectOption(questionId, idx),
-        borderRadius: BorderRadius.circular(24),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF4ECDC4).withValues(alpha: 0.1)
-                : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isSelected ? const Color(0xFF4ECDC4) : Colors.white10,
-              width: 2,
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _selectOption(questionId, idx),
+          borderRadius: BorderRadius.circular(20),
+          splashColor: RealtorOneBrand.accentTeal.withValues(alpha: 0.12),
+          highlightColor: RealtorOneBrand.accentTeal.withValues(alpha: 0.06),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? RealtorOneBrand.accentTeal.withValues(alpha: 0.12)
+                  : RealtorOneBrand.surfaceDark.withValues(alpha: 0.65),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? RealtorOneBrand.accentTeal
+                    : Colors.white.withValues(alpha: 0.08),
+                width: isSelected ? 1.5 : 1,
+              ),
+              boxShadow: [
+                if (!isSelected)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                if (isSelected)
+                  BoxShadow(
+                    color: RealtorOneBrand.accentTeal.withValues(alpha: 0.22),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+              ],
             ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  option.text,
-                  style: TextStyle(
-                    color: isSelected ? const Color(0xFF4ECDC4) : Colors.white,
-                    fontSize: 17,
-                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w500,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    option.text,
+                    style: TextStyle(
+                      color: isSelected
+                          ? RealtorOneBrand.accentTeal
+                          : Colors.white.withValues(alpha: 0.92),
+                      fontSize: 16,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      height: 1.25,
+                    ),
                   ),
                 ),
-              ),
-              if (isSelected)
-                const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF4ECDC4),
-                  size: 28,
-                ),
-            ],
+                if (isSelected)
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: RealtorOneBrand.accentTeal,
+                    size: 26,
+                  ),
+              ],
+            ),
           ),
         ),
       ),
-    ).animate().fadeIn(delay: (idx * 100).ms).slideX(begin: 0.05);
+    ).animate().fadeIn(delay: (idx * 100).ms).slideX(begin: 0.04);
   }
 }

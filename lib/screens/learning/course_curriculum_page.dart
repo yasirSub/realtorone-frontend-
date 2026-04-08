@@ -363,7 +363,13 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   /// Module is locked until the previous module's videos are all completed.
   bool _isModuleLocked(int moduleIndex) {
     if (moduleIndex <= 0) return false;
-    return !_isModuleCompleted(moduleIndex - 1);
+    // Lock this module if ANY earlier module is not completed.
+    // This prevents later modules from unlocking when an intermediate
+    // module has no videos or unusual content ordering.
+    for (var i = 0; i < moduleIndex; i++) {
+      if (!_isModuleCompleted(i)) return true;
+    }
+    return false;
   }
 
   int? _getModuleIndexForMaterial(int materialId) {

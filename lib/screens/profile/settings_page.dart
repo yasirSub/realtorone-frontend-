@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
+import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../legal/legal_document_webview_page.dart';
+import '../../widgets/realtor_one_dialog_scaffold.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -32,25 +35,105 @@ class _SettingsPageState extends State<SettingsPage> {
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
     bool isDialogLoading = false;
+    final pageContext = context;
 
-    showDialog(
+    RealtorOneDialogScaffold.show<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return AlertDialog(
-            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
-            ),
-            title: Text(
-              'Change Password',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF1E293B),
+      semanticsLabel: 'Change password form',
+      builder: (d) => StatefulBuilder(
+        builder: (_, setDialogState) {
+          final isDark = Theme.of(d).brightness == Brightness.dark;
+          return RealtorOneDialogScaffold(
+            title: 'Change password',
+            actions: [
+              TextButton(
+                onPressed: isDialogLoading ? null : () => Navigator.pop(d),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
-            ),
-            content: SingleChildScrollView(
+              if (isDialogLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                FilledButton(
+                  onPressed: () async {
+                    if (newPasswordController.text !=
+                        confirmPasswordController.text) {
+                      ScaffoldMessenger.of(pageContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('New passwords do not match'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    if (newPasswordController.text.length < 6) {
+                      ScaffoldMessenger.of(pageContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Password must be 6+ chars'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    setDialogState(() => isDialogLoading = true);
+                    try {
+                      final response = await UserApi.changePassword(
+                        currentPasswordController.text,
+                        newPasswordController.text,
+                      );
+                      final ok = response['success'] == true ||
+                          response['status'] == 'ok';
+                      if (d.mounted && ok) {
+                        Navigator.pop(d);
+                      }
+                      if (!pageContext.mounted) return;
+                      if (ok) {
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password updated!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(pageContext).showSnackBar(
+                          SnackBar(
+                            content: Text(response['message'] ?? 'Error'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (!pageContext.mounted) return;
+                      ScaffoldMessenger.of(pageContext).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    } finally {
+                      if (d.mounted) {
+                        setDialogState(() => isDialogLoading = false);
+                      }
+                    }
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF667eea),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Update'),
+                ),
+            ],
+            child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -83,94 +166,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: isDialogLoading
-                    ? null
-                    : () => Navigator.pop(context),
-                child: Text(
-                  'CANCEL',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                  ),
-                ),
-              ),
-              if (isDialogLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16.0),
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else
-                TextButton(
-                  onPressed: () async {
-                    if (newPasswordController.text !=
-                        confirmPasswordController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('New passwords do not match'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    if (newPasswordController.text.length < 6) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Password must be 6+ chars'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    setDialogState(() => isDialogLoading = true);
-                    try {
-                      final response = await UserApi.changePassword(
-                        currentPasswordController.text,
-                        newPasswordController.text,
-                      );
-                      if (mounted) {
-                        if (response['success'] == true ||
-                            response['status'] == 'ok') {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password updated!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(response['message'] ?? 'Error'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      if (mounted)
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
-                    } finally {
-                      if (mounted)
-                        setDialogState(() => isDialogLoading = false);
-                    }
-                  },
-                  child: const Text(
-                    'UPDATE',
-                    style: TextStyle(
-                      color: Color(0xFF667eea),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-            ],
           );
         },
       ),
@@ -178,68 +173,86 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _showDeleteAccountDialog() {
-    showDialog(
+    RealtorOneDialogScaffold.show<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Delete Account',
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Are you sure? This action is permanent and will delete all your realtor data, leads, and performance history.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('KEEP ACCOUNT'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                final response = await UserApi.requestAccountDeletion();
-                if (mounted) {
-                  if (response['success'] == true ||
-                      response['status'] == 'ok') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Account deletion requested. Pending admin review.',
+      barrierDismissible: false,
+      semanticsLabel: 'Confirm account deletion request',
+      builder: (d) {
+        final isDark = Theme.of(d).brightness == Brightness.dark;
+        return RealtorOneDialogScaffold(
+          title: 'Delete account',
+          titleColor: const Color(0xFFDC2626),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d),
+              child: Text(
+                'Keep account',
+                style: TextStyle(
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(d);
+                setState(() => _isLoading = true);
+                try {
+                  final response = await UserApi.requestAccountDeletion();
+                  if (mounted) {
+                    if (response['success'] == true ||
+                        response['status'] == 'ok') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Account deletion requested. Pending admin review.',
+                          ),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 4),
                         ),
-                        backgroundColor: Colors.green,
-                        duration: Duration(seconds: 4),
-                      ),
-                    );
-                    _logout();
-                  } else {
+                      );
+                      _logout();
+                    } else {
+                      setState(() => _isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            response['message'] ?? 'Failed to submit request.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (mounted) {
                     setState(() => _isLoading = false);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          response['message'] ?? 'Failed to submit request.',
-                        ),
+                      const SnackBar(
+                        content: Text('Connection error. Please try again.'),
                         backgroundColor: Colors.red,
                       ),
                     );
                   }
                 }
-              } catch (e) {
-                if (mounted) {
-                  setState(() => _isLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Connection error. Please try again.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Request deletion'),
+            ),
+          ],
+          child: Text(
+            'This requests permanent deletion of your realtor data, leads, and performance history. Continue?',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -249,21 +262,110 @@ class _SettingsPageState extends State<SettingsPage> {
       await ApiClient.clearToken();
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      if (mounted)
+      if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.login,
           (route) => false,
         );
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _showLanguagePicker(bool isDark) {
+    final l10n = AppLocalizations.of(context)!;
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            16,
+            20,
+            20 + MediaQuery.paddingOf(ctx).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                l10n.languagePickerTitle,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              RadioListTile<Locale>(
+                contentPadding: EdgeInsets.zero,
+                value: const Locale('en'),
+                groupValue: localeProvider.locale,
+                activeColor: const Color(0xFF667eea),
+                title: Text(
+                  l10n.languageEnglish,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await localeProvider.setLocale(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+              RadioListTile<Locale>(
+                contentPadding: EdgeInsets.zero,
+                value: const Locale('ar'),
+                groupValue: localeProvider.locale,
+                activeColor: const Color(0xFF667eea),
+                title: Text(
+                  l10n.languageArabicUae,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await localeProvider.setLocale(v);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final localeProvider = Provider.of<LocaleProvider>(context);
     final isDark = themeProvider.isDarkMode;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       backgroundColor: isDark
@@ -271,7 +373,7 @@ class _SettingsPageState extends State<SettingsPage> {
           : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
-          'SETTINGS',
+          l10n.settingsScreenTitle,
           style: TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 14,
@@ -296,73 +398,80 @@ class _SettingsPageState extends State<SettingsPage> {
           ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              _buildSection('Account & Security'),
+              _buildSection(l10n.settingsSectionAccountSecurity),
               _buildSettingsCard([
                 _buildSettingsItem(
                   icon: Icons.person_outline_rounded,
-                  title: 'Edit Profile',
-                  subtitle: 'Update your professional info',
+                  title: l10n.settingsEditProfileTitle,
+                  subtitle: l10n.settingsEditProfileSubtitle,
                   onTap: () =>
                       Navigator.pushNamed(context, AppRoutes.editProfile),
                 ),
                 _buildSettingsItem(
                   icon: Icons.lock_outline_rounded,
-                  title: 'Change Password',
-                  subtitle: 'Keep your account secure',
+                  title: l10n.settingsChangePasswordTitle,
+                  subtitle: l10n.settingsChangePasswordSubtitle,
                   onTap: _showChangePasswordDialog,
                 ),
               ], isDark),
               const SizedBox(height: 24),
-              _buildSection('App Preferences'),
+              _buildSection(l10n.settingsSectionAppPreferences),
               _buildSettingsCard([
+                _buildSettingsItem(
+                  icon: Icons.language_rounded,
+                  title: l10n.settingsLanguageTitle,
+                  subtitle: localeProvider.isArabic
+                      ? l10n.settingsLanguageSubtitleArabic
+                      : l10n.settingsLanguageSubtitleEnglish,
+                  onTap: () => _showLanguagePicker(isDark),
+                ),
                 _buildSwitchItem(
                   icon: Icons.notifications_active_outlined,
-                  title: 'New Lead Alerts',
-                  subtitle: 'Instant notification for new leads',
+                  title: l10n.settingsNewLeadAlertsTitle,
+                  subtitle: l10n.settingsNewLeadAlertsSubtitle,
                   value: _pushNotifications,
                   onChanged: (v) => setState(() => _pushNotifications = v),
                   isDark: isDark,
                 ),
                 _buildSwitchItem(
                   icon: Icons.mail_outline_rounded,
-                  title: 'Weekly Performance Reports',
-                  subtitle: 'Get growth insights via email',
+                  title: l10n.settingsWeeklyReportsTitle,
+                  subtitle: l10n.settingsWeeklyReportsSubtitle,
                   value: _emailUpdates,
                   onChanged: (v) => setState(() => _emailUpdates = v),
                   isDark: isDark,
                 ),
                 _buildSwitchItem(
                   icon: Icons.dark_mode_outlined,
-                  title: 'Dark Mode',
-                  subtitle: 'Switch to a darker interface',
+                  title: l10n.settingsDarkModeTitle,
+                  subtitle: l10n.settingsDarkModeSubtitle,
                   value: isDark,
                   onChanged: (v) => themeProvider.toggleTheme(v),
                   isDark: isDark,
                 ),
               ], isDark),
               const SizedBox(height: 24),
-              _buildSection('Legal'),
+              _buildSection(l10n.settingsSectionLegal),
               _buildSettingsCard([
                 _buildSettingsItem(
                   icon: Icons.privacy_tip_outlined,
-                  title: 'Privacy Policy',
-                  subtitle:
-                      'How we handle your data — opens in app (admin-editable)',
+                  title: l10n.settingsPrivacyTitle,
+                  subtitle: l10n.settingsPrivacySubtitle,
                   onTap: () => _openLegalInApp('privacy'),
                 ),
                 _buildSettingsItem(
                   icon: Icons.gavel_outlined,
-                  title: 'Terms & Conditions',
-                  subtitle: 'Terms of service — opens in app (admin-editable)',
+                  title: l10n.settingsTermsTitle,
+                  subtitle: l10n.settingsTermsSubtitle,
                   onTap: () => _openLegalInApp('terms'),
                 ),
               ], isDark),
               const SizedBox(height: 32),
               TextButton(
                 onPressed: _showDeleteAccountDialog,
-                child: const Text(
-                  'DELETE ACCOUNT',
-                  style: TextStyle(
+                child: Text(
+                  l10n.settingsDeleteAccount,
+                  style: const TextStyle(
                     color: Colors.red,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
@@ -394,7 +503,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         )
                       : const Icon(Icons.logout_rounded),
                   label: Text(
-                    _isLoading ? 'LOGGING OUT...' : 'LOGOUT',
+                    _isLoading
+                        ? l10n.settingsLoggingOut
+                        : l10n.settingsLogout,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
@@ -405,7 +516,7 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(height: 40),
               Center(
                 child: Text(
-                  'Version 1.2.4',
+                  l10n.settingsVersion,
                   style: TextStyle(
                     color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
                     fontSize: 10,
@@ -428,7 +539,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12),
       child: Text(
-        title.toUpperCase(),
+        title,
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w900,

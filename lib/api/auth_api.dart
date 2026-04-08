@@ -38,6 +38,25 @@ class AuthApi {
     return response;
   }
 
+  static Future<Map<String, dynamic>> loginWithGoogle({
+    required String idToken,
+    String? email,
+    String? name,
+    String? photoUrl,
+  }) async {
+    final response = await ApiClient.post(ApiEndpoints.googleLogin, {
+      'id_token': idToken,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (name != null && name.isNotEmpty) 'name': name,
+      if (photoUrl != null && photoUrl.isNotEmpty) 'photo_url': photoUrl,
+    });
+
+    if (response['status'] == 'ok' && response['token'] != null) {
+      await ApiClient.setToken(response['token']);
+    }
+    return response;
+  }
+
   static Future<Map<String, dynamic>> logout() async {
     final response = await ApiClient.post(
       ApiEndpoints.logout,

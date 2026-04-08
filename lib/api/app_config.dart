@@ -6,10 +6,14 @@ class AppConfig {
   /// Production website origin for Privacy / Terms (HTTPS). Used in release for Play Console and in-app browser links.
   static const String liveWebOrigin = 'https://aanantbishthealing.com';
 
-  static const String _legalPrivacyOverride =
-      String.fromEnvironment('LEGAL_PRIVACY_URL', defaultValue: '');
-  static const String _legalTermsOverride =
-      String.fromEnvironment('LEGAL_TERMS_URL', defaultValue: '');
+  static const String _legalPrivacyOverride = String.fromEnvironment(
+    'LEGAL_PRIVACY_URL',
+    defaultValue: '',
+  );
+  static const String _legalTermsOverride = String.fromEnvironment(
+    'LEGAL_TERMS_URL',
+    defaultValue: '',
+  );
 
   static String get privacyPolicyUrl {
     if (_legalPrivacyOverride.isNotEmpty) return _legalPrivacyOverride;
@@ -36,8 +40,10 @@ class AppConfig {
 
   /// Full API root including `/api`, e.g. `http://192.168.1.10:8000/api`
   /// Physical device on Wi‑Fi: `flutter run --dart-define=API_BASE_URL=http://YOUR_PC_LAN_IP:8000/api`
-  static const String _dartDefineApiBase =
-      String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String _dartDefineApiBase = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
 
   /// Android emulator: host machine’s localhost (not 127.0.0.1 on the device)
   static const String _androidEmulatorApi = 'http://10.0.2.2:8000/api';
@@ -77,4 +83,3 @@ class AppConfig {
     return base;
   }
 }
-

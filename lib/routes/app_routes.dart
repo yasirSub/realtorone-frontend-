@@ -22,4 +22,6 @@ class AppRoutes {
   static const String courseCurriculum = '/course-curriculum';
   static const String videoPlayer = '/video-player';
   static const String courseExam = '/course-exam';
+  static const String maintenance = '/maintenance';
+  static const String updateRequired = '/update-required';
 }

@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,8 +9,14 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.example.realtorone"
+    namespace = "com.realtorone.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +31,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.realtorone"
+        applicationId = "com.realtorone.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -33,9 +42,28 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (!keystorePropertiesFile.exists()) {
+                throw GradleException(
+                    "Missing android/key.properties for release signing. " +
+                        "Create it with storeFile, storePassword, keyAlias, keyPassword."
+                )
+            }
+
+            val storeFilePath = keystoreProperties["storeFile"] as String?
+                ?: throw GradleException("key.properties missing 'storeFile'")
+            val storePassword = keystoreProperties["storePassword"] as String?
+                ?: throw GradleException("key.properties missing 'storePassword'")
+            val keyAlias = keystoreProperties["keyAlias"] as String?
+                ?: throw GradleException("key.properties missing 'keyAlias'")
+            val keyPassword = keystoreProperties["keyPassword"] as String?
+                ?: throw GradleException("key.properties missing 'keyPassword'")
+
+            signingConfig = signingConfigs.create("release") {
+                storeFile = file(storeFilePath)
+                this.storePassword = storePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            }
         }
     }
 }
@@ -43,3 +71,4 @@ android {
 flutter {
     source = "../.."
 }
+

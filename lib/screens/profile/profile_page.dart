@@ -5,8 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
+import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/realtor_one_dialog_scaffold.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -59,15 +61,13 @@ class _ProfilePageState extends State<ProfilePage> {
   double _calculateCompleteness() {
     if (_userData == null) return 0;
     int count = 0;
-    const total = 7;
+    const total = 5;
 
     if (_userData!['name']?.toString().isNotEmpty == true) count++;
     if (_userData!['mobile']?.toString().isNotEmpty == true) count++;
-    if (_userData!['city']?.toString().isNotEmpty == true) count++;
     if (_userData!['brokerage']?.toString().isNotEmpty == true) count++;
     if (_userData!['years_experience'] != null) count++;
     if (_userData!['current_monthly_income'] != null) count++;
-    if (_userData!['target_monthly_income'] != null) count++;
 
     return count / total;
   }
@@ -80,42 +80,45 @@ class _ProfilePageState extends State<ProfilePage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx) {
+        final loc = AppLocalizations.of(ctx)!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'UPDATE PHOTO',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-                letterSpacing: 2,
+              const SizedBox(height: 12),
+              Text(
+                loc.profileUpdatePhoto,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 2,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.camera_alt_rounded),
-              title: const Text('Camera'),
-              onTap: () => Navigator.pop(context, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_rounded),
-              title: const Text('Gallery'),
-              onTap: () => Navigator.pop(context, ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded),
+                title: Text(loc.profileCamera),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded),
+                title: Text(loc.profileGallery),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
     );
 
     if (source != null) {
@@ -194,6 +197,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF020617)
@@ -299,7 +303,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                                   ],
                                                 ),
                                                 child: Text(
-                                                  '${(_calculateCompleteness() * 100).toInt()}% COMPLETE',
+                                                  l10n.profilePercentComplete(
+                                                    (_calculateCompleteness() *
+                                                            100)
+                                                        .toInt(),
+                                                  ),
                                                   style: const TextStyle(
                                                     color: Colors.white,
                                                     fontSize: 9,
@@ -347,7 +355,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               // Debug text removed for production
                               Text(
                                     _userData?['name']?.toString() ??
-                                        'Realtor Name',
+                                        l10n.profileDefaultName,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 24,
@@ -371,7 +379,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   .fadeIn(delay: 300.ms)
                                   .slideY(begin: 0.2),
                               const SizedBox(height: 20),
-                              _buildStatusBadge(),
+                              _buildStatusBadge(l10n),
                             ],
                           ),
                         ),
@@ -384,13 +392,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildStatsRow(isDark),
+                      _buildStatsRow(isDark, l10n),
                       const SizedBox(height: 32),
-                      _buildMenuSection('Profile Settings', [
+                      _buildMenuSection(l10n.profileSectionSettings, [
                         _MenuItem(
                           icon: Icons.person_outline,
-                          title: 'Edit Profile',
-                          subtitle: 'Manage your personal info',
+                          title: l10n.profileEditTitle,
+                          subtitle: l10n.profileEditSubtitle,
                           onTap: () async {
                             final result = await Navigator.pushNamed(
                               context,
@@ -401,45 +409,31 @@ class _ProfilePageState extends State<ProfilePage> {
                             }
                           },
                         ),
-                        _MenuItem(
-                          icon: Icons.location_on_outlined,
-                          title: 'City',
-                          subtitle: _userData?['city'] ?? 'Dubai Marina',
-                          onTap: () {},
-                        ),
                       ], isDark),
                       const SizedBox(height: 24),
-                      _buildMenuSection('Performance', [
+                      _buildMenuSection(l10n.profileSectionPerformance, [
                         _MenuItem(
                           icon: Icons.emoji_events_outlined,
-                          title: 'Top Realtor',
-                          subtitle:
-                              'View your leaderboard rank and score breakdown',
+                          title: l10n.profileTopRealtorTitle,
+                          subtitle: l10n.profileTopRealtorSubtitle,
                           onTap: () => Navigator.pushNamed(
                             context,
                             AppRoutes.leaderboard,
                           ),
                         ),
-                        _MenuItem(
-                          icon: Icons.monetization_on_outlined,
-                          title: 'Target Income',
-                          subtitle:
-                              'AED ${_userData?['target_monthly_income'] ?? '---'}',
-                          onTap: () {},
-                        ),
                       ], isDark),
                       const SizedBox(height: 24),
 
                       // My Plan Section
-                      _buildMenuSection('My Plan', [
+                      _buildMenuSection(l10n.profileSectionMyPlan, [
                         _MenuItem(
                           icon: Icons.workspace_premium_rounded,
                           title: _userData?['is_premium'] == true
-                              ? '${(_userData?['membership_tier'] ?? 'Premium').toString().replaceAll(' - GOLD', '').replaceAll('- GOLD', '').replaceAll(' GOLD', '').replaceAll('GOLD', '').trim()} Plan'
-                              : 'Consultant Plan',
+                              ? '${(_userData?['membership_tier'] ?? 'Premium').toString().replaceAll(' - GOLD', '').replaceAll('- GOLD', '').replaceAll(' GOLD', '').replaceAll('GOLD', '').trim()}${l10n.profilePlanSuffix}'
+                              : l10n.profileConsultantPlan,
                           subtitle: _userData?['is_premium'] == true
-                              ? 'Tap to manage your subscription'
-                              : 'Upgrade to unlock premium features',
+                              ? l10n.profilePremiumSubtitle
+                              : l10n.profileUpgradeSubtitle,
                           onTap: () async {
                             final result = await Navigator.pushNamed(
                               context,
@@ -453,17 +447,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ], isDark),
                       const SizedBox(height: 24),
 
-                      _buildMenuSection('Account Settings', [
-                        _MenuItem(
-                          icon: Icons.notifications_none,
-                          title: 'Notifications',
-                          subtitle: 'Turn alerts on/off',
-                          onTap: () {},
-                        ),
+                      _buildMenuSection(l10n.profileSectionAccount, [
                         _MenuItem(
                           icon: Icons.settings_outlined,
-                          title: 'App Settings',
-                          subtitle: 'Security, Notifications, and more',
+                          title: l10n.profileAppSettingsTitle,
+                          subtitle: l10n.profileAppSettingsSubtitle,
                           onTap: () =>
                               Navigator.pushNamed(context, AppRoutes.settings),
                         ),
@@ -482,9 +470,9 @@ class _ProfilePageState extends State<ProfilePage> {
                             ),
                           ),
                           icon: const Icon(Icons.logout_rounded),
-                          label: const Text(
-                            'LOGOUT',
-                            style: TextStyle(
+                          label: Text(
+                            l10n.profileLogout,
+                            style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1,
                             ),
@@ -492,7 +480,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       const SizedBox(height: 40),
-                      _buildFooter(),
+                      _buildFooter(l10n),
                     ]),
                   ),
                 ),
@@ -510,7 +498,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatusBadge() {
+  Widget _buildStatusBadge(AppLocalizations l10n) {
     final completeness = _calculateCompleteness();
     final isComplete = completeness >= 1.0;
 
@@ -536,8 +524,8 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(width: 6),
           Text(
             isComplete
-                ? 'VERIFIED ELITE'
-                : '${(completeness * 100).toInt()}% READY',
+                ? l10n.profileVerifiedElite
+                : l10n.profilePercentReady((completeness * 100).toInt()),
             style: TextStyle(
               color: isComplete
                   ? const Color(0xFF10B981)
@@ -552,7 +540,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatsRow(bool isDark) {
+  Widget _buildStatsRow(bool isDark, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -570,13 +558,13 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           _buildStatItem(
             '${_userData?['total_rewards'] ?? '0'}',
-            'POINTS',
+            l10n.profileStatPoints,
             Colors.amber,
             onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
           ),
           _buildStatItem(
             '${_userData?['execution_rate'] ?? '85'}%',
-            'EXECUTION',
+            l10n.profileStatExecution,
             const Color(0xFF4ECDC4),
           ),
           _buildStatItem(
@@ -588,7 +576,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 .replaceAll('GOLD', '')
                 .trim()
                 .toUpperCase(),
-            'PLAN',
+            l10n.profileStatPlan,
             _getTierColor(_userData?['membership_tier']),
             onTap: () =>
                 Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
@@ -743,23 +731,23 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildFooter() {
-    return const Center(
+  Widget _buildFooter(AppLocalizations l10n) {
+    return Center(
       child: Column(
         children: [
           Text(
-            'REALTOR ONE',
-            style: TextStyle(
+            l10n.profileFooterBrand,
+            style: const TextStyle(
               color: Color(0xFF94A3B8),
               fontWeight: FontWeight.bold,
               fontSize: 12,
               letterSpacing: 2,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Version 1.2.4',
-            style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
+            l10n.profileVersion,
+            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
           ),
         ],
       ),
@@ -767,38 +755,48 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showLogoutDialog() {
-    showDialog(
+    final l10n = AppLocalizations.of(context)!;
+    RealtorOneDialogScaffold.show<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Logout',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Are you sure you want to log out of your account?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'CANCEL',
-              style: TextStyle(color: Color(0xFF64748B)),
+      semanticsLabel: l10n.profileLogoutDialogSemantics,
+      builder: (d) {
+        final isDark = Theme.of(d).brightness == Brightness.dark;
+        final dlg = AppLocalizations.of(d)!;
+        return RealtorOneDialogScaffold(
+          title: dlg.profileLogoutDialogTitle,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d),
+              child: Text(
+                dlg.profileLogoutDialogCancel,
+                style: TextStyle(
+                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(d);
+                _logout();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white,
+              ),
+              child: Text(dlg.profileLogoutDialogConfirm),
+            ),
+          ],
+          child: Text(
+            dlg.profileLogoutDialogMessage,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: isDark ? Colors.white70 : const Color(0xFF475569),
             ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _logout();
-            },
-            child: const Text(
-              'LOGOUT',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

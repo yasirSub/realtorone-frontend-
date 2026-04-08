@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../routes/app_routes.dart';
+import '../../theme/realtorone_brand.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -86,7 +87,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
           // 2. Tactical Grid Overlay
           IgnorePointer(
             child: CustomPaint(
-              painter: GridPainter(color: Colors.white.withValues(alpha: 0.03)),
+              painter: RealtorOneGridPainter(
+                color: Colors.white.withValues(alpha: 0.03),
+              ),
             ),
           ),
 
@@ -477,30 +480,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
     _pageController.dispose();
     super.dispose();
   }
-}
-
-class GridPainter extends CustomPainter {
-  final Color color;
-  GridPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1;
-
-    const double step = 40;
-
-    for (double i = 0; i < size.width; i += step) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += step) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class OnboardingData {
