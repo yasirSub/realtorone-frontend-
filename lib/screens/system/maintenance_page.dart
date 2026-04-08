@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 
 class MaintenancePage extends StatelessWidget {
-  const MaintenancePage({
-    super.key,
-    required this.message,
-  });
+  const MaintenancePage({super.key, required this.message});
 
   final String message;
 
@@ -28,47 +26,46 @@ class MaintenancePage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                   const Spacer(),
+                  const Spacer(),
                   // Animated Illustration or Icon
-                  Animate(
-                    effects: const [
-                      FadeEffect(duration: Duration(milliseconds: 800)),
-                      ScaleEffect(
-                          duration: Duration(milliseconds: 800),
-                          begin: Offset(0.8, 0.8)),
-                    ],
-                    child: Container(
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            const Color(0xFF6366F1),
-                            const Color(0xFF6366F1).withValues(alpha: 0.7),
+                  Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              const Color(0xFF6366F1),
+                              const Color(0xFF6366F1).withValues(alpha: 0.7),
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF6366F1,
+                              ).withValues(alpha: 0.4),
+                              blurRadius: 40,
+                              spreadRadius: 8,
+                            ),
                           ],
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color:
-                                const Color(0xFF6366F1).withValues(alpha: 0.4),
-                            blurRadius: 40,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.settings_suggest_rounded,
-                        size: 64,
-                        color: Colors.white,
-                      ),
-                    ),
-                  )
+                        child: const Icon(
+                          Icons.settings_suggest_rounded,
+                          size: 64,
+                          color: Colors.white,
+                        ),
+                      )
                       .animate(onPlay: (controller) => controller.repeat())
+                      .fade(duration: const Duration(milliseconds: 800))
+                      .scale(
+                        duration: const Duration(milliseconds: 800),
+                        begin: const Offset(0.8, 0.8),
+                      )
                       .shimmer(
-                          duration: const Duration(seconds: 3),
-                          color: Colors.white24),
+                        duration: const Duration(seconds: 3),
+                        color: Colors.white24,
+                      ),
                   const SizedBox(height: 48),
                   const Text(
                     'SYSTEM OPTIMIZATION',
@@ -121,18 +118,20 @@ class MaintenancePage extends StatelessWidget {
                         AppRoutes.initial,
                       );
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(60),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ).copyWith(
-                      overlayColor: WidgetStateProperty.all(
-                          Colors.white.withValues(alpha: 0.1)),
-                    ),
+                    style:
+                        ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(60),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                        ).copyWith(
+                          overlayColor: WidgetStateProperty.all(
+                            Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
                     child: Text(
                       l10n.maintenanceRetry.toUpperCase(),
                       style: const TextStyle(
@@ -143,24 +142,6 @@ class MaintenancePage extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  Text(
-                    'REALTORONE v$version',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.3),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
                   if (version.isNotEmpty)
                     Opacity(
                       opacity: 0.6,
@@ -181,4 +162,3 @@ class MaintenancePage extends StatelessWidget {
     );
   }
 }
-

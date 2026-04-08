@@ -239,7 +239,13 @@ class ApiClient {
   static Map<String, dynamic> _handleResponse(http.Response response) {
     try {
       final data = jsonDecode(response.body);
-      return data;
+      if (data is Map<String, dynamic>) {
+        return {...data, 'statusCode': response.statusCode};
+      }
+      return {
+        'statusCode': response.statusCode,
+        'data': data,
+      };
     } catch (e) {
       return {
         'status': 'error',

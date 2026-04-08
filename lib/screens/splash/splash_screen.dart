@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import '../../api/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/push_notification_service.dart';
+import '../../utils/version_utils.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -134,13 +138,42 @@ class _SplashScreenState extends State<SplashScreen>
 
           Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
         } else {
-          await ApiClient.clearToken();
-          if (mounted) {
-            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          final statusCode = response['statusCode'];
+          final message = (response['message'] ?? '').toString().toLowerCase();
+          final isAuthError =
+              statusCode == 401 ||
+              message.contains('unauthorized') ||
+              message.contains('token') ||
+              message.contains('forbidden');
+
+          if (isAuthError) {
+            await ApiClient.clearToken();
+            if (mounted) {
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
+            }
+            return;
           }
+
+          // Non-auth API failures should not force logout.
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
         }
       }
     } catch (e) {
+      final err = e.toString().toLowerCase();
+      final isNetworkIssue =
+          e is SocketException ||
+          e is TimeoutException ||
+          err.contains('socket') ||
+          err.contains('timed out') ||
+          err.contains('failed host lookup') ||
+          err.contains('connection closed');
+
+      if (mounted && isNetworkIssue) {
+        // Keep signed-in users in app on transient connectivity issues.
+        Navigator.pushReplacementNamed(context, AppRoutes.main);
+        return;
+      }
+
       if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
@@ -177,7 +210,7 @@ class _SplashScreenState extends State<SplashScreen>
 
       final requiresUpdate =
           minForPlatform.isNotEmpty &&
-          _compareSemanticVersion(currentVersion, minForPlatform) < 0;
+          compareSemanticVersions(currentVersion, minForPlatform) < 0;
 
       return _AppRuntimeConfig(
         maintenanceEnabled: maintenanceEnabled,
@@ -191,8 +224,10 @@ class _SplashScreenState extends State<SplashScreen>
         minVersionForPlatform: minForPlatform,
         storeUrlForPlatform: storeForPlatform,
       );
-    } catch (_) {
-      // Swallow errors; app will continue with normal startup.
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[app-config] failed to load or parse: $e');
+      }
     }
 
     final info = await PackageInfo.fromPlatform();
@@ -208,26 +243,6 @@ class _SplashScreenState extends State<SplashScreen>
       minVersionForPlatform: '',
       storeUrlForPlatform: '',
     );
-  }
-
-  int _compareSemanticVersion(String a, String b) {
-    List<int> parseParts(String v) {
-      return v.split('.').map((e) {
-        final n = int.tryParse(e);
-        return n ?? 0;
-      }).toList();
-    }
-
-    final pa = parseParts(a);
-    final pb = parseParts(b);
-    final maxLen = pa.length > pb.length ? pa.length : pb.length;
-    for (var i = 0; i < maxLen; i++) {
-      final va = i < pa.length ? pa[i] : 0;
-      final vb = i < pb.length ? pb[i] : 0;
-      if (va > vb) return 1;
-      if (va < vb) return -1;
-    }
-    return 0;
   }
 
   @override
