@@ -165,31 +165,20 @@ class _SplashScreenState extends State<SplashScreen>
         final info = await PackageInfo.fromPlatform();
         final currentVersion = info.version;
 
-        final bool isAndroid;
-        final bool isIos;
-        if (defaultTargetPlatform == TargetPlatform.android) {
-          isAndroid = true;
-          isIos = false;
-        } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-          isAndroid = false;
-          isIos = true;
-        } else {
-          isAndroid = false;
-          isIos = false;
-        }
+        final bool isAndroid =
+            defaultTargetPlatform == TargetPlatform.android;
+        final bool isIos = defaultTargetPlatform == TargetPlatform.iOS;
 
-        final String minForPlatform;
-        final String storeForPlatform;
-        if (isAndroid) {
-          minForPlatform = minAndroid;
-          storeForPlatform = androidStore;
-        } else if (isIos) {
-          minForPlatform = minIos;
-          storeForPlatform = iosStore;
-        } else {
-          minForPlatform = '';
-          storeForPlatform = '';
-        }
+        final String minForPlatform = isAndroid
+            ? minAndroid
+            : isIos
+                ? minIos
+                : '';
+        final String storeForPlatform = isAndroid
+            ? androidStore
+            : isIos
+                ? iosStore
+                : '';
 
         final requiresUpdate = minForPlatform.isNotEmpty &&
             _compareSemanticVersion(currentVersion, minForPlatform) < 0;
