@@ -43,64 +43,157 @@ class _NotificationsHistoryPageState extends State<NotificationsHistoryPage> {
     final readItems = _items.where((e) => e['read'] == true).toList();
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF1F5F9),
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: const Text(
+          'Notifications',
+          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+        ),
+        centerTitle: true,
         actions: [
-          if (unreadItems.isNotEmpty)
-            TextButton(
-              onPressed: () async {
-                await PushNotificationService.markAllAsRead();
-                if (!mounted) return;
-                setState(() {});
-              },
-              child: const Text('Mark all read'),
-            ),
           if (_items.isNotEmpty)
-            TextButton(
+            IconButton(
               onPressed: _clearAll,
-              child: const Text('Clear all'),
+              icon: const Icon(Icons.delete_sweep_outlined),
+              tooltip: 'Clear all',
             ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? Center(
-                  child: Text(
-                    'No notifications yet.',
-                    style: TextStyle(color: isDark ? Colors.white60 : Colors.black54),
-                  ),
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                  children: [
-                    if (unreadItems.isNotEmpty) ...[
-                      Text(
-                        'Active',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ...unreadItems.map((item) => _buildItemCard(context, item, isDark)).toList(),
-                      const SizedBox(height: 18),
-                    ],
-                    if (readItems.isNotEmpty) ...[
-                      Text(
-                        'History',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ...readItems.map((item) => _buildItemCard(context, item, isDark)).toList(),
-                    ],
-                  ],
+          : CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _buildToggleHeader(context, isDark),
                 ),
+                if (_items.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 64,
+                            color: isDark ? Colors.white24 : Colors.black12,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No notifications yet.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (unreadItems.isNotEmpty) ...[
+                    _buildSectionHeader('ACTIVE', isDark),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildItemCard(context, unreadItems[index], isDark),
+                          childCount: unreadItems.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (readItems.isNotEmpty) ...[
+                    _buildSectionHeader('HISTORY', isDark),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _buildItemCard(context, readItems[index], isDark),
+                          childCount: readItems.length,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _buildToggleHeader(BuildContext context, bool isDark) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+        ],
+      ),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: PushNotificationService.notificationsEnabled,
+        builder: (context, enabled, _) {
+          return SwitchListTile.adaptive(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            value: enabled,
+            activeColor: const Color(0xFF6366F1),
+            onChanged: (v) => PushNotificationService.toggleNotifications(v),
+            title: Text(
+              'Daily Alerts',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
+            ),
+            subtitle: Text(
+              enabled ? 'Notifications are enabled for today' : 'Notifications are muted for today',
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
+            ),
+            secondary: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (enabled ? const Color(0xFF6366F1) : Colors.grey).withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                enabled ? Icons.notifications_active_rounded : Icons.notifications_paused_rounded,
+                color: enabled ? const Color(0xFF6366F1) : Colors.grey,
+                size: 24,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, bool isDark) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 2,
+            color: isDark ? Colors.white30 : const Color(0xFF64748B),
+          ),
+        ),
+      ),
     );
   }
 
@@ -112,14 +205,17 @@ class _NotificationsHistoryPageState extends State<NotificationsHistoryPage> {
     final deepLink = (item['deep_link'] ?? '').toString().trim();
 
     final receivedAt = DateTime.tryParse((item['received_at'] ?? '').toString());
-    final when = receivedAt == null
+    final timeStr = receivedAt == null
+        ? '--:--'
+        : '${receivedAt.toLocal().hour.toString().padLeft(2, '0')}:${receivedAt.toLocal().minute.toString().padLeft(2, '0')}';
+    final dateStr = receivedAt == null
         ? ''
-        : '${receivedAt.toLocal().year}-${receivedAt.toLocal().month.toString().padLeft(2, '0')}-${receivedAt.toLocal().day.toString().padLeft(2, '0')} ${receivedAt.toLocal().hour.toString().padLeft(2, '0')}:${receivedAt.toLocal().minute.toString().padLeft(2, '0')}';
+        : '${receivedAt.toLocal().year}-${receivedAt.toLocal().month.toString().padLeft(2, '0')}-${receivedAt.toLocal().day.toString().padLeft(2, '0')}';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
         onTap: () async {
           if (deepLink.isEmpty) return;
           final uri = Uri.tryParse(deepLink);
@@ -130,45 +226,63 @@ class _NotificationsHistoryPageState extends State<NotificationsHistoryPage> {
         },
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+              width: 1,
             ),
             color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            boxShadow: [
+              if (!isDark)
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+            ],
           ),
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       color: style == 'banner'
-                          ? const Color(0xFF6366F1).withValues(alpha: 0.14)
-                          : const Color(0xFF64748B).withValues(alpha: 0.12),
+                          ? const Color(0xFF6366F1).withValues(alpha: 0.12)
+                          : const Color(0xFF64748B).withValues(alpha: 0.08),
                     ),
                     child: Text(
                       style.toUpperCase(),
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1,
+                        color: style == 'banner' ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+                      ),
                     ),
                   ),
                   const Spacer(),
-                  if (when.isNotEmpty)
-                    Text(
-                      when,
-                      style: TextStyle(fontSize: 12, color: isDark ? Colors.white54 : Colors.black45),
+                  Text(
+                    timeStr,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white70 : const Color(0xFF0F172A),
                     ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 title.isEmpty ? 'RealtorOne' : title,
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
@@ -176,27 +290,56 @@ class _NotificationsHistoryPageState extends State<NotificationsHistoryPage> {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
-                ),
-              ],
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: TextStyle(fontSize: 12.5, color: isDark ? Colors.white60 : Colors.black54),
-                ),
-              ],
-              if (deepLink.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Tap to open',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.white60 : const Color(0xFF475569),
-                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : const Color(0xFF334155),
                   ),
                 ),
               ],
+              if (body.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (dateStr.isNotEmpty)
+                    Text(
+                      dateStr,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white24 : Colors.black26,
+                      ),
+                    ),
+                  const Spacer(),
+                  if (deepLink.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'OPEN',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),

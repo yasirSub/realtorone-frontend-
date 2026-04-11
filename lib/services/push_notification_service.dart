@@ -34,6 +34,7 @@ class PushNotificationService {
 
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final ValueNotifier<int> unreadCount = ValueNotifier<int>(0);
+  static final ValueNotifier<bool> notificationsEnabled = ValueNotifier<bool>(true);
 
   static const String _storeKey = 'notification_history_v1';
 
@@ -51,12 +52,24 @@ class PushNotificationService {
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
       await _refreshUnreadCount();
+      await _loadSettings();
       _firebaseReady = true;
       return true;
     } catch (e, st) {
       debugPrint('Firebase.initializeApp failed: $e\n$st');
       return false;
     }
+  }
+
+  static Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    notificationsEnabled.value = prefs.getBool('notifications_enabled') ?? true;
+  }
+
+  static Future<void> toggleNotifications(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('notifications_enabled', value);
+    notificationsEnabled.value = value;
   }
 
   static Future<List<Map<String, dynamic>>> getStoredNotifications() async {
@@ -140,6 +153,8 @@ class PushNotificationService {
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       await storeNotificationFromMessage(message);
+
+      if (!notificationsEnabled.value) return;
 
       final data = message.data;
       final recurrenceType = (data['recurrence_type'] ?? '').toString();

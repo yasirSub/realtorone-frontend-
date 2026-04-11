@@ -48,7 +48,6 @@ class _MainNavigationState extends State<MainNavigation> {
   final GlobalKey _tasksConsciousTabKey = GlobalKey();
   final GlobalKey _tasksDealRoomPillKey = GlobalKey();
 
-
   static const List<_TourStepConfig> _kTourStepConfigs = [
     _TourStepConfig(icon: Icons.home_rounded, navIndex: 0),
     _TourStepConfig(
@@ -195,8 +194,12 @@ class _MainNavigationState extends State<MainNavigation> {
     final box = ctx.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return null;
     final o = box.localToGlobal(Offset.zero);
-    return Rect.fromLTWH(o.dx, o.dy, box.size.width, box.size.height)
-        .inflate(inflate);
+    return Rect.fromLTWH(
+      o.dx,
+      o.dy,
+      box.size.width,
+      box.size.height,
+    ).inflate(inflate);
   }
 
   /// Prefers in-page Tasks controls when on those steps; falls back to bottom nav.
@@ -231,9 +234,7 @@ class _MainNavigationState extends State<MainNavigation> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {},
-        child: ColoredBox(
-          color: Colors.black.withValues(alpha: 0.52),
-        ),
+        child: ColoredBox(color: Colors.black.withValues(alpha: 0.52)),
       ),
     );
   }
@@ -251,8 +252,10 @@ class _MainNavigationState extends State<MainNavigation> {
     final double navTop = navBox != null && navBox.hasSize
         ? navBox.localToGlobal(Offset.zero).dy
         : size.height - 88;
-    final double tooltipBottom =
-        math.max(pad.bottom + 8, size.height - navTop + 12);
+    final double tooltipBottom = math.max(
+      pad.bottom + 8,
+      size.height - navTop + 12,
+    );
 
     final l10n = AppLocalizations.of(context)!;
     final themeWrapper = Semantics(
@@ -262,10 +265,7 @@ class _MainNavigationState extends State<MainNavigation> {
         _tourTitleForStep(_tourStep, l10n),
       ),
       child: Theme(
-        data: ThemeData(
-          brightness: Brightness.dark,
-          useMaterial3: false,
-        ),
+        data: ThemeData(brightness: Brightness.dark, useMaterial3: false),
         child: _buildTourCard(),
       ),
     );
@@ -276,9 +276,7 @@ class _MainNavigationState extends State<MainNavigation> {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {},
-            child: ColoredBox(
-              color: Colors.black.withValues(alpha: 0.5),
-            ),
+            child: ColoredBox(color: Colors.black.withValues(alpha: 0.5)),
           ),
         )
       else ...[
@@ -315,10 +313,7 @@ class _MainNavigationState extends State<MainNavigation> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                  color: RealtorOneBrand.accentTeal,
-                  width: 2,
-                ),
+                border: Border.all(color: RealtorOneBrand.accentTeal, width: 2),
                 boxShadow: [
                   BoxShadow(
                     color: RealtorOneBrand.accentTeal.withValues(alpha: 0.45),
@@ -385,16 +380,11 @@ class _MainNavigationState extends State<MainNavigation> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xE6162E5C),
-                Color(0xE60B1224),
-              ],
+              colors: [Color(0xE6162E5C), Color(0xE60B1224)],
             ),
             boxShadow: [
               BoxShadow(
@@ -427,13 +417,16 @@ class _MainNavigationState extends State<MainNavigation> {
                         ),
                         const SizedBox(height: 10),
                         Row(
-                          children: List.generate(_kTourStepConfigs.length, (i) {
+                          children: List.generate(_kTourStepConfigs.length, (
+                            i,
+                          ) {
                             final done = i < _tourStep;
                             final active = i == _tourStep;
                             return Expanded(
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2,
+                                ),
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 260),
                                   curve: Curves.easeOutCubic,
@@ -467,8 +460,7 @@ class _MainNavigationState extends State<MainNavigation> {
                   IconButton(
                     onPressed: skipTour,
                     style: IconButton.styleFrom(
-                      backgroundColor:
-                          Colors.white.withValues(alpha: 0.08),
+                      backgroundColor: Colors.white.withValues(alpha: 0.08),
                       foregroundColor: Colors.white60,
                       padding: const EdgeInsets.all(10),
                       minimumSize: const Size(40, 40),
@@ -718,8 +710,16 @@ class _MainNavigationState extends State<MainNavigation> {
                               Icons.check_circle_rounded,
                               l10n.navTasks,
                             ),
-                            _buildNavItem(2, Icons.school_rounded, l10n.navLearn),
-                            _buildNavItem(3, Icons.person_rounded, l10n.navProfile),
+                            _buildNavItem(
+                              2,
+                              Icons.school_rounded,
+                              l10n.navLearn,
+                            ),
+                            _buildNavItem(
+                              3,
+                              Icons.person_rounded,
+                              l10n.navProfile,
+                            ),
                           ],
                         ),
                       ),
