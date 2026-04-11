@@ -26,11 +26,188 @@ enum _DealRoomListFilter {
 
 class DealRoomWidget extends StatefulWidget {
   final VoidCallback? onClientActionLogged;
+  final String? initialSelectedStage;
 
-  const DealRoomWidget({super.key, this.onClientActionLogged});
+  const DealRoomWidget({
+    super.key,
+    this.onClientActionLogged,
+    this.initialSelectedStage,
+  });
 
   @override
   State<DealRoomWidget> createState() => _DealRoomWidgetState();
+
+  static Map<String, int> getStageCounts(List<dynamic> clients) {
+    final counts = <String, int>{};
+    for (final c in clients) {
+      if (c is Map && c['status'] == 'lost') continue;
+      final raw = readLeadStageRaw(c);
+      final label = stageChipLabel(raw);
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  static String? readLeadStageRaw(dynamic client) {
+    if (client is! Map) return null;
+    final notes = client['notes'];
+    if (notes is! String || notes.isEmpty) return null;
+    try {
+      final m = jsonDecode(notes);
+      if (m is! Map) return null;
+      final raw = m['lead_stage']?.toString().trim();
+      if (raw == null || raw.isEmpty) return null;
+      return raw;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String stageChipLabel(String? raw) {
+    if (raw == null || raw.isEmpty) return 'Cold calling';
+    final t = raw.toLowerCase();
+    if (t.contains('site') || t.contains('visite')) return 'Deal negotiation';
+    if (t.contains('clint')) return 'Client meeting';
+    if (t.contains('cold')) return 'Cold calling';
+    if (t.contains('follow')) return 'Follow-up';
+    if (t.contains('client meeting')) return 'Client meeting';
+    if (t.contains('negotiation')) return 'Deal negotiation';
+    if (t.contains('deal close') || t == 'deal close') return 'Deal closure';
+    return raw
+        .split(' ')
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  static Future<String?> showCrmStagePicker({
+    required BuildContext context,
+    String? currentStage,
+    Map<String, int>? counts,
+  }) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final stages = [
+      'Cold calling',
+      'Follow-up',
+      'Client meeting',
+      'Deal negotiation',
+      'Deal closure',
+    ];
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            20 + MediaQuery.of(ctx).padding.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 14),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Text(
+                'Filter by CRM Stage',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 17,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Focus on clients in a specific pipeline stage.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.3,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                leading: Icon(
+                  Icons.all_inclusive_rounded,
+                  color: currentStage == null
+                      ? const Color(0xFF667EEA)
+                      : (isDark ? Colors.white24 : Colors.grey[400]),
+                ),
+                title: Text(
+                  'All Stages',
+                  style: TextStyle(
+                    fontWeight:
+                        currentStage == null ? FontWeight.w800 : FontWeight.w600,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                onTap: () => Navigator.pop(ctx, null),
+              ),
+              const Divider(height: 16),
+              ...stages.map((s) {
+                final count = counts?[s] ?? 0;
+                final isSelected = currentStage == s;
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(
+                    isSelected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: isSelected
+                        ? const Color(0xFF667EEA)
+                        : (isDark ? Colors.white24 : Colors.grey[400]),
+                  ),
+                  title: Text(
+                    s,
+                    style: TextStyle(
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  trailing: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF667EEA).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      count.toString(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        color: Color(0xFF667EEA),
+                      ),
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(ctx, s),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _DealRoomWidgetState extends State<DealRoomWidget> {
@@ -43,10 +220,21 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   List<dynamic> _originalClients = [];
   bool _sortByPriority = false;
   _DealRoomListFilter _listFilter = _DealRoomListFilter.all;
+  String? _selectedCrmStage;
+
+  @override
+  void didUpdateWidget(DealRoomWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSelectedStage != oldWidget.initialSelectedStage &&
+        widget.initialSelectedStage != null) {
+      setState(() => _selectedCrmStage = widget.initialSelectedStage);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _selectedCrmStage = widget.initialSelectedStage;
     _load();
   }
 
@@ -266,6 +454,18 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     );
   }
 
+  void _showCrmStagePicker() async {
+    final counts = DealRoomWidget.getStageCounts(_originalClients);
+    final result = await DealRoomWidget.showCrmStagePicker(
+      context: context,
+      currentStage: _selectedCrmStage,
+      counts: counts,
+    );
+    if (mounted) {
+      setState(() => _selectedCrmStage = result);
+    }
+  }
+
   int _extractPriority(dynamic client) {
     int priority = 1;
     if (client is Map && client['notes'] is String) {
@@ -301,37 +501,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     return 0;
   }
 
-  String? _readLeadStageRaw(dynamic client) {
-    if (client is! Map) return null;
-    final notes = client['notes'];
-    if (notes is! String || notes.isEmpty) return null;
-    try {
-      final m = jsonDecode(notes);
-      if (m is! Map) return null;
-      final raw = m['lead_stage']?.toString().trim();
-      if (raw == null || raw.isEmpty) return null;
-      return raw;
-    } catch (_) {
-      return null;
-    }
-  }
 
-  /// CRM stage shown on the client tile chip (consistent wording).
-  String _stageChipLabel(String? raw) {
-    if (raw == null || raw.isEmpty) return 'Cold calling';
-    final t = raw.toLowerCase();
-    if (t.contains('site') || t.contains('visite')) return 'Deal negotiation';
-    if (t.contains('clint')) return 'Client meeting';
-    if (t.contains('cold')) return 'Cold calling';
-    if (t.contains('follow')) return 'Follow-up';
-    if (t.contains('client meeting')) return 'Client meeting';
-    if (t.contains('negotiation')) return 'Deal negotiation';
-    if (t.contains('deal close') || t == 'deal close') return 'Deal closure';
-    return raw
-        .split(' ')
-        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
-        .join(' ');
-  }
 
   Color _stageAccentColor(String? raw) {
     if (raw == null || raw.isEmpty) return const Color(0xFF2563EB);
@@ -1181,7 +1351,16 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   Widget _clientsList() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF0F172A) : Colors.white;
-    final visibleClients = _clients.take(12).toList();
+
+    var filtered = _clients;
+    if (_selectedCrmStage != null) {
+      filtered = filtered.where((c) {
+        final raw = DealRoomWidget.readLeadStageRaw(c);
+        return DealRoomWidget.stageChipLabel(raw) == _selectedCrmStage;
+      }).toList();
+    }
+    final visibleClients = filtered.take(12).toList();
+
     final notAttemptedFourTimes = visibleClients
         .where((c) => _maxAttemptCountFromNotes(c) >= 4)
         .toList();
@@ -1218,7 +1397,6 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'YOUR CLIENTS',
@@ -1227,6 +1405,29 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
                   letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              Tooltip(
+                message: 'Filter by CRM stage',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _showCrmStagePicker,
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.account_tree_rounded,
+                        size: 22,
+                        color: _selectedCrmStage != null
+                            ? const Color(0xFF667EEA)
+                            : (isDark
+                                ? Colors.white54
+                                : const Color(0xFF9CA3AF)),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               Tooltip(
@@ -1245,8 +1446,8 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                                 _sortByPriority)
                             ? const Color(0xFF667EEA)
                             : (isDark
-                                  ? Colors.white54
-                                  : const Color(0xFF9CA3AF)),
+                                ? Colors.white54
+                                : const Color(0xFF9CA3AF)),
                       ),
                     ),
                   ),
@@ -1344,7 +1545,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
               : 0);
 
     // Tile accent follows CRM pipeline stage (same vocabulary as Deal Room detail), not daily %.
-    final String? rawStage = _readLeadStageRaw(client);
+    final String? rawStage = DealRoomWidget.readLeadStageRaw(client);
     late final Color mainColor;
     late final String mainLabel;
 
@@ -1353,7 +1554,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       mainLabel = 'Lost deal';
     } else {
       mainColor = _stageAccentColor(rawStage);
-      mainLabel = _stageChipLabel(rawStage);
+      mainLabel = DealRoomWidget.stageChipLabel(rawStage);
     }
     final sourceData = _sourceChipData(
       client is Map ? client['source'] : null,

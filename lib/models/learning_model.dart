@@ -424,3 +424,34 @@ class ModuleModel {
     );
   }
 }
+class EbookModel {
+  final int id;
+  final String title;
+  final String description;
+  final String? thumbnailUrl;
+  final String? fileUrl;
+  final String minTier;
+  final bool isPublished;
+
+  EbookModel({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.thumbnailUrl,
+    this.fileUrl,
+    required this.minTier,
+    this.isPublished = true,
+  });
+
+  factory EbookModel.fromJson(Map<String, dynamic> json) {
+    return EbookModel(
+      id: json['id'] ?? 0,
+      title: json['title'] ?? 'Untitled',
+      description: json['description'] ?? '',
+      thumbnailUrl: json['thumbnail_url'],
+      fileUrl: json['file_url'],
+      minTier: json['min_tier'] ?? 'Consultant',
+      isPublished: json['is_published'] ?? true,
+    );
+  }
+}

@@ -15,6 +15,11 @@ class LearningApi {
     return await ApiClient.get(ApiEndpoints.courses, requiresAuth: true);
   }
 
+  /// Get e-books based on user tier
+  static Future<Map<String, dynamic>> getEbooks() async {
+    return await ApiClient.get(ApiEndpoints.ebooks, requiresAuth: true);
+  }
+
   /// Get detailed course curriculum
   static Future<Map<String, dynamic>> getCourseDetails(int id) async {
     return await ApiClient.get('${ApiEndpoints.courses}/$id', requiresAuth: true);

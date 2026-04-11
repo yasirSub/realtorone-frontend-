@@ -5,6 +5,7 @@ import 'package:audio_waveforms/audio_waveforms.dart' show WaveformExtractionCon
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/activities_api.dart';
@@ -69,6 +70,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   int _revenueSubTab = 0; // 0 = Clients, 1 = Revenue
   int _revenueRefreshTrigger = 0;
   bool _isCheckingConsciousIntro = false;
+  String? _initialCrmStage;
   void Function()? _tourSyncListener;
 
   @override
@@ -84,6 +86,56 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     widget.tourSyncNotifier?.addListener(_tourSyncListener!);
     _loadTasks();
     _loadActivities();
+    _checkAndShowDailyCrmFilter();
+  }
+
+  Future<void> _checkAndShowDailyCrmFilter() async {
+    // Only show if tour is not active
+    if (widget.tourActive?.value == true) return;
+
+    final now = DateTime.now();
+    final today = "${now.year}-${now.month}-${now.day}";
+
+    final prefs = await SharedPreferences.getInstance();
+    final lastShown = prefs.getString('last_crm_daily_filter_date');
+
+    if (lastShown != today) {
+      // It's a new day! Wait a bit for the UI to settle
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+
+      // Fetch client counts first for the picker
+      Map<String, int>? counts;
+      try {
+        final clientsRes = await ApiClient.get(
+          '${ApiEndpoints.results}?type=hot_lead',
+          requiresAuth: true,
+        );
+        if (clientsRes['success'] == true) {
+          final data = (clientsRes['data'] ?? []) as List<dynamic>;
+          counts = DealRoomWidget.getStageCounts(data);
+        }
+      } catch (_) {}
+
+      if (!mounted) return;
+      final selectedStage = await DealRoomWidget.showCrmStagePicker(
+        context: context,
+        counts:
+            counts, // Note: counts might be empty if we don't have the parsing logic here
+      );
+
+      if (selectedStage != null && mounted) {
+        setState(() {
+          _initialCrmStage = selectedStage;
+          _tabController.animateTo(1); // Switch to Conscious tab
+          _revenueSubTab = 0; // Switch to Clients sub-tab
+        });
+        await prefs.setString('last_crm_daily_filter_date', today);
+      } else if (mounted) {
+        // Even if they cancel/pick "All", we mark it as shown for today
+        await prefs.setString('last_crm_daily_filter_date', today);
+      }
+    }
   }
 
   void _applyTourSyncFromNotifier() {
@@ -717,6 +769,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
           // ── Content based on sub-tab ──
           if (_revenueSubTab == 0) ...[
             DealRoomWidget(
+              initialSelectedStage: _initialCrmStage,
               onClientActionLogged: () {
                 if (mounted) setState(() => _revenueRefreshTrigger++);
               },
@@ -988,17 +1041,29 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                               : null,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'DAY ${activityType['today_day_number'] ?? 1}${ (activityType['day_title'] != null && activityType['day_title'].toString().isNotEmpty && !activityType['day_title'].toString().toUpperCase().startsWith('DAY')) ? " • ${activityType['day_title']}" : (activityType['day_title'] != null && activityType['day_title'].toString().toUpperCase().startsWith('DAY') ? " • ${activityType['day_title'].toString().substring(activityType['day_title'].toString().indexOf(' ')).trim()}" : "") }'.toUpperCase(),
+                        style: TextStyle(
+                          color: isCompleted
+                              ? const Color(0xFF10B981)
+                              : (isInteracted ? const Color(0xFFEF4444) : color),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
                       if (isInteracted) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           isCompleted ? 'COMPLETED' : 'SKIPPED',
                           style: TextStyle(
                             color: isCompleted
                                 ? const Color(0xFF10B981)
                                 : const Color(0xFFEF4444),
-                            fontSize: 12,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 1,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ],
@@ -1113,6 +1178,13 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         0;
     final bool requireUserResponse =
         (activityType['daily_require_user_response'] ?? false) == true;
+    final String dayTitle = activityType['day_title'] ?? 'DAY $todayDay TASK';
+    final String taskTitle = activityType['task_title'] ?? 'TASK DESCRIPTION';
+    final String scriptTitle = activityType['script_title'] ?? 'QUESTION';
+    final bool isMcq = activityType['is_mcq'] == true;
+    final String? mcqQuestion = activityType['mcq_question'];
+    final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
+    final int? mcqCorrectOption = activityType['mcq_correct_option'] != null ? (activityType['mcq_correct_option'] as num).toInt() : null;
     if (audioUrl.isNotEmpty && !audioUrl.startsWith('http')) {
       final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
       audioUrl = base + (audioUrl.startsWith('/') ? audioUrl : '/$audioUrl');
@@ -1133,6 +1205,13 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         audioUrl: audioUrl,
         requiredListenPercent: requiredListenPercent.clamp(0, 100),
         requireUserResponse: requireUserResponse,
+        dayTitle: dayTitle,
+        taskTitle: taskTitle,
+        scriptTitle: scriptTitle,
+        isMcq: isMcq,
+        mcqQuestion: mcqQuestion,
+        mcqOptions: mcqOptions,
+        mcqCorrectOption: mcqCorrectOption,
         activityType: activityType,
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: (String userResponse, int listenedPercent) {
@@ -1830,6 +1909,13 @@ class _ActivityTaskModalContent extends StatefulWidget {
     required this.audioUrl,
     required this.requiredListenPercent,
     required this.requireUserResponse,
+    required this.dayTitle,
+    required this.taskTitle,
+    required this.scriptTitle,
+    required this.isMcq,
+    this.mcqQuestion,
+    required this.mcqOptions,
+    this.mcqCorrectOption,
     required this.activityType,
     required this.onCancel,
     required this.onSubmit,
@@ -1839,12 +1925,19 @@ class _ActivityTaskModalContent extends StatefulWidget {
 
   final String name;
   final int todayDay;
+  final String dayTitle;
+  final String taskTitle;
+  final String scriptTitle;
   final String taskDescription;
   final String scriptIdea;
   final String feedback;
   final String audioUrl;
   final int requiredListenPercent;
   final bool requireUserResponse;
+  final bool isMcq;
+  final String? mcqQuestion;
+  final List<String> mcqOptions;
+  final int? mcqCorrectOption;
   final Map<String, dynamic> activityType;
   final VoidCallback onCancel;
   final void Function(String userResponse, int listenedPercent) onSubmit;
@@ -1870,11 +1963,12 @@ class _ActivityTaskModalContent extends StatefulWidget {
 class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
   late final TextEditingController _textController;
   int _maxListenedPercent = 0;
+  int? _selectedMcqIndex;
 
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController();
+    _textController = TextEditingController(text: widget.scriptIdea);
   }
 
   @override
@@ -1893,7 +1987,12 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
     final meetsResponseRule = !widget.requireUserResponse || wordCount >= 2;
     final meetsAudioRule = widget.requiredListenPercent <= 0 ||
         _maxListenedPercent >= widget.requiredListenPercent;
-    final canSubmit = meetsResponseRule && meetsAudioRule;
+    final meetsMcqRule = !widget.isMcq || _selectedMcqIndex != null;
+    // The user wants selection to enable the button immediately.
+    // If it's an MCQ, the selection is the primary requirement.
+    final canSubmit = meetsResponseRule && 
+                     (meetsAudioRule || widget.isMcq) && 
+                     meetsMcqRule;
 
     return SafeArea(
       top: false,
@@ -1953,7 +2052,7 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'DAY ${widget.todayDay} TASK',
+                            'DAY ${widget.todayDay}${ (widget.dayTitle.isNotEmpty && !widget.dayTitle.toUpperCase().startsWith('DAY')) ? " • ${widget.dayTitle}" : (widget.dayTitle.toUpperCase().startsWith('DAY') && widget.dayTitle.contains(' ') ? " • ${widget.dayTitle.substring(widget.dayTitle.indexOf(' ')).trim()}" : "") }'.toUpperCase(),
                             style: const TextStyle(
                               color: Color(0xFF667eea),
                               fontSize: 11,
@@ -1970,9 +2069,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                         child: InkWell(
                           onTap: () => RealtorOneDialogScaffold.show<void>(
                             context: context,
-                            semanticsLabel: 'Task description',
+                            semanticsLabel: widget.taskTitle,
                             builder: (d) => RealtorOneDialogScaffold(
-                              title: 'Task description',
+                              title: widget.taskTitle,
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(d),
@@ -2072,7 +2171,8 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                       ),
                     ),
                   if (widget.requiredListenPercent > 0 &&
-                      _maxListenedPercent < widget.requiredListenPercent) ...[
+                      _maxListenedPercent < widget.requiredListenPercent &&
+                      (!widget.isMcq || _selectedMcqIndex == null)) ...[
                     const SizedBox(height: 6),
                     Text(
                       'Listen at least ${widget.requiredListenPercent}% to enable submit.',
@@ -2087,13 +2187,102 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                   ],
                   const SizedBox(height: 12),
                 ],
+                // Prompt is now pre-filled in the editable field below, so we hide the static card.
+                /*
                 if (widget.scriptIdea.isNotEmpty) ...[
                   widget.buildPopupInfoCard(
-                    title: 'Video/Reel Script Idea',
+                    title: widget.scriptTitle,
                     text: widget.scriptIdea,
                     isDark: isDark,
                   ),
                   const SizedBox(height: 12),
+                ],
+                */
+                if (widget.isMcq && widget.mcqOptions.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.mcqQuestion != null && widget.mcqQuestion!.isNotEmpty) ...[
+                          Text(
+                            widget.mcqQuestion!,
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        ...widget.mcqOptions.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final text = entry.value;
+                          final isSelected = _selectedMcqIndex == idx;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: InkWell(
+                              onTap: () => setState(() => _selectedMcqIndex = idx),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF667eea).withValues(alpha: 0.1)
+                                      : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFF667eea)
+                                        : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 18,
+                                      height: 18,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected ? const Color(0xFF667eea) : Colors.grey,
+                                          width: isSelected ? 5 : 1.5,
+                                        ),
+                                        color: isSelected ? Colors.white : Colors.transparent,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        text,
+                                        style: TextStyle(
+                                          color: isSelected
+                                              ? (isDark ? Colors.white : const Color(0xFF1E293B))
+                                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                          fontSize: 14,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
                 if (widget.feedback.isNotEmpty) ...[
                   widget.buildPopupInfoCard(
@@ -2109,37 +2298,55 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     widget.audioUrl.isEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
                     decoration: BoxDecoration(
-                      color: isDark
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
+                      color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark
-                            ? Colors.white10
-                            : const Color(0xFFE2E8F0),
+                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                        width: 1,
                       ),
                     ),
-                    child: const Text(
-                      'No day-wise note set yet. Write your response below and tap Submit.',
-                      style: TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.task_alt_rounded,
+                          size: 32,
+                          color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'DAILY ROUTINE ACTIVE',
+                          style: TextStyle(
+                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Routine not specified for today.',
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                 ],
-                if (widget.requireUserResponse) ...[
+                if (widget.requireUserResponse || widget.scriptIdea.isNotEmpty) ...[
                   TextField(
                     controller: _textController,
                     onChanged: (_) => setState(() {}),
                     maxLines: 4,
                     minLines: 2,
                     decoration: InputDecoration(
-                      hintText: 'Write your response... (min 2 words to submit)',
+                      hintText: 'Your response...',
                       hintStyle: TextStyle(
                         color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                         fontSize: 14,
@@ -2197,11 +2404,20 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     Expanded(
                       child: widget.buildActionBtn(
                         'SUBMIT',
-                        const Color(0xFF10B981),
-                        () => widget.onSubmit(
-                          _textController.text.trim(),
-                          _maxListenedPercent,
-                        ),
+                        const Color(0xFF667eea),
+                        () {
+                          String finalResponse = _textController.text;
+                          if (widget.isMcq && _selectedMcqIndex != null) {
+                            final mcqAns = widget.mcqOptions[_selectedMcqIndex!];
+                            final String mcqHeader = widget.mcqQuestion != null ? "MCQ: ${widget.mcqQuestion}\nANSWER: $mcqAns" : "MCQ: $mcqAns";
+                            if (finalResponse.isEmpty) {
+                              finalResponse = mcqHeader;
+                            } else {
+                              finalResponse = "$finalResponse\n\n$mcqHeader";
+                            }
+                          }
+                          widget.onSubmit(finalResponse, _maxListenedPercent);
+                        },
                         enabled: canSubmit,
                       ),
                     ),

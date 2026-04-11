@@ -176,24 +176,13 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRoutes.activities),
-                  child: Text(l10n.homeOpenTasks),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, AppRoutes.resultsTracker),
-                  child: Text(l10n.homeOpenPipeline),
-                ),
-              ),
-            ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.activities),
+              child: Text(l10n.homeOpenTasks),
+            ),
           ),
         ],
       ),
