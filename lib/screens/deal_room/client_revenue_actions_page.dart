@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 
@@ -46,10 +47,82 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
   bool _dcSubmitting = false;
   String _dcMode = 'call';
 
+  // AI-powered message generation
+  bool _aiSubmitting = false;
+  String? _aiGeneratedMessage;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _generateAiMessage(String mode) async {
+    setState(() {
+      _aiSubmitting = true;
+      _aiGeneratedMessage = null;
+    });
+
+    try {
+      final res = await ApiClient.post(
+        '/clients/${widget.clientId}/generate-message',
+        {
+          'mode': mode,
+          'tone': 'professional',
+        },
+        requiresAuth: true,
+      );
+
+      if (mounted && res['success'] == true) {
+        setState(() {
+          _aiGeneratedMessage = res['data']['message'];
+        });
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(res['message'] ?? 'Failed to generate AI message')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error connecting to AI service')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _aiSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp({String? text}) async {
+    // Attempt to find phone number in client notes if possible, otherwise we just open WhatsApp
+    // In this app, results (clients) might not have phone explicitly in this state, 
+    // but the user interacts via their own phone app/whatsapp.
+    // For now, we'll launch a generic WhatsApp send or with a placeholder if phone is missing.
+    try {
+      final String phone = ""; // We'd need to fetch or have phone here
+      final String encodedText = Uri.encodeComponent(text ?? "");
+      final Uri url = Uri.parse("whatsapp://send?phone=$phone&text=$encodedText");
+      
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      } else {
+        // Fallback to https link
+        final Uri httpsUrl = Uri.parse("https://wa.me/$phone?text=$encodedText");
+        if (await canLaunchUrl(httpsUrl)) {
+          await launchUrl(httpsUrl, mode: LaunchMode.externalApplication);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Could not launch WhatsApp')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error launching WhatsApp: $e');
+    }
   }
 
   Future<void> _load() async {
@@ -1448,6 +1521,106 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
     );
   }
 
+  Widget _buildAiSuggestionBox(bool isDark, String mode) {
+    if (mode != 'whatsapp' && mode != 'email') return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12, bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.blue.withValues(alpha: 0.05) : const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.blue.withValues(alpha: 0.2) : const Color(0xFFBFDBFE),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFF3B82F6)),
+              const SizedBox(width: 8),
+              const Text(
+                'AI MESSAGE SUGGESTION',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF3B82F6),
+                  letterSpacing: 1,
+                ),
+              ),
+              const Spacer(),
+              if (_aiSubmitting)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF3B82F6)),
+                )
+              else
+                InkWell(
+                  onTap: () => _generateAiMessage(mode),
+                  child: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF3B82F6)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_aiGeneratedMessage != null) ...[
+            Text(
+              _aiGeneratedMessage!,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white70 : const Color(0xFF334155),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchWhatsApp(text: _aiGeneratedMessage!),
+                    icon: const FaIcon(FontAwesomeIcons.whatsapp, size: 14),
+                    label: const Text('USE IN WHATSAPP'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (!_aiSubmitting)
+            Center(
+              child: TextButton.icon(
+                onPressed: () => _generateAiMessage(mode),
+                icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                label: const Text('GENERATE PERSONALIZED REPLY'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF3B82F6),
+                  textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            )
+          else
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'AI is drafting a reply...',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildColdCallingFlow(bool isDark, String label) {
     final callA = int.tryParse(_coldCalling?['call_attempt']?.toString() ?? '0') ?? 0;
     final waA = int.tryParse(_coldCalling?['wa_attempt']?.toString() ?? '0') ?? 0;
@@ -1477,7 +1650,10 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                     isDark: isDark,
                     isSubmitting: _ccSubmitting,
                     shortLabel: 'Call',
-                    onSelect: (v) => setState(() => _ccMode = v),
+                    onSelect: (v) => setState(() {
+                      _ccMode = v;
+                      _aiGeneratedMessage = null;
+                    }),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1489,11 +1665,15 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
                     isDark: isDark,
                     isSubmitting: _ccSubmitting,
                     shortLabel: 'WhatsApp',
-                    onSelect: (v) => setState(() => _ccMode = v),
+                    onSelect: (v) => setState(() {
+                      _ccMode = v;
+                      _aiGeneratedMessage = null;
+                    }),
                   ),
                 ),
               ],
             ),
+            _buildAiSuggestionBox(isDark, _ccMode),
             _crmSoftDivider(isDark, verticalPad: 6),
             _crmFlowSectionTitle(isDark, 'Outcome'),
             const SizedBox(height: 2),
@@ -1870,13 +2050,44 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
         const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(child: _buildModeChip(mode: 'call', currentMode: _fuMode, icon: Icons.call_rounded, isDark: isDark, isSubmitting: _fuSubmitting, onSelect: (v) => setState(() => _fuMode = v))),
+            Expanded(
+                child: _buildModeChip(
+                    mode: 'call',
+                    currentMode: _fuMode,
+                    icon: Icons.call_rounded,
+                    isDark: isDark,
+                    isSubmitting: _fuSubmitting,
+                    onSelect: (v) => setState(() {
+                          _fuMode = v;
+                          _aiGeneratedMessage = null;
+                        }))),
             const SizedBox(width: 8),
-            Expanded(child: _buildModeChip(mode: 'whatsapp', currentMode: _fuMode, icon: FontAwesomeIcons.whatsapp, isDark: isDark, isSubmitting: _fuSubmitting, onSelect: (v) => setState(() => _fuMode = v))),
+            Expanded(
+                child: _buildModeChip(
+                    mode: 'whatsapp',
+                    currentMode: _fuMode,
+                    icon: FontAwesomeIcons.whatsapp,
+                    isDark: isDark,
+                    isSubmitting: _fuSubmitting,
+                    onSelect: (v) => setState(() {
+                          _fuMode = v;
+                          _aiGeneratedMessage = null;
+                        }))),
             const SizedBox(width: 8),
-            Expanded(child: _buildModeChip(mode: 'email', currentMode: _fuMode, icon: Icons.mark_email_read_rounded, isDark: isDark, isSubmitting: _fuSubmitting, onSelect: (v) => setState(() => _fuMode = v))),
+            Expanded(
+                child: _buildModeChip(
+                    mode: 'email',
+                    currentMode: _fuMode,
+                    icon: Icons.mark_email_read_rounded,
+                    isDark: isDark,
+                    isSubmitting: _fuSubmitting,
+                    onSelect: (v) => setState(() {
+                          _fuMode = v;
+                          _aiGeneratedMessage = null;
+                        }))),
           ],
         ),
+        _buildAiSuggestionBox(isDark, _fuMode),
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
@@ -1996,11 +2207,52 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
         _crmFlowSectionTitle(isDark, 'How did you meet?'),
         const SizedBox(height: 6),
         _crmModeScrollRow([
-          _buildModeChip(mode: 'in_person', currentMode: _cmMode, icon: Icons.person_pin_circle_outlined, isDark: isDark, isSubmitting: _cmSubmitting, shortLabel: 'In person', onSelect: (v) => setState(() => _cmMode = v)),
-          _buildModeChip(mode: 'video', currentMode: _cmMode, icon: Icons.videocam_outlined, isDark: isDark, isSubmitting: _cmSubmitting, shortLabel: 'Video', onSelect: (v) => setState(() => _cmMode = v)),
-          _buildModeChip(mode: 'call', currentMode: _cmMode, icon: Icons.call_rounded, isDark: isDark, isSubmitting: _cmSubmitting, shortLabel: 'Call', onSelect: (v) => setState(() => _cmMode = v)),
-          _buildModeChip(mode: 'whatsapp', currentMode: _cmMode, icon: FontAwesomeIcons.whatsapp, isDark: isDark, isSubmitting: _cmSubmitting, shortLabel: 'WhatsApp', onSelect: (v) => setState(() => _cmMode = v)),
+          _buildModeChip(
+              mode: 'in_person',
+              currentMode: _cmMode,
+              icon: Icons.person_pin_circle_outlined,
+              isDark: isDark,
+              isSubmitting: _cmSubmitting,
+              shortLabel: 'In person',
+              onSelect: (v) => setState(() {
+                    _cmMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'video',
+              currentMode: _cmMode,
+              icon: Icons.videocam_outlined,
+              isDark: isDark,
+              isSubmitting: _cmSubmitting,
+              shortLabel: 'Video',
+              onSelect: (v) => setState(() {
+                    _cmMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'call',
+              currentMode: _cmMode,
+              icon: Icons.call_rounded,
+              isDark: isDark,
+              isSubmitting: _cmSubmitting,
+              shortLabel: 'Call',
+              onSelect: (v) => setState(() {
+                    _cmMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'whatsapp',
+              currentMode: _cmMode,
+              icon: FontAwesomeIcons.whatsapp,
+              isDark: isDark,
+              isSubmitting: _cmSubmitting,
+              shortLabel: 'WhatsApp',
+              onSelect: (v) => setState(() {
+                    _cmMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
         ]),
+        _buildAiSuggestionBox(isDark, _cmMode),
         const SizedBox(height: 10),
         _crmFlowSectionTitle(isDark, 'Outcomes'),
         const SizedBox(height: 6),
@@ -2087,12 +2339,63 @@ class _ClientRevenueActionsPageState extends State<ClientRevenueActionsPage> {
         _crmFlowSectionTitle(isDark, 'Channel'),
         const SizedBox(height: 6),
         _crmModeScrollRow([
-          _buildModeChip(mode: 'in_person', currentMode: _dnMode, icon: Icons.person_pin_circle_outlined, isDark: isDark, isSubmitting: _dnSubmitting, shortLabel: 'In person', onSelect: (v) => setState(() => _dnMode = v)),
-          _buildModeChip(mode: 'video', currentMode: _dnMode, icon: Icons.videocam_outlined, isDark: isDark, isSubmitting: _dnSubmitting, shortLabel: 'Video', onSelect: (v) => setState(() => _dnMode = v)),
-          _buildModeChip(mode: 'call', currentMode: _dnMode, icon: Icons.call_rounded, isDark: isDark, isSubmitting: _dnSubmitting, shortLabel: 'Call', onSelect: (v) => setState(() => _dnMode = v)),
-          _buildModeChip(mode: 'whatsapp', currentMode: _dnMode, icon: FontAwesomeIcons.whatsapp, isDark: isDark, isSubmitting: _dnSubmitting, shortLabel: 'WhatsApp', onSelect: (v) => setState(() => _dnMode = v)),
-          _buildModeChip(mode: 'email', currentMode: _dnMode, icon: Icons.mark_email_read_rounded, isDark: isDark, isSubmitting: _dnSubmitting, shortLabel: 'Email', onSelect: (v) => setState(() => _dnMode = v)),
+          _buildModeChip(
+              mode: 'in_person',
+              currentMode: _dnMode,
+              icon: Icons.person_pin_circle_outlined,
+              isDark: isDark,
+              isSubmitting: _dnSubmitting,
+              shortLabel: 'In person',
+              onSelect: (v) => setState(() {
+                    _dnMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'video',
+              currentMode: _dnMode,
+              icon: Icons.videocam_outlined,
+              isDark: isDark,
+              isSubmitting: _dnSubmitting,
+              shortLabel: 'Video',
+              onSelect: (v) => setState(() {
+                    _dnMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'call',
+              currentMode: _dnMode,
+              icon: Icons.call_rounded,
+              isDark: isDark,
+              isSubmitting: _dnSubmitting,
+              shortLabel: 'Call',
+              onSelect: (v) => setState(() {
+                    _dnMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'whatsapp',
+              currentMode: _dnMode,
+              icon: FontAwesomeIcons.whatsapp,
+              isDark: isDark,
+              isSubmitting: _dnSubmitting,
+              shortLabel: 'WhatsApp',
+              onSelect: (v) => setState(() {
+                    _dnMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
+          _buildModeChip(
+              mode: 'email',
+              currentMode: _dnMode,
+              icon: Icons.mark_email_read_rounded,
+              isDark: isDark,
+              isSubmitting: _dnSubmitting,
+              shortLabel: 'Email',
+              onSelect: (v) => setState(() {
+                    _dnMode = v;
+                    _aiGeneratedMessage = null;
+                  })),
         ]),
+        _buildAiSuggestionBox(isDark, _dnMode),
         const SizedBox(height: 10),
         _crmFlowSectionTitle(isDark, 'Outcomes'),
         const SizedBox(height: 6),

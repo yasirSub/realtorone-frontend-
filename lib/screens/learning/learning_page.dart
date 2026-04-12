@@ -51,7 +51,10 @@ class _LearningPageState extends State<LearningPage>
       }
 
       // Fetch streak info for header
-      final progressRes = await ApiClient.get('/activities/progress', requiresAuth: true);
+      final progressRes = await ApiClient.get(
+        '/activities/progress',
+        requiresAuth: true,
+      );
       if (progressRes['success'] == true) {
         _currentStreak = progressRes['data']['current_streak'] ?? 0;
       }
@@ -379,15 +382,20 @@ class _LearningPageState extends State<LearningPage>
                     borderRadius: BorderRadius.circular(16),
                     image: ebook.thumbnailUrl != null
                         ? DecorationImage(
-                            image: NetworkImage(_resolveAssetUrl(ebook.thumbnailUrl!)),
+                            image: NetworkImage(
+                              _resolveAssetUrl(ebook.thumbnailUrl!),
+                            ),
                             fit: BoxFit.cover,
                           )
                         : null,
                   ),
                   child: ebook.thumbnailUrl == null
                       ? Center(
-                          child: Icon(Icons.book_rounded,
-                              color: tierColor, size: 32),
+                          child: Icon(
+                            Icons.book_rounded,
+                            color: tierColor,
+                            size: 32,
+                          ),
                         )
                       : null,
                 ),
@@ -413,8 +421,11 @@ class _LearningPageState extends State<LearningPage>
                             ),
                           ),
                           if (!isUnlocked)
-                            Icon(Icons.lock_rounded,
-                                color: Colors.grey[400], size: 16),
+                            Icon(
+                              Icons.lock_rounded,
+                              color: Colors.grey[400],
+                              size: 16,
+                            ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -433,7 +444,9 @@ class _LearningPageState extends State<LearningPage>
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: tierColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
@@ -461,8 +474,11 @@ class _LearningPageState extends State<LearningPage>
                             ),
                           ),
                           if (isUnlocked)
-                            const Icon(Icons.arrow_forward_ios_rounded,
-                                color: Color(0xFF6366F1), size: 10),
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: Color(0xFF6366F1),
+                              size: 10,
+                            ),
                         ],
                       ),
                     ],
@@ -483,10 +499,7 @@ class _LearningPageState extends State<LearningPage>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PdfViewerPage(
-          title: ebook.title,
-          url: url,
-        ),
+        builder: (context) => PdfViewerPage(title: ebook.title, url: url),
       ),
     );
   }
@@ -497,39 +510,50 @@ class _LearningPageState extends State<LearningPage>
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF0F172A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('ASSET ENCRYPTED',
-            style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-                letterSpacing: 1)),
+        title: const Text(
+          'ASSET ENCRYPTED',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            letterSpacing: 1,
+          ),
+        ),
         content: Text(
-            'This elite strategy asset is reserved for $tier members. Upgrade your subscription to gain access.',
-            style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+          'This elite strategy asset is reserved for $tier members. Upgrade your subscription to gain access.',
+          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('DISMISS',
-                style: TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
+            child: const Text(
+              'DISMISS',
+              style: TextStyle(
+                color: Colors.grey,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6366F1),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.pop(context);
               // Navigate to subscription
             },
-            child: const Text('VIEW TIERS',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
+            child: const Text(
+              'VIEW TIERS',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -583,7 +607,11 @@ class _LearningPageState extends State<LearningPage>
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.lock_person_rounded, color: Color(0xFFF59E0B), size: 18),
+            const Icon(
+              Icons.lock_person_rounded,
+              color: Color(0xFFF59E0B),
+              size: 18,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
@@ -788,7 +816,12 @@ class _LearningPageState extends State<LearningPage>
     );
   }
 
-  Widget _buildMiniBadge(String label, String value, Color color, IconData icon) {
+  Widget _buildMiniBadge(
+    String label,
+    String value,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -879,11 +912,11 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Colors.white,
-      child: _tabBar,
-    );
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: Colors.white, child: _tabBar);
   }
 
   @override
