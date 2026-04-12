@@ -93,117 +93,191 @@ class DealRoomWidget extends StatefulWidget {
       'Deal closure',
     ];
 
+    // Stage config: icon, color per stage
+    const stageConfig = <String, Map<String, dynamic>>{
+      'Cold calling':     {'icon': Icons.phone_rounded,        'color': Color(0xFF2563EB)},
+      'Follow-up':        {'icon': Icons.refresh_rounded,       'color': Color(0xFF0D9488)},
+      'Client meeting':   {'icon': Icons.people_rounded,        'color': Color(0xFF7C3AED)},
+      'Deal negotiation': {'icon': Icons.handshake_rounded,     'color': Color(0xFFEA580C)},
+      'Deal closure':     {'icon': Icons.verified_rounded,      'color': Color(0xFF16A34A)},
+    };
+
+    final totalClients = counts?.values.fold(0, (a, b) => a + b) ?? 0;
+
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          padding: EdgeInsets.fromLTRB(
-            20,
-            12,
-            20,
-            20 + MediaQuery.of(ctx).padding.bottom,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 14),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
+        String? selected = currentStage;
+        return StatefulBuilder(
+          builder: (ctx, setModal) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 30, offset: const Offset(0, -10))],
               ),
-              Text(
-                'Filter by CRM Stage',
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Focus on clients in a specific pipeline stage.',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.3,
-                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                leading: Icon(
-                  Icons.all_inclusive_rounded,
-                  color: currentStage == null
-                      ? const Color(0xFF667EEA)
-                      : (isDark ? Colors.white24 : Colors.grey[400]),
-                ),
-                title: Text(
-                  'All Stages',
-                  style: TextStyle(
-                    fontWeight:
-                        currentStage == null ? FontWeight.w800 : FontWeight.w600,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                onTap: () => Navigator.pop(ctx, null),
-              ),
-              const Divider(height: 16),
-              ...stages.map((s) {
-                final count = counts?[s] ?? 0;
-                final isSelected = currentStage == s;
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                  leading: Icon(
-                    isSelected
-                        ? Icons.check_circle_rounded
-                        : Icons.radio_button_unchecked_rounded,
-                    color: isSelected
-                        ? const Color(0xFF667EEA)
-                        : (isDark ? Colors.white24 : Colors.grey[400]),
-                  ),
-                  title: Text(
-                    s,
-                    style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF667EEA).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      count.toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11,
-                        color: Color(0xFF667EEA),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 20),
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
-                  onTap: () => Navigator.pop(ctx, s),
-                );
-              }),
-            ],
-          ),
+
+                  // "All Stages" option
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: GestureDetector(
+                      onTap: () {
+                        setModal(() => selected = null);
+                        Future.delayed(const Duration(milliseconds: 150), () => Navigator.pop(ctx, null));
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: selected == null
+                              ? const Color(0xFF667EEA).withValues(alpha: 0.1)
+                              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: selected == null ? const Color(0xFF667EEA).withValues(alpha: 0.5) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                            width: selected == null ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF667EEA).withValues(alpha: selected == null ? 0.15 : 0.06),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.all_inclusive_rounded, size: 18, color: const Color(0xFF667EEA).withValues(alpha: selected == null ? 1 : 0.5)),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text('All Stages',
+                                style: TextStyle(
+                                  fontWeight: selected == null ? FontWeight.w900 : FontWeight.w600,
+                                  fontSize: 15,
+                                  color: selected == null ? const Color(0xFF667EEA) : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF667EEA).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text('$totalClients', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF667EEA))),
+                            ),
+                            if (selected == null) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF667EEA)),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Stage list
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: stages.map((s) {
+                        final count = counts?[s] ?? 0;
+                        final isSelected = selected == s;
+                        final cfg = stageConfig[s]!;
+                        final stageColor = cfg['color'] as Color;
+                        final stageIcon = cfg['icon'] as IconData;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: GestureDetector(
+                            onTap: () {
+                              setModal(() => selected = s);
+                              Future.delayed(const Duration(milliseconds: 150), () => Navigator.pop(ctx, s));
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? stageColor.withValues(alpha: 0.08)
+                                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected ? stageColor.withValues(alpha: 0.4) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                                boxShadow: isSelected ? [BoxShadow(color: stageColor.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))] : [],
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: stageColor.withValues(alpha: isSelected ? 0.15 : 0.07),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(stageIcon, size: 17, color: stageColor.withValues(alpha: isSelected ? 1 : 0.6)),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(s,
+                                      style: TextStyle(
+                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                        fontSize: 14.5,
+                                        color: isSelected ? stageColor : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: stageColor.withValues(alpha: isSelected ? 0.15 : 0.07),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text('$count',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12,
+                                        color: stageColor.withValues(alpha: isSelected ? 1 : 0.7),
+                                      ),
+                                    ),
+                                  ),
+                                  if (isSelected) ...[
+                                    const SizedBox(width: 8),
+                                    Icon(Icons.check_circle_rounded, size: 20, color: stageColor),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  SizedBox(height: 16 + MediaQuery.of(ctx).padding.bottom),
+                ],
+              ),
+            );
+          },
         );
       },
     );

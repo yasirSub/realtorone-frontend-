@@ -208,18 +208,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'This short walkthrough highlights where to execute daily work—momentum, Tasks, learning, and your account.';
 
   @override
-  String get tourSubconsciousTitle => 'Tasks — Subconscious workspace';
+  String get tourSubconsciousTitle => 'Tasks — Belief workspace';
 
   @override
   String get tourSubconsciousBody =>
-      'Open Tasks, then use Subconscious for identity conditioning: journaling, guided audio, affirmations, and inner-game work. Logging here keeps your streak and discipline signal accurate.';
+      'Open Tasks, then use Belief for identity conditioning: journaling, guided audio, affirmations, and inner-game work. Logging here keeps your streak and discipline signal accurate.';
 
   @override
   String get tourDealRoomTitle => 'Tasks — Deal Room (Clients)';
 
   @override
   String get tourDealRoomBody =>
-      'Under Conscious, this Clients control switches between Deal Room (pipeline and client actions) and Revenue tracking. Deal Room is where you run lead follow-up and client momentum.';
+      'Under Focus, this Clients control switches between Deal Room (pipeline and client actions) and Revenue tracking. Deal Room is where you run lead follow-up and client momentum.';
 
   @override
   String get tourLearnTitle => 'Learning hub';

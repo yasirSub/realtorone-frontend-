@@ -162,14 +162,14 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget> {
           Row(
             children: [
               _buildPillarChip(
-                'IDENTITY',
+                'BELIEF',
                 _subconsciousScore,
                 40,
                 const Color(0xFFD946EF),
               ),
               const SizedBox(width: 10),
               _buildPillarChip(
-                'ACTIONS',
+                'FOCUS',
                 _consciousScore,
                 45,
                 const Color(0xFFA855F7),

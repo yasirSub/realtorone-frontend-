@@ -479,13 +479,13 @@ abstract class AppLocalizations {
   /// No description provided for @tourSubconsciousTitle.
   ///
   /// In en, this message translates to:
-  /// **'Tasks — Subconscious workspace'**
+  /// **'Tasks — Belief workspace'**
   String get tourSubconsciousTitle;
 
   /// No description provided for @tourSubconsciousBody.
   ///
   /// In en, this message translates to:
-  /// **'Open Tasks, then use Subconscious for identity conditioning: journaling, guided audio, affirmations, and inner-game work. Logging here keeps your streak and discipline signal accurate.'**
+  /// **'Open Tasks, then use Belief for identity conditioning: journaling, guided audio, affirmations, and inner-game work. Logging here keeps your streak and discipline signal accurate.'**
   String get tourSubconsciousBody;
 
   /// No description provided for @tourDealRoomTitle.
@@ -497,7 +497,7 @@ abstract class AppLocalizations {
   /// No description provided for @tourDealRoomBody.
   ///
   /// In en, this message translates to:
-  /// **'Under Conscious, this Clients control switches between Deal Room (pipeline and client actions) and Revenue tracking. Deal Room is where you run lead follow-up and client momentum.'**
+  /// **'Under Focus, this Clients control switches between Deal Room (pipeline and client actions) and Revenue tracking. Deal Room is where you run lead follow-up and client momentum.'**
   String get tourDealRoomBody;
 
   /// No description provided for @tourLearnTitle.

@@ -147,6 +147,11 @@ class ApiClient {
     }
   }
 
+  /// Fetch active webinars for the authenticated user.
+  static Future<Map<String, dynamic>> getWebinars() async {
+    return get('/webinars', requiresAuth: true, useCache: true);
+  }
+
   /// Multipart upload (e.g. Excel import). Field name must match API (`file`).
   static Future<Map<String, dynamic>> postMultipartFile(
     String endpoint, {

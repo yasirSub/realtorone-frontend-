@@ -594,11 +594,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                 tabs: [
                   Tab(
                     key: widget.tourSubconsciousTabKey,
-                    text: 'SUBCONSCIOUS',
+                    text: 'BELIEF',
                   ),
                   Tab(
                     key: widget.tourConsciousTabKey,
-                    text: 'CONSCIOUS',
+                    text: 'FOCUS',
                   ),
                 ],
               ),
@@ -1180,7 +1180,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         (activityType['daily_require_user_response'] ?? false) == true;
     final String dayTitle = activityType['day_title'] ?? 'DAY $todayDay TASK';
     final String taskTitle = activityType['task_title'] ?? 'TASK DESCRIPTION';
-    final String scriptTitle = activityType['script_title'] ?? 'QUESTION';
+    final String scriptTitle = 'QUESTION / PROMPT';
     final bool isMcq = activityType['is_mcq'] == true;
     final String? mcqQuestion = activityType['mcq_question'];
     final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
@@ -1968,7 +1968,7 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.scriptIdea);
+    _textController = TextEditingController(text: '');
   }
 
   @override
@@ -1984,15 +1984,12 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
     final wordCount = userText.isEmpty
         ? 0
         : userText.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-    final meetsResponseRule = !widget.requireUserResponse || wordCount >= 2;
-    final meetsAudioRule = widget.requiredListenPercent <= 0 ||
+    final meetsResponseRule = !widget.requireUserResponse || wordCount >= 3;
+    final meetsAudioRule = widget.audioUrl.isEmpty ||
+        widget.requiredListenPercent <= 0 ||
         _maxListenedPercent >= widget.requiredListenPercent;
     final meetsMcqRule = !widget.isMcq || _selectedMcqIndex != null;
-    // The user wants selection to enable the button immediately.
-    // If it's an MCQ, the selection is the primary requirement.
-    final canSubmit = meetsResponseRule && 
-                     (meetsAudioRule || widget.isMcq) && 
-                     meetsMcqRule;
+    final canSubmit = meetsResponseRule && meetsAudioRule && meetsMcqRule;
 
     return SafeArea(
       top: false,
@@ -2188,7 +2185,6 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                   const SizedBox(height: 12),
                 ],
                 // Prompt is now pre-filled in the editable field below, so we hide the static card.
-                /*
                 if (widget.scriptIdea.isNotEmpty) ...[
                   widget.buildPopupInfoCard(
                     title: widget.scriptTitle,
@@ -2197,7 +2193,6 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                */
                 if (widget.isMcq && widget.mcqOptions.isNotEmpty) ...[
                   Container(
                     width: double.infinity,
@@ -2339,14 +2334,14 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                   ),
                   const SizedBox(height: 16),
                 ],
-                if (widget.requireUserResponse || widget.scriptIdea.isNotEmpty) ...[
+                if (widget.requireUserResponse) ...[
                   TextField(
                     controller: _textController,
                     onChanged: (_) => setState(() {}),
                     maxLines: 4,
                     minLines: 2,
                     decoration: InputDecoration(
-                      hintText: 'Your response...',
+                      hintText: 'Write at least 3 words to submit...',
                       hintStyle: TextStyle(
                         color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                         fontSize: 14,
