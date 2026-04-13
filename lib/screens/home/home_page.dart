@@ -106,7 +106,8 @@ class _HomePageState extends State<HomePage> {
           if (notes is! Map) continue;
           final cc = notes['cold_calling'];
           if (cc is Map) {
-            final callA = int.tryParse((cc['call_attempt'] ?? '0').toString()) ?? 0;
+            final callA =
+                int.tryParse((cc['call_attempt'] ?? '0').toString()) ?? 0;
             final waA = int.tryParse((cc['wa_attempt'] ?? '0').toString()) ?? 0;
             if ((callA > waA ? callA : waA) >= 4) atRisk++;
             final bucket = (cc['bucket'] ?? '').toString().toLowerCase();
@@ -126,7 +127,9 @@ class _HomePageState extends State<HomePage> {
 
   Widget _overviewCard(AppLocalizations l10n, bool isDark) {
     final remaining = (_todayTotal - _todayDone).clamp(0, _todayTotal);
-    final pct = _todayTotal == 0 ? 0 : ((_todayDone / _todayTotal) * 100).round();
+    final pct = _todayTotal == 0
+        ? 0
+        : ((_todayDone / _todayTotal) * 100).round();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -170,10 +173,26 @@ class _HomePageState extends State<HomePage> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metricChip(l10n.homeHotLeads, _hotLeads, const Color(0xFF2563EB)),
-              _metricChip(l10n.homeAtRisk4x, _atRiskFour, const Color(0xFFEF4444)),
-              _metricChip(l10n.homeNurture, _nurtureCount, const Color(0xFFEA580C)),
-              _metricChip(l10n.homeRemaining, remaining, const Color(0xFF10B981)),
+              _metricChip(
+                l10n.homeHotLeads,
+                _hotLeads,
+                const Color(0xFF2563EB),
+              ),
+              _metricChip(
+                l10n.homeAtRisk4x,
+                _atRiskFour,
+                const Color(0xFFEF4444),
+              ),
+              _metricChip(
+                l10n.homeNurture,
+                _nurtureCount,
+                const Color(0xFFEA580C),
+              ),
+              _metricChip(
+                l10n.homeRemaining,
+                remaining,
+                const Color(0xFF10B981),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -210,9 +229,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _openNotifications() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const NotificationsHistoryPage()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const NotificationsHistoryPage()));
     if (mounted) setState(() {});
   }
 
@@ -221,7 +240,9 @@ class _HomePageState extends State<HomePage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF1F5F9),
+      backgroundColor: isDark
+          ? const Color(0xFF020617)
+          : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
           RefreshIndicator(
@@ -235,7 +256,9 @@ class _HomePageState extends State<HomePage> {
                   expandedHeight: 220,
                   pinned: true,
                   stretch: true,
-                  backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B),
+                  backgroundColor: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFF1E293B),
                   elevation: 0,
                   centerTitle: false,
                   title: Image.asset(
@@ -255,24 +278,39 @@ class _HomePageState extends State<HomePage> {
                               IconButton(
                                 tooltip: l10n.homeNotificationsTooltip,
                                 onPressed: _openNotifications,
-                                icon: const Icon(Icons.notifications_rounded, color: Colors.white),
+                                icon: const Icon(
+                                  Icons.notifications_rounded,
+                                  color: Colors.white,
+                                ),
                               ),
                               if (unread > 0)
                                 Positioned(
                                   right: 7,
                                   top: 7,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEF4444),
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: Colors.white, width: 1),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 1,
+                                      ),
                                     ),
-                                    constraints: const BoxConstraints(minWidth: 18),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
                                     child: Text(
                                       unread > 99 ? '99+' : unread.toString(),
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -283,7 +321,10 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ],
                   flexibleSpace: FlexibleSpaceBar(
-                    stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+                    stretchModes: const [
+                      StretchMode.zoomBackground,
+                      StretchMode.blurBackground,
+                    ],
                     background: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -292,7 +333,11 @@ class _HomePageState extends State<HomePage> {
                             gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [Color(0xFF1E293B), Color(0xFF334155), Color(0xFF0F172A)],
+                              colors: [
+                                Color(0xFF1E293B),
+                                Color(0xFF334155),
+                                Color(0xFF0F172A),
+                              ],
                             ),
                           ),
                         ),
@@ -301,9 +346,14 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             decoration: BoxDecoration(
                               image: DecorationImage(
-                                image: const AssetImage('assets/images/welcome.png'),
+                                image: const AssetImage(
+                                  'assets/images/welcome.png',
+                                ),
                                 fit: BoxFit.cover,
-                                colorFilter: ColorFilter.mode(Colors.white.withValues(alpha: 0.1), BlendMode.dstIn),
+                                colorFilter: ColorFilter.mode(
+                                  Colors.white.withValues(alpha: 0.1),
+                                  BlendMode.dstIn,
+                                ),
                               ),
                             ),
                           ),
@@ -311,10 +361,18 @@ class _HomePageState extends State<HomePage> {
                         Positioned(
                           right: -40,
                           top: 36,
-                          child: Opacity(
-                            opacity: 0.05,
-                            child: const Icon(Icons.rocket_launch_rounded, size: 220, color: Colors.white),
-                          ).animate().fadeIn(duration: 1500.ms).scale(begin: const Offset(0.8, 0.8)),
+                          child:
+                              Opacity(
+                                    opacity: 0.05,
+                                    child: const Icon(
+                                      Icons.rocket_launch_rounded,
+                                      size: 220,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  .animate()
+                                  .fadeIn(duration: 1500.ms)
+                                  .scale(begin: const Offset(0.8, 0.8)),
                         ),
                         SafeArea(
                           child: Padding(
@@ -324,35 +382,50 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 const SizedBox(height: 12),
                                 Text(
-                                  l10n.homeWelcomeBack,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                                      l10n.homeWelcomeBack,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 400.ms)
+                                    .slideY(begin: 0.1),
                                 const SizedBox(height: 4),
                                 Text(
-                                  _userData?['name']?.toString().toUpperCase() ??
-                                      l10n.homeGuestName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -2,
-                                    height: 0.9,
-                                  ),
-                                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
+                                      _userData?['name']
+                                              ?.toString()
+                                              .toUpperCase() ??
+                                          l10n.homeGuestName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -2,
+                                        height: 0.9,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 500.ms)
+                                    .slideY(begin: 0.1),
                                 const SizedBox(height: 10),
                                 Text(
-                                  l10n.homePerformanceReady,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.72),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ).animate().fadeIn(delay: 550.ms).slideY(begin: 0.1),
+                                      l10n.homePerformanceReady,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.72,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 550.ms)
+                                    .slideY(begin: 0.1),
                                 const Spacer(),
                               ],
                             ),
@@ -366,21 +439,40 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      const HomeWebinarCarousel().animate().fadeIn(delay: 260.ms).slideY(begin: 0.1),
+                      const HomeWebinarCarousel()
+                          .animate()
+                          .fadeIn(delay: 260.ms)
+                          .slideY(begin: 0.1),
                       const SizedBox(height: 20),
-                      const GrowthReportWidget().animate().fadeIn(delay: 300.ms).slideY(begin: 0.1),
+                      const GrowthReportWidget()
+                          .animate()
+                          .fadeIn(delay: 300.ms)
+                          .slideY(begin: 0.1),
                       const SizedBox(height: 20),
-                      const HomeActivityLogWidget().animate().fadeIn(delay: 420.ms).slideY(begin: 0.1),
+                      const HomeActivityLogWidget()
+                          .animate()
+                          .fadeIn(delay: 420.ms)
+                          .slideY(begin: 0.1),
                       const SizedBox(height: 20),
-                      _overviewCard(l10n, isDark).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
+                      _overviewCard(
+                        l10n,
+                        isDark,
+                      ).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
                     ]),
                   ),
                 ),
               ],
             ),
           ),
-          if (_isLoading && _userData == null) EliteLoader.top(color: _getTierColor(_userData?['membership_tier'])),
-          const Positioned(right: 16, bottom: 140, child: ChatbotFloatingButton()),
+          if (_isLoading && _userData == null)
+            EliteLoader.top(
+              color: _getTierColor(_userData?['membership_tier']),
+            ),
+          const Positioned(
+            right: 16,
+            bottom: 140,
+            child: ChatbotFloatingButton(),
+          ),
         ],
       ),
     );
