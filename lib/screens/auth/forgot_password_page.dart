@@ -32,19 +32,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorMessage = null;
     });
 
+    debugPrint('----------------------------------------------');
+    debugPrint('[FORGOT PASSWORD] Attempting for: ${_emailController.text.trim()}');
+
     try {
       final response = await AuthApi.forgotPassword(_emailController.text.trim());
       
+      debugPrint('[FORGOT PASSWORD] Server Response: $response');
+      debugPrint('----------------------------------------------');
+
       if (response['status'] == 'ok') {
         setState(() => _isSent = true);
       } else {
         setState(() {
-          _errorMessage = response['message'] ?? 'Failed to send reset email';
+          _errorMessage = response['message'] ?? 'Failed to send reset code';
         });
       }
     } catch (e) {
+      debugPrint('[FORGOT PASSWORD] ERROR: $e');
+      debugPrint('----------------------------------------------');
       setState(() {
-        _errorMessage = 'Connection error. Check your network.';
+        _errorMessage = 'Connection error. Please try again.';
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);

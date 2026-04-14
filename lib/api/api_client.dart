@@ -242,6 +242,8 @@ class ApiClient {
 
   // Handle API response
   static Map<String, dynamic> _handleResponse(http.Response response) {
+    debugPrint('[API RESPONSE] Code: ${response.statusCode}');
+    debugPrint('[API RESPONSE] Body: ${response.body}');
     try {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
