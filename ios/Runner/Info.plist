@@ -88,5 +88,7 @@
 	<string>Camera access is required to take a new Profile Picture.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is required for video recording features.</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
 </dict>
 </plist>

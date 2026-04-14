@@ -8,6 +8,7 @@ import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
 import 'api/api_client.dart';
 import 'services/push_notification_service.dart';
+import 'services/deep_link_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -19,6 +20,7 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
   PushNotificationService.attachNavigatorKey(appNavigatorKey);
+  await DeepLinkService.initialize(appNavigatorKey);
   runApp(
     MultiProvider(
       providers: [
