@@ -3,6 +3,8 @@ class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String login = '/login';
   static const String register = '/register';
+  static const String forgotPassword = '/forgot-password';
+  static const String resetPassword = '/reset-password';
   static const String profileSetup = '/profile-setup';
   static const String editProfile = '/edit-profile';
   static const String diagnosis = '/diagnosis';
@@ -22,6 +24,7 @@ class AppRoutes {
   static const String courseCurriculum = '/course-curriculum';
   static const String videoPlayer = '/video-player';
   static const String courseExam = '/course-exam';
+  static const String verifyOtp = '/verify-otp';
   static const String maintenance = '/maintenance';
   static const String updateRequired = '/update-required';
 }

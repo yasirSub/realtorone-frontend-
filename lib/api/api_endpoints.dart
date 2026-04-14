@@ -12,6 +12,7 @@ class ApiEndpoints {
 
   // Password endpoints
   static const String forgotPassword = '/password/forgot';
+  static const String verifyToken = '/password/verify-token';
   static const String resetPassword = '/password/reset';
 
   // Email verification

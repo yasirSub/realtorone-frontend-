@@ -21,6 +21,24 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _pushNotifications = true;
   bool _emailUpdates = true;
+  Map<String, dynamic>? _userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final response = await UserApi.getProfile();
+      if (mounted && response['success'] == true) {
+        setState(() => _userData = response['data']);
+      }
+    } catch (e) {
+      debugPrint('Settings: Profile load failed: $e');
+    }
+  }
 
   void _openLegalInApp(String slug) {
     Navigator.of(context).push(
@@ -36,6 +54,28 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirmPasswordController = TextEditingController();
     bool isDialogLoading = false;
     final pageContext = context;
+
+    if (_userData?['email_verified_at'] == null) {
+      RealtorOneDialogScaffold.show<void>(
+        context: context,
+        builder: (d) => RealtorOneDialogScaffold(
+          title: 'Verification Required',
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(d);
+                Navigator.pushNamed(context, AppRoutes.forgotPassword);
+              },
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF667eea)),
+              child: const Text('Verify Now'),
+            ),
+          ],
+          child: const Text('You need to verify your email first to enable password management.'),
+        ),
+      );
+      return;
+    }
 
     RealtorOneDialogScaffold.show<void>(
       context: context,
@@ -140,9 +180,16 @@ class _SettingsPageState extends State<SettingsPage> {
                   TextField(
                     controller: currentPasswordController,
                     obscureText: true,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Current Password',
                       hintText: 'Enter your old password',
+                      suffixIcon: TextButton(
+                        onPressed: () {
+                          Navigator.pop(d);
+                          Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                        },
+                        child: const Text('Forgot?', style: TextStyle(fontSize: 12)),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -439,6 +439,24 @@ class _LoginPageState extends State<LoginPage> {
                             : null,
                       ).animate().fadeIn(delay: 700.ms).slideX(begin: 0.05),
 
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            AppRoutes.forgotPassword,
+                          ),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ).animate().fadeIn(delay: 800.ms),
+
                       const SizedBox(height: 40),
 
                       SizedBox(

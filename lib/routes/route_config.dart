@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/auth/register_page.dart';
+import '../screens/auth/forgot_password_page.dart';
+import '../screens/auth/otp_verification_page.dart';
+import '../screens/auth/reset_password_page.dart';
 import '../screens/dashboard_page.dart';
 import '../screens/onboarding/onboarding_page.dart';
 import '../screens/onboarding/profile_setup_page.dart';
@@ -35,6 +38,18 @@ class RouteConfig {
       AppRoutes.onboarding: (context) => const OnboardingPage(),
       AppRoutes.login: (context) => const LoginPage(),
       AppRoutes.register: (context) => const RegisterPage(),
+      AppRoutes.forgotPassword: (context) => const ForgotPasswordPage(),
+      AppRoutes.verifyOtp: (context) {
+        final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+        return OtpVerificationPage(email: email);
+      },
+      AppRoutes.resetPassword: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+        return ResetPasswordPage(
+          email: args['email'] as String?,
+          token: args['token'] as String?,
+        );
+      },
       AppRoutes.profileSetup: (context) => const ProfileSetupPage(),
       AppRoutes.editProfile: (context) => const EditProfilePage(),
       AppRoutes.diagnosis: (context) => const DiagnosisQuestionsPage(),
