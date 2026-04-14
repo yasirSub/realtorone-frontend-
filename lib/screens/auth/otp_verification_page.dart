@@ -42,7 +42,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     });
 
     try {
-      final response = await AuthApi.verifyToken(otp);
+      final response = await AuthApi.verifyToken(widget.email, otp);
       if (response['status'] == 'ok') {
         if (!mounted) return;
         Navigator.pushNamed(

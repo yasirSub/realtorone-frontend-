@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const String liveApiBaseUrl = 'http://aanantbishthealing.com/api';
+  static const String liveApiBaseUrl = 'https://api.aanantbishthealing.com/api';
 
   /// Production website origin for Privacy / Terms (HTTPS). Used in release for Play Console and in-app browser links.
   static const String liveWebOrigin = 'https://aanantbishthealing.com';

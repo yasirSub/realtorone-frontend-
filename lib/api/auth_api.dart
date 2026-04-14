@@ -71,15 +71,20 @@ class AuthApi {
     return await ApiClient.post(ApiEndpoints.forgotPassword, {'email': email});
   }
 
-  static Future<Map<String, dynamic>> verifyToken(String token) async {
-    return await ApiClient.post(ApiEndpoints.verifyToken, {'token': token});
+  static Future<Map<String, dynamic>> verifyToken(String email, String token) async {
+    return await ApiClient.post(ApiEndpoints.verifyToken, {
+      'email': email,
+      'token': token,
+    });
   }
 
-  static Future<Map<String, dynamic>> resetPassword(
-    String token,
-    String newPassword,
-  ) async {
+  static Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String token,
+    required String newPassword,
+  }) async {
     return await ApiClient.post(ApiEndpoints.resetPassword, {
+      'email': email,
       'token': token,
       'password': newPassword,
     });

@@ -41,9 +41,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     });
 
     try {
+      if (widget.email == null || widget.token == null) {
+        setState(() => _errorMessage = 'Missing reset details. Please try again.');
+        return;
+      }
       final response = await AuthApi.resetPassword(
-        widget.token!,
-        _passwordController.text,
+        email: widget.email!,
+        token: widget.token!,
+        newPassword: _passwordController.text,
       );
       
       if (!mounted) return;
