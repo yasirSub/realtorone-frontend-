@@ -81,7 +81,7 @@ class ApiClient {
       debugPrint('----------------------------------------------');
       final response = await http
           .get(Uri.parse('${ApiEndpoints.baseUrl}$endpoint'), headers: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       final data = _handleResponse(response);
 
@@ -197,7 +197,7 @@ class ApiClient {
             headers: headers,
             body: jsonEncode(data),
           )
-          .timeout(timeout ?? const Duration(seconds: 10));
+          .timeout(timeout ?? const Duration(seconds: 30));
       return _handleResponse(response);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
