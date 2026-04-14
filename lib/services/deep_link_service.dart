@@ -10,7 +10,7 @@ class DeepLinkService {
   static Future<void> initialize(GlobalKey<NavigatorState> navigatorKey) async {
     // 1. Handle initial link if app was closed
     try {
-      final initialUri = await _appLinks.getInitialAppLink();
+      final initialUri = await _appLinks.getInitialLink();
       if (initialUri != null) {
         _handleUri(initialUri, navigatorKey);
       }
