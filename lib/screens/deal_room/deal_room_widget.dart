@@ -17,12 +17,7 @@ import '../../theme/realtorone_brand.dart';
 import 'add_client_page.dart';
 import 'client_revenue_actions_page.dart';
 
-enum _DealRoomListFilter {
-  all,
-  notAttemptedFour,
-  nurture,
-  other,
-}
+enum _DealRoomListFilter { all, notAttemptedFour, nurture, other }
 
 class DealRoomWidget extends StatefulWidget {
   final VoidCallback? onClientActionLogged;
@@ -95,11 +90,20 @@ class DealRoomWidget extends StatefulWidget {
 
     // Stage config: icon, color per stage
     const stageConfig = <String, Map<String, dynamic>>{
-      'Cold calling':     {'icon': Icons.phone_rounded,        'color': Color(0xFF2563EB)},
-      'Follow-up':        {'icon': Icons.refresh_rounded,       'color': Color(0xFF0D9488)},
-      'Client meeting':   {'icon': Icons.people_rounded,        'color': Color(0xFF7C3AED)},
-      'Deal negotiation': {'icon': Icons.handshake_rounded,     'color': Color(0xFFEA580C)},
-      'Deal closure':     {'icon': Icons.verified_rounded,      'color': Color(0xFF16A34A)},
+      'Cold calling': {'icon': Icons.phone_rounded, 'color': Color(0xFF2563EB)},
+      'Follow-up': {'icon': Icons.refresh_rounded, 'color': Color(0xFF0D9488)},
+      'Client meeting': {
+        'icon': Icons.people_rounded,
+        'color': Color(0xFF7C3AED),
+      },
+      'Deal negotiation': {
+        'icon': Icons.handshake_rounded,
+        'color': Color(0xFFEA580C),
+      },
+      'Deal closure': {
+        'icon': Icons.verified_rounded,
+        'color': Color(0xFF16A34A),
+      },
     };
 
     final totalClients = counts?.values.fold(0, (a, b) => a + b) ?? 0;
@@ -114,9 +118,19 @@ class DealRoomWidget extends StatefulWidget {
           builder: (ctx, setModal) {
             return Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 30, offset: const Offset(0, -10))],
+                color: isDark
+                    ? const Color(0xFF0F172A)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -126,9 +140,12 @@ class DealRoomWidget extends StatefulWidget {
                   Center(
                     child: Container(
                       margin: const EdgeInsets.only(top: 12, bottom: 20),
-                      width: 40, height: 4,
+                      width: 40,
+                      height: 4,
                       decoration: BoxDecoration(
-                        color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+                        color: isDark
+                            ? Colors.white24
+                            : const Color(0xFFCBD5E1),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -140,18 +157,30 @@ class DealRoomWidget extends StatefulWidget {
                     child: GestureDetector(
                       onTap: () {
                         setModal(() => selected = null);
-                        Future.delayed(const Duration(milliseconds: 150), () => Navigator.pop(ctx, null));
+                        Future.delayed(
+                          const Duration(milliseconds: 150),
+                          () => Navigator.pop(ctx, null),
+                        );
                       },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                         decoration: BoxDecoration(
                           color: selected == null
                               ? const Color(0xFF667EEA).withValues(alpha: 0.1)
-                              : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                              : (isDark
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.white),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: selected == null ? const Color(0xFF667EEA).withValues(alpha: 0.5) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                            color: selected == null
+                                ? const Color(0xFF667EEA).withValues(alpha: 0.5)
+                                : (isDark
+                                      ? Colors.white10
+                                      : const Color(0xFFE2E8F0)),
                             width: selected == null ? 1.5 : 1,
                           ),
                         ),
@@ -160,32 +189,63 @@ class DealRoomWidget extends StatefulWidget {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF667EEA).withValues(alpha: selected == null ? 0.15 : 0.06),
+                                color: const Color(0xFF667EEA).withValues(
+                                  alpha: selected == null ? 0.15 : 0.06,
+                                ),
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.all_inclusive_rounded, size: 18, color: const Color(0xFF667EEA).withValues(alpha: selected == null ? 1 : 0.5)),
+                              child: Icon(
+                                Icons.all_inclusive_rounded,
+                                size: 18,
+                                color: const Color(
+                                  0xFF667EEA,
+                                ).withValues(alpha: selected == null ? 1 : 0.5),
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
-                              child: Text('All Stages',
+                              child: Text(
+                                'All Stages',
                                 style: TextStyle(
-                                  fontWeight: selected == null ? FontWeight.w900 : FontWeight.w600,
+                                  fontWeight: selected == null
+                                      ? FontWeight.w900
+                                      : FontWeight.w600,
                                   fontSize: 15,
-                                  color: selected == null ? const Color(0xFF667EEA) : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                  color: selected == null
+                                      ? const Color(0xFF667EEA)
+                                      : (isDark
+                                            ? Colors.white70
+                                            : const Color(0xFF475569)),
                                 ),
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF667EEA).withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFF667EEA,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: Text('$totalClients', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Color(0xFF667EEA))),
+                              child: Text(
+                                '$totalClients',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12,
+                                  color: Color(0xFF667EEA),
+                                ),
+                              ),
                             ),
                             if (selected == null) ...[
                               const SizedBox(width: 8),
-                              const Icon(Icons.check_circle_rounded, size: 20, color: Color(0xFF667EEA)),
+                              const Icon(
+                                Icons.check_circle_rounded,
+                                size: 20,
+                                color: Color(0xFF667EEA),
+                              ),
                             ],
                           ],
                         ),
@@ -210,59 +270,108 @@ class DealRoomWidget extends StatefulWidget {
                           child: GestureDetector(
                             onTap: () {
                               setModal(() => selected = s);
-                              Future.delayed(const Duration(milliseconds: 150), () => Navigator.pop(ctx, s));
+                              Future.delayed(
+                                const Duration(milliseconds: 150),
+                                () => Navigator.pop(ctx, s),
+                              );
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 13,
+                              ),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? stageColor.withValues(alpha: 0.08)
-                                    : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                                    : (isDark
+                                          ? const Color(0xFF1E293B)
+                                          : Colors.white),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: isSelected ? stageColor.withValues(alpha: 0.4) : (isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                                  color: isSelected
+                                      ? stageColor.withValues(alpha: 0.4)
+                                      : (isDark
+                                            ? Colors.white10
+                                            : const Color(0xFFE2E8F0)),
                                   width: isSelected ? 1.5 : 1,
                                 ),
-                                boxShadow: isSelected ? [BoxShadow(color: stageColor.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 4))] : [],
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: stageColor.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ]
+                                    : [],
                               ),
                               child: Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: stageColor.withValues(alpha: isSelected ? 0.15 : 0.07),
+                                      color: stageColor.withValues(
+                                        alpha: isSelected ? 0.15 : 0.07,
+                                      ),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: Icon(stageIcon, size: 17, color: stageColor.withValues(alpha: isSelected ? 1 : 0.6)),
+                                    child: Icon(
+                                      stageIcon,
+                                      size: 17,
+                                      color: stageColor.withValues(
+                                        alpha: isSelected ? 1 : 0.6,
+                                      ),
+                                    ),
                                   ),
                                   const SizedBox(width: 14),
                                   Expanded(
-                                    child: Text(s,
+                                    child: Text(
+                                      s,
                                       style: TextStyle(
-                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w900
+                                            : FontWeight.w600,
                                         fontSize: 14.5,
-                                        color: isSelected ? stageColor : (isDark ? Colors.white70 : const Color(0xFF334155)),
+                                        color: isSelected
+                                            ? stageColor
+                                            : (isDark
+                                                  ? Colors.white70
+                                                  : const Color(0xFF334155)),
                                       ),
                                     ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: stageColor.withValues(alpha: isSelected ? 0.15 : 0.07),
+                                      color: stageColor.withValues(
+                                        alpha: isSelected ? 0.15 : 0.07,
+                                      ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Text('$count',
+                                    child: Text(
+                                      '$count',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w900,
                                         fontSize: 12,
-                                        color: stageColor.withValues(alpha: isSelected ? 1 : 0.7),
+                                        color: stageColor.withValues(
+                                          alpha: isSelected ? 1 : 0.7,
+                                        ),
                                       ),
                                     ),
                                   ),
                                   if (isSelected) ...[
                                     const SizedBox(width: 8),
-                                    Icon(Icons.check_circle_rounded, size: 20, color: stageColor),
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 20,
+                                      color: stageColor,
+                                    ),
                                   ],
                                 ],
                               ),
@@ -374,8 +483,12 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       final int byToday = db.compareTo(da);
       if (byToday != 0) return byToday;
 
-      final nameA = (a is Map ? (a['client_name'] ?? '') : '').toString().toLowerCase();
-      final nameB = (b is Map ? (b['client_name'] ?? '') : '').toString().toLowerCase();
+      final nameA = (a is Map ? (a['client_name'] ?? '') : '')
+          .toString()
+          .toLowerCase();
+      final nameB = (b is Map ? (b['client_name'] ?? '') : '')
+          .toString()
+          .toLowerCase();
       return nameA.compareTo(nameB);
     });
 
@@ -410,7 +523,9 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
               ),
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -467,7 +582,9 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
                         ),
                       ),
                     ),
@@ -488,7 +605,9 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                       'Urgent first, then today’s task %, then name',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        color: isDark
+                            ? Colors.white54
+                            : const Color(0xFF64748B),
                       ),
                     ),
                     onChanged: (v) => setModal(() => sort = v),
@@ -574,8 +693,6 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     }
     return 0;
   }
-
-
 
   Color _stageAccentColor(String? raw) {
     if (raw == null || raw.isEmpty) return const Color(0xFF2563EB);
@@ -938,10 +1055,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: isDark
-                        ? [
-                            const Color(0xEE0F172A),
-                            const Color(0xEE1E293B),
-                          ]
+                        ? [const Color(0xEE0F172A), const Color(0xEE1E293B)]
                         : [
                             Colors.white.withValues(alpha: 0.97),
                             const Color(0xFFF8FAFC),
@@ -981,101 +1095,90 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
                         'Add clients',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: -0.3,
+                          letterSpacing: -0.5,
                           color: isDark
                               ? Colors.white
                               : const Color(0xFF0F172A),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Pick how you want to load your Deal Room — bulk import or one-by-one.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          fontWeight: FontWeight.w500,
-                          color: isDark
-                              ? Colors.white60
-                              : const Color(0xFF64748B),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Grow your business by adding new leads to your Deal Room.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? Colors.white60
+                                : const Color(0xFF64748B),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 28),
                       _methodOp(
-                        icon: Icons.table_chart_rounded,
+                        icon: Icons.auto_awesome_rounded,
                         title: 'Import from Excel',
-                        subtitle:
-                            'Match our template columns, then upload your .xlsx file.',
-                        accent: RealtorOneBrand.accentTeal,
+                        subtitle: 'Upload .xlsx file for bulk processing.',
+                        accent: const Color(0xFF10B981), // Emerald
                         onTap: () => Navigator.pop(ctx, 'excel'),
                         isDark: isDark,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6, bottom: 4),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(12),
-                            onTap: () =>
-                                _downloadDealRoomTemplate(ctx),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 10,
-                                horizontal: 8,
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.download_rounded,
-                                    size: 18,
-                                    color: RealtorOneBrand.accentTeal,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Download template (.xlsx)',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: RealtorOneBrand.accentTeal,
-                                      letterSpacing: 0.2,
-                                    ),
-                                  ),
-                                ],
+                      const SizedBox(height: 12),
+                      _methodOp(
+                        icon: Icons.person_add_alt_1_rounded,
+                        title: 'Add manually',
+                        subtitle: 'Quick entry with a guided form.',
+                        accent: const Color(0xFF6366F1), // Indigo
+                        onTap: () => Navigator.pop(ctx, 'manual'),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () => _downloadDealRoomTemplate(ctx),
+                          icon: const Icon(Icons.download_rounded, size: 20),
+                          label: const Text(
+                            'Download template (.xlsx)',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.1,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF10B981),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(
+                                color: const Color(0xFF10B981).withOpacity(0.2),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _methodOp(
-                        icon: Icons.person_add_alt_1_rounded,
-                        title: 'Add manually',
-                        subtitle:
-                            'Enter name, contact, and notes in a guided form.',
-                        accent: RealtorOneBrand.accentIndigo,
-                        onTap: () => Navigator.pop(ctx, 'manual'),
-                        isDark: isDark,
-                      ),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: TextButton.styleFrom(
-                            foregroundColor: isDark
-                                ? Colors.white.withValues(alpha: 0.45)
-                                : const Color(0xFF64748B),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                            ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                          foregroundColor: isDark
+                              ? Colors.white38
+                              : Colors.black45,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
                       ),
@@ -1098,92 +1201,74 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     required VoidCallback onTap,
     required bool isDark,
   }) {
-    final titleColor =
-        isDark ? Colors.white : const Color(0xFF0F172A);
-    final subColor =
-        isDark ? Colors.white54 : const Color(0xFF64748B);
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subColor = isDark ? Colors.white54 : const Color(0xFF64748B);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        splashColor: accent.withValues(alpha: 0.12),
-        highlightColor: accent.withValues(alpha: 0.06),
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            color: accent.withValues(alpha: isDark ? 0.09 : 0.07),
-            border: Border.all(
-              color: accent.withValues(alpha: isDark ? 0.28 : 0.22),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          border: Border.all(
+            color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: accent.withValues(alpha: isDark ? 0.12 : 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [accent, Color.lerp(accent, Colors.black, 0.15)!],
-                    ),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.35),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          letterSpacing: -0.2,
-                          color: titleColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.3,
-                          fontWeight: FontWeight.w600,
-                          color: subColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: accent.withValues(alpha: 0.85),
-                  size: 26,
-                ),
-              ],
+              child: Icon(icon, color: accent, size: 28),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                      color: titleColor,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.3,
+                      fontWeight: FontWeight.w500,
+                      color: subColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: isDark ? Colors.white24 : const Color(0xFFCBD5E1),
+              size: 16,
+            ),
+          ],
         ),
       ),
     );
@@ -1303,123 +1388,198 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.35)
-                : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header row
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Header row
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.folder_open_rounded,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'The Deal Room',
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Compact hero tile
               Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  vertical: 32,
+                  horizontal: 24,
                 ),
-                child: const Icon(
-                  Icons.folder_open_rounded,
-                  color: Color(0xFF2563EB),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(28),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark
+                        ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                        : [const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)],
+                  ),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : const Color(0xFFBFDBFE),
+                    width: 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color:
+                            (isDark
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF2563EB))
+                                .withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.group_add_rounded,
+                        size: 42,
+                        color: isDark
+                            ? const Color(0xFF60A5FA)
+                            : const Color(0xFF1D4ED8),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Your Deal Room is empty',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                        color: isDark ? Colors.white : const Color(0xFF1E40AF),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Start organizing your real estate pipeline by adding your first lead.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: isDark
+                            ? Colors.white60
+                            : const Color(0xFF60A5FA).withOpacity(0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton.icon(
+                        onPressed: _startAddFirstClient,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF1D4ED8),
+                          foregroundColor: Colors.white,
+                          elevation: 8,
+                          shadowColor:
+                              (isDark
+                                      ? const Color(0xFF2563EB)
+                                      : const Color(0xFF1D4ED8))
+                                  .withOpacity(0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: const Icon(Icons.add_rounded, size: 24),
+                        label: const Text(
+                          'Add Your First Client',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Text(
-                'The Deal Room',
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
+              const SizedBox(height: 16),
+              Center(
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.shield_moon_rounded,
+                        size: 14,
+                        color: isDark
+                            ? Colors.white54
+                            : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Secure & Private CRM',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-
-          // Compact hero tile
-          Container(
-            height: 190,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF0F172A), Color(0xFF1E3A8A)],
-              ),
-            ),
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 18),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFACC15),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: const Text(
-                'THE DEAL ROOM',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.2,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _startAddFirstClient,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFACC15),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              label: const Text(
-                'Add First Client',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const _BottomMiniTab(
-            icon: Icons.group_rounded,
-            label: 'CLIENTS',
-            active: true,
-          ),
-        ],
-      ),
-    ).animate().fade(duration: 400.ms).slideY(begin: 0.05, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
+        )
+        .animate()
+        .fade(duration: 400.ms)
+        .slideY(
+          begin: 0.05,
+          end: 0,
+          duration: 400.ms,
+          curve: Curves.easeOutQuad,
+        );
   }
 
   Widget _clientsList() {
@@ -1447,141 +1607,150 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
         .toList();
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.06)
-              : const Color(0xFFE2E8F0),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.35)
-                : Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Text(
-                'YOUR CLIENTS',
-                style: TextStyle(
-                  color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  letterSpacing: 1.2,
-                ),
+          margin: const EdgeInsets.only(bottom: 18),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isDark
+                    ? Colors.black.withValues(alpha: 0.35)
+                    : Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
               ),
-              const Spacer(),
-              Tooltip(
-                message: 'Filter by CRM stage',
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _showCrmStagePicker,
-                    borderRadius: BorderRadius.circular(22),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.account_tree_rounded,
-                        size: 22,
-                        color: _selectedCrmStage != null
-                            ? const Color(0xFF667EEA)
-                            : (isDark
-                                ? Colors.white54
-                                : const Color(0xFF9CA3AF)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'YOUR CLIENTS',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const Spacer(),
+                  Tooltip(
+                    message: 'Filter by CRM stage',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showCrmStagePicker,
+                        borderRadius: BorderRadius.circular(22),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.account_tree_rounded,
+                            size: 22,
+                            color: _selectedCrmStage != null
+                                ? const Color(0xFF667EEA)
+                                : (isDark
+                                      ? Colors.white54
+                                      : const Color(0xFF9CA3AF)),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Tooltip(
-                message: 'Filter shortlist & sort',
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _showListOptionsSheet,
-                    borderRadius: BorderRadius.circular(22),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.filter_list_rounded,
-                        size: 22,
-                        color: (_listFilter != _DealRoomListFilter.all ||
-                                _sortByPriority)
-                            ? const Color(0xFF667EEA)
-                            : (isDark
-                                ? Colors.white54
-                                : const Color(0xFF9CA3AF)),
+                  Tooltip(
+                    message: 'Filter shortlist & sort',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: _showListOptionsSheet,
+                        borderRadius: BorderRadius.circular(22),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.filter_list_rounded,
+                            size: 22,
+                            color:
+                                (_listFilter != _DealRoomListFilter.all ||
+                                    _sortByPriority)
+                                ? const Color(0xFF667EEA)
+                                : (isDark
+                                      ? Colors.white54
+                                      : const Color(0xFF9CA3AF)),
+                          ),
+                        ),
                       ),
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_listFilter == _DealRoomListFilter.all ||
+                  _listFilter == _DealRoomListFilter.notAttemptedFour)
+                _groupSection(
+                  title: 'NOT ATTEMPTED 4 TIMES',
+                  subtitle: 'Clients with 4+ unanswered cold touch attempts',
+                  items: notAttemptedFourTimes,
+                  isDark: isDark,
+                ),
+              if (_listFilter == _DealRoomListFilter.all ||
+                  _listFilter == _DealRoomListFilter.nurture)
+                _groupSection(
+                  title: 'NURTURE LIST',
+                  subtitle: 'Stalled / retargeting / nurture-stage clients',
+                  items: nurtureClients,
+                  isDark: isDark,
+                ),
+              if (_listFilter == _DealRoomListFilter.all ||
+                  _listFilter == _DealRoomListFilter.other)
+                _groupSection(
+                  title: 'OTHER CLIENTS',
+                  subtitle: 'All remaining active clients in your pipeline',
+                  items: otherClients,
+                  isDark: isDark,
+                ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _startAddFirstClient,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF667EEA),
+                    side: BorderSide(
+                      color: const Color(0xFF667EEA).withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
+                    backgroundColor: const Color(
+                      0xFF667EEA,
+                    ).withValues(alpha: 0.05),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                  label: const Text(
+                    'Add New Prospect',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          if (_listFilter == _DealRoomListFilter.all ||
-              _listFilter == _DealRoomListFilter.notAttemptedFour)
-            _groupSection(
-              title: 'NOT ATTEMPTED 4 TIMES',
-              subtitle: 'Clients with 4+ unanswered cold touch attempts',
-              items: notAttemptedFourTimes,
-              isDark: isDark,
-            ),
-          if (_listFilter == _DealRoomListFilter.all ||
-              _listFilter == _DealRoomListFilter.nurture)
-            _groupSection(
-              title: 'NURTURE LIST',
-              subtitle: 'Stalled / retargeting / nurture-stage clients',
-              items: nurtureClients,
-              isDark: isDark,
-            ),
-          if (_listFilter == _DealRoomListFilter.all ||
-              _listFilter == _DealRoomListFilter.other)
-            _groupSection(
-              title: 'OTHER CLIENTS',
-              subtitle: 'All remaining active clients in your pipeline',
-              items: otherClients,
-              isDark: isDark,
-            ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 48,
-            child: OutlinedButton.icon(
-              onPressed: _startAddFirstClient,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF667EEA),
-                side: BorderSide(
-                  color: const Color(0xFF667EEA).withValues(alpha: 0.3),
-                  width: 1.5,
-                ),
-                backgroundColor: const Color(
-                  0xFF667EEA,
-                ).withValues(alpha: 0.05),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-              label: const Text(
-                'Add New Prospect',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fade(duration: 400.ms).slideY(begin: 0.05, end: 0, duration: 400.ms, curve: Curves.easeOutQuad);
+        )
+        .animate()
+        .fade(duration: 400.ms)
+        .slideY(
+          begin: 0.05,
+          end: 0,
+          duration: 400.ms,
+          curve: Curves.easeOutQuad,
+        );
   }
 
   Widget _clientTile(dynamic client, bool isDark) {
@@ -1630,9 +1799,7 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
       mainColor = _stageAccentColor(rawStage);
       mainLabel = DealRoomWidget.stageChipLabel(rawStage);
     }
-    final sourceData = _sourceChipData(
-      client is Map ? client['source'] : null,
-    );
+    final sourceData = _sourceChipData(client is Map ? client['source'] : null);
     final isNurture = _isNurtureClient(client);
     const nurtureChipColor = Color(0xFF059669);
 
@@ -1668,6 +1835,19 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
             await _load();
           });
         }
+      },
+      onLongPress: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                AddClientPage(client: client as Map<String, dynamic>),
+          ),
+        ).then((updated) {
+          if (updated == true) {
+            _load();
+          }
+        });
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

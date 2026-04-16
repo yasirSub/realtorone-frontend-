@@ -5,7 +5,8 @@ import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 
 class AddClientPage extends StatefulWidget {
-  const AddClientPage({super.key});
+  final Map<String, dynamic>? client;
+  const AddClientPage({super.key, this.client});
 
   @override
   State<AddClientPage> createState() => _AddClientPageState();
@@ -18,8 +19,27 @@ class _AddClientPageState extends State<AddClientPage> {
 
   String? _leadSource;
   String? _leadStage = 'cold calling';
-  String _priority = '2'; // 1 = Normal, 2 = High, 3 = Urgent
   bool _isSaving = false;
+  bool _isDeleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.client != null) {
+      _clientNameController.text = widget.client!['client_name'] ?? '';
+      _leadSource = widget.client!['source'];
+
+      final notesStr = widget.client!['notes'];
+      if (notesStr != null && notesStr is String) {
+        try {
+          final notes = jsonDecode(notesStr);
+          _phoneController.text = notes['phone'] ?? '';
+          _emailController.text = notes['email'] ?? '';
+          _leadStage = notes['lead_stage'] ?? 'cold calling';
+        } catch (_) {}
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -46,12 +66,6 @@ class _AddClientPageState extends State<AddClientPage> {
     'deal close',
   ];
 
-  static const _priorityLevels = <({String label, String value})>[
-    (label: 'Normal (1 - Nurture)', value: '1'),
-    (label: 'High (2 - Focus)', value: '2'),
-    (label: 'Urgent (3 - Hot)', value: '3'),
-  ];
-
   Future<void> _saveClient() async {
     final name = _clientNameController.text.trim();
     if (name.isEmpty) return;
@@ -66,19 +80,84 @@ class _AddClientPageState extends State<AddClientPage> {
             ? null
             : _emailController.text.trim(),
         'lead_stage': _leadStage,
-        'priority_level': int.tryParse(_priority),
       });
 
       final status = _leadStage == 'deal close' ? 'lost' : 'active';
 
-      final response = await ApiClient.post(
-        ApiEndpoints.clients,
-        {
+      final bool isEditing = widget.client != null;
+      final String url = isEditing
+          ? ApiEndpoints.client(widget.client!['id'])
+          : ApiEndpoints.clients;
+
+      final dynamic response;
+      if (isEditing) {
+        response = await ApiClient.patch(url, {
           'client_name': name,
           'source': _leadSource,
           'notes': notes,
           'status': status,
-        },
+        }, requiresAuth: true);
+      } else {
+        response = await ApiClient.post(url, {
+          'client_name': name,
+          'source': _leadSource,
+          'notes': notes,
+          'status': status,
+        }, requiresAuth: true);
+      }
+
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        Navigator.pop(context, true);
+      } else {
+        // Handle explicit 422 or validation messages from the server
+        String errorMsg = response['message'] ?? 'Failed to save client';
+        if (response['errors'] != null) {
+          // If the backend returns Laravel-style validation errors
+          final Map<String, dynamic> errors = response['errors'];
+          errorMsg = errors.values.first.toString();
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _deleteClient() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Client'),
+        content: const Text('Are you sure you want to delete this client?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      final response = await ApiClient.delete(
+        ApiEndpoints.client(widget.client!['id']),
         requiresAuth: true,
       );
 
@@ -89,13 +168,14 @@ class _AddClientPageState extends State<AddClientPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response['message'] ?? 'Failed to save client'),
+            content: Text(response['message'] ?? 'Failed to delete client'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } finally {
-      if (mounted) setState(() => _isSaving = false);
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
@@ -109,7 +189,15 @@ class _AddClientPageState extends State<AddClientPage> {
         backgroundColor: isDark ? const Color(0xFF0A0E21) : Colors.white,
         elevation: 0,
         foregroundColor: isDark ? Colors.white : Colors.black,
-        title: const Text('Add Client'),
+        title: Text(widget.client != null ? 'Edit Client' : 'Add Client'),
+        actions: widget.client != null
+            ? [
+                IconButton(
+                  onPressed: _isDeleting ? null : _deleteClient,
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                ),
+              ]
+            : null,
       ),
       body: SafeArea(
         child: ListView(
@@ -117,7 +205,10 @@ class _AddClientPageState extends State<AddClientPage> {
           children: [
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: isDark
                       ? Colors.white10
@@ -170,10 +261,8 @@ class _AddClientPageState extends State<AddClientPage> {
               isDark: isDark,
               items: _leadSources
                   .map(
-                    (s) => DropdownMenuItem(
-                      value: s.value,
-                      child: Text(s.label),
-                    ),
+                    (s) =>
+                        DropdownMenuItem(value: s.value, child: Text(s.label)),
                   )
                   .toList(),
               onChanged: (v) => setState(() => _leadSource = v),
@@ -186,34 +275,9 @@ class _AddClientPageState extends State<AddClientPage> {
               hintText: 'Select Stage',
               isDark: isDark,
               items: _leadStages
-                  .map(
-                    (s) => DropdownMenuItem(
-                      value: s,
-                      child: Text(s),
-                    ),
-                  )
+                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
               onChanged: (v) => setState(() => _leadStage = v),
-            ),
-            const SizedBox(height: 14),
-            _fieldLabel('Priority', isDark),
-            const SizedBox(height: 6),
-            _dropdown(
-              value: _priority,
-              hintText: 'Select Priority',
-              isDark: isDark,
-              items: _priorityLevels
-                  .map(
-                    (p) => DropdownMenuItem(
-                      value: p.value,
-                      child: Text(p.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                setState(() => _priority = v);
-              },
             ),
             const SizedBox(height: 26),
             SizedBox(
@@ -221,8 +285,9 @@ class _AddClientPageState extends State<AddClientPage> {
               child: ElevatedButton.icon(
                 onPressed: _isSaving ? null : _saveClient,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isDark ? const Color(0xFF2563EB) : const Color(0xFF1D4ED8),
+                  backgroundColor: isDark
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFF1D4ED8),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -282,8 +347,10 @@ class _AddClientPageState extends State<AddClientPage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 14,
+        ),
       ),
     );
   }
@@ -319,4 +386,3 @@ class _AddClientPageState extends State<AddClientPage> {
     );
   }
 }
-

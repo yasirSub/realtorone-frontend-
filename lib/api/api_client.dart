@@ -77,10 +77,17 @@ class ApiClient {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
       debugPrint('----------------------------------------------');
-      debugPrint('[API CONNECT] URL: ${ApiEndpoints.baseUrl}$endpoint');
+      debugPrint(
+        '[API CONNECT] URL: ${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+      );
       debugPrint('----------------------------------------------');
       final response = await http
-          .get(Uri.parse('${ApiEndpoints.baseUrl}$endpoint'), headers: headers)
+          .get(
+            Uri.parse(
+              '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+            ),
+            headers: headers,
+          )
           .timeout(const Duration(seconds: 30));
 
       final data = _handleResponse(response);
@@ -193,7 +200,9 @@ class ApiClient {
       debugPrint('----------------------------------------------');
       final response = await http
           .post(
-            Uri.parse('${ApiEndpoints.baseUrl}$endpoint'),
+            Uri.parse(
+              '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+            ),
             headers: headers,
             body: jsonEncode(data),
           )
@@ -213,7 +222,30 @@ class ApiClient {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
       final response = await http.put(
-        Uri.parse('${ApiEndpoints.baseUrl}$endpoint'),
+        Uri.parse(
+          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+        ),
+        headers: headers,
+        body: jsonEncode(data),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      return {'status': 'error', 'message': e.toString()};
+    }
+  }
+
+  // PATCH request
+  static Future<Map<String, dynamic>> patch(
+    String endpoint,
+    Map<String, dynamic> data, {
+    bool requiresAuth = false,
+  }) async {
+    try {
+      final headers = await _buildHeaders(includeAuth: requiresAuth);
+      final response = await http.patch(
+        Uri.parse(
+          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+        ),
         headers: headers,
         body: jsonEncode(data),
       );
@@ -231,7 +263,9 @@ class ApiClient {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
       final response = await http.delete(
-        Uri.parse('${ApiEndpoints.baseUrl}$endpoint'),
+        Uri.parse(
+          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
+        ),
         headers: headers,
       );
       return _handleResponse(response);
@@ -249,10 +283,7 @@ class ApiClient {
       if (data is Map<String, dynamic>) {
         return {...data, 'statusCode': response.statusCode};
       }
-      return {
-        'statusCode': response.statusCode,
-        'data': data,
-      };
+      return {'statusCode': response.statusCode, 'data': data};
     } catch (e) {
       return {
         'status': 'error',
