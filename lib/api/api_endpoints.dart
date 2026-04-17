@@ -77,6 +77,7 @@ class ApiEndpoints {
   static const String clientsStatus = '/clients/status';
   static const String clients = '/clients';
   static const String clientsImportExcel = '/clients/import-excel';
+  static String client(int id) => '/clients/$id';
   static String clientActions(int id) => '/clients/$id/actions';
   static String clientColdCallingTouch(int id) => '/clients/$id/cold-calling/touch';
   static const String clientsColdCallingToday = '/clients/cold-calling/today';

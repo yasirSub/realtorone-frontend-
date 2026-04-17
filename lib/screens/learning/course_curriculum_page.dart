@@ -5,6 +5,8 @@ import '../../widgets/elite_loader.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../routes/app_routes.dart';
 import '../../api/api_endpoints.dart';
+import '../../api/api_client.dart';
+
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -74,8 +76,8 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   void dispose() {
     _saveCurrentProgress(); // CRITICAL: Save on exit
     WakelockPlus.disable();
+    _chewieController?.dispose(); // Dispose Chewie first
     _videoPlayerController?.dispose();
-    _chewieController?.dispose();
     super.dispose();
   }
 
@@ -329,15 +331,26 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
             ),
             onPressed: () async {
               _saveCurrentProgress();
-              _videoPlayerController?.dispose();
-              _chewieController?.dispose();
-              _videoPlayerController = null;
-              _chewieController = null;
-              setState(() {
-                _playingMaterial = null;
-                _isPlayerInitialized = false;
+              
+              final oldVideo = _videoPlayerController;
+              final oldChewie = _chewieController;
+
+              if (mounted) {
+                setState(() {
+                  _playingMaterial = null;
+                  _isPlayerInitialized = false;
+                  _videoPlayerController = null;
+                  _chewieController = null;
+                });
+              }
+
+              // Wait for the UI to rebuild without the player before disposing
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                oldChewie?.dispose();
+                oldVideo?.dispose();
               });
-              // Reload course so lock state updates (e.g. next module unlocks after completing video)
+
+              // Reload course so lock state updates
               await _loadCourseDetails();
             },
           ),
@@ -976,6 +989,13 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         ? trimmedPath
         : '/$trimmedPath';
 
+    // PRIORITIZE STREAM ROUTE FOR ASSETS: If it contains 'course-assets', 
+    // force the authenticated stream route to handle range requests correctly.
+    if (normalizedPath.contains('course-assets/')) {
+      final filename = Uri.decodeComponent(normalizedPath.split('/').last);
+      return '$root/api/stream/${Uri.encodeComponent(filename)}';
+    }
+
     if (normalizedPath.startsWith('/api/stream/')) {
       return '$root$normalizedPath';
     }
@@ -984,12 +1004,12 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
       return '$root$normalizedPath';
     }
 
-    if (normalizedPath.contains('course-assets/')) {
-      final filename = normalizedPath.split('/').last;
-      return '$root/api/stream/$filename';
-    }
-
-    return '$root/storage${normalizedPath.startsWith('/storage/') ? '' : normalizedPath}';
+    final finalPath = normalizedPath.startsWith('/storage/')
+        ? normalizedPath
+        : '/storage$normalizedPath';
+    
+    // Ensure the final storage path is encoded correctly once
+    return '$root${Uri.encodeFull(Uri.decodeFull(finalPath))}';
   }
 
   /// For video materials without thumbnail_url, try derived URLs (e.g. same name with _thumb.jpg).
@@ -1156,7 +1176,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         }
       } else {
         final materialUrl = _resolveMaterialUrl(material.url!);
-        final uri = Uri.parse(Uri.encodeFull(materialUrl));
+        final uri = Uri.parse(materialUrl);
         if (await canLaunchUrl(uri)) {
           await launchUrl(uri, mode: LaunchMode.externalApplication);
         }
@@ -1188,8 +1208,10 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
 
   Future<void> _playVideo(MaterialItem material) async {
     WakelockPlus.enable();
-    _videoPlayerController?.dispose();
+    
+    // Dispose previous before starting new
     _chewieController?.dispose();
+    _videoPlayerController?.dispose();
 
     setState(() {
       _playingMaterial = material;
@@ -1204,10 +1226,17 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         _videoPlayerController = VideoPlayerController.file(File(localPath));
       } else {
         final videoUrl = _resolveMaterialUrl(material.url!);
-        final encodedUrl = Uri.encodeFull(videoUrl);
-        debugPrint('[Integrated Player] Target STREAM: $encodedUrl');
+        debugPrint('[Integrated Player] Target STREAM: $videoUrl');
+        
+        final token = await ApiClient.getToken();
+        final bool isStreamRoute = videoUrl.contains('/api/stream/');
+        
+        // Use headers only for the specialized internal stream route to avoid Nginx conflicts
         _videoPlayerController = VideoPlayerController.networkUrl(
-          Uri.parse(encodedUrl),
+          Uri.parse(videoUrl),
+          httpHeaders: (token != null && isStreamRoute) 
+              ? {'Authorization': 'Bearer $token'} 
+              : {},
         );
       }
       // Automatic progress tracking & completion
@@ -1260,10 +1289,10 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         ),
       );
 
-      setState(() => _isPlayerInitialized = true);
+      if (mounted) setState(() => _isPlayerInitialized = true);
     } catch (e) {
       debugPrint('[Integrated Player] Error: $e');
-      setState(() => _playerError = true);
+      if (mounted) setState(() => _playerError = true);
     }
   }
 
@@ -1322,10 +1351,15 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
       final String savePath = '${appDocDir.path}/$fileName';
       final dio = Dio();
 
+      final token = await ApiClient.getToken();
+
       int lastUpdate = 0;
       await dio.download(
-        Uri.encodeFull(downloadUrl),
+        downloadUrl,
         savePath,
+        options: Options(
+          headers: token != null ? {'Authorization': 'Bearer $token'} : {},
+        ),
         onReceiveProgress: (count, total) {
           if (total != -1) {
             final now = DateTime.now().millisecondsSinceEpoch;

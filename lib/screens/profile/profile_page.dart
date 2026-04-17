@@ -826,7 +826,11 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.mark_email_unread_rounded, color: Colors.white, size: 28),
+              const Icon(
+                Icons.mark_email_unread_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -834,11 +838,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   children: [
                     const Text(
                       'Verify Your Email',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     Text(
                       'Secure your account and enable password features.',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12),
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -850,16 +861,28 @@ class _ProfilePageState extends State<ProfilePage> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.forgotPassword);
+              onPressed: () async {
+                await Navigator.pushNamed(context, AppRoutes.forgotPassword);
+                if (mounted) {
+                  _loadUserData();
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: const Color(0xFF667eea),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
-              child: const Text('GET VERIFICATION CODE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, letterSpacing: 1)),
+              child: const Text(
+                'GET VERIFICATION CODE',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  letterSpacing: 1,
+                ),
+              ),
             ),
           ),
         ],

@@ -445,6 +445,7 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () => Navigator.pushNamed(
                             context,
                             AppRoutes.forgotPassword,
+                            arguments: _emailController.text.trim(),
                           ),
                           child: const Text(
                             'Forgot Password?',

@@ -3,6 +3,8 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/services.dart';
 import '../../api/learning_api.dart';
+import '../../api/api_client.dart';
+
 
 class VideoPlayerPage extends StatefulWidget {
   final String videoUrl;
@@ -34,7 +36,12 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   Future<void> _initializePlayer() async {
     try {
-      _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl));
+      final token = await ApiClient.getToken();
+      _videoPlayerController = VideoPlayerController.networkUrl(
+        Uri.parse(widget.videoUrl),
+        httpHeaders: token != null ? {'Authorization': 'Bearer $token'} : {},
+      );
+
       
       _videoPlayerController.addListener(() {
         if (_videoPlayerController.value.position >= _videoPlayerController.value.duration && 
@@ -70,10 +77,10 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
         ],
       );
       
-      setState(() {});
+      if (mounted) setState(() {});
     } catch (e) {
       debugPrint('Video initialization error: $e');
-      setState(() => _hasError = true);
+      if (mounted) setState(() => _hasError = true);
     }
   }
 
@@ -93,8 +100,8 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   @override
   void dispose() {
-    _videoPlayerController.dispose();
     _chewieController?.dispose();
+    _videoPlayerController.dispose();
     super.dispose();
   }
 

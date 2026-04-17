@@ -17,6 +17,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isSent = false;
+  bool _initializedValue = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initializedValue) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String && args.isNotEmpty) {
+        _emailController.text = args;
+      }
+      _initializedValue = true;
+    }
+  }
 
   @override
   void dispose() {
