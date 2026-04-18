@@ -22,15 +22,16 @@ class LearningApi {
 
   /// Get detailed course curriculum
   static Future<Map<String, dynamic>> getCourseDetails(int id) async {
-    return await ApiClient.get('${ApiEndpoints.courses}/$id', requiresAuth: true);
+    return await ApiClient.get(
+      '${ApiEndpoints.courses}/$id',
+      requiresAuth: true,
+    );
   }
 
   /// Get learning content, optionally filtered by category
   static Future<Map<String, dynamic>> getContent({String? category}) async {
     String endpoint = ApiEndpoints.learningContent;
-    if (category != null) {
-      endpoint += '?category=$category';
-    }
+    endpoint += category != null ? '?category=$category' : '';
     return await ApiClient.get(endpoint, requiresAuth: true);
   }
 
@@ -68,14 +69,10 @@ class LearningApi {
     required int progressPercent,
     bool isCompleted = false,
   }) async {
-    return await ApiClient.post(
-      ApiEndpoints.courseProgress(courseId),
-      {
-        'progress_percent': progressPercent,
-        'is_completed': isCompleted,
-      },
-      requiresAuth: true,
-    );
+    return await ApiClient.post(ApiEndpoints.courseProgress(courseId), {
+      'progress_percent': progressPercent,
+      'is_completed': isCompleted,
+    }, requiresAuth: true);
   }
 
   /// Get course exam (only after course is completed)
@@ -92,13 +89,9 @@ class LearningApi {
     required List<Map<String, dynamic>> answers,
     String? startedAt,
   }) async {
-    return await ApiClient.post(
-      ApiEndpoints.courseExamSubmit(courseId),
-      {
-        'answers': answers,
-        if (startedAt != null) 'started_at': startedAt,
-      },
-      requiresAuth: true,
-    );
+    return await ApiClient.post(ApiEndpoints.courseExamSubmit(courseId), {
+      'answers': answers,
+      if (startedAt != null) 'started_at': startedAt,
+    }, requiresAuth: true);
   }
 }

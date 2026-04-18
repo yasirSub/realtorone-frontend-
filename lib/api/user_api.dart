@@ -42,7 +42,9 @@ class UserApi {
     if (targetMonthlyIncome != null) {
       data['target_monthly_income'] = targetMonthlyIncome;
     }
-    if (onboardingStep != null) data['onboarding_step'] = onboardingStep;
+    if (onboardingStep != null) {
+      data['onboarding_step'] = onboardingStep;
+    }
     if (isProfileComplete != null)
       data['is_profile_complete'] = isProfileComplete;
 
@@ -83,7 +85,9 @@ class UserApi {
     };
     if (isProfileComplete != null)
       data['is_profile_complete'] = isProfileComplete;
-    if (onboardingStep != null) data['onboarding_step'] = onboardingStep;
+    if (onboardingStep != null) {
+      data['onboarding_step'] = onboardingStep;
+    }
     if (instagram != null) data['instagram'] = instagram;
     if (linkedin != null) data['linkedin'] = linkedin;
     if (yearsExperience != null) data['years_experience'] = yearsExperience;

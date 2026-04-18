@@ -34,7 +34,7 @@ class SubscriptionApi {
       'package_id': packageId,
       'months': months,
       'payment_id': paymentId,
-      if (couponId != null) 'coupon_id': couponId,
+      ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
 }
