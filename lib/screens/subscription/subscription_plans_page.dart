@@ -339,12 +339,16 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final baseMonthly =
         (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0);
 
-    // Match UI "savings" labels with real pricing sent to backend.
-    final durationDiscountFactor = _selectedMonths == 6
-        ? 0.9
-        : _selectedMonths == 12
-            ? 0.8
-            : 1.0;
+    // Read package-level discount percentages
+    double discountPercent = 0.0;
+    if (_selectedMonths == 3) {
+      discountPercent = (pkg['bundle_discount_3_month'] as num?)?.toDouble() ?? 10.0;
+    } else if (_selectedMonths == 6) {
+      discountPercent = (pkg['bundle_discount_6_month'] as num?)?.toDouble() ?? 20.0;
+    } else if (_selectedMonths == 12) {
+      discountPercent = (pkg['bundle_discount_12_month'] as num?)?.toDouble() ?? 30.0;
+    }
+    final durationDiscountFactor = 1.0 - (discountPercent / 100.0);
 
     double price = baseMonthly * _selectedMonths * durationDiscountFactor;
     if (_validatedCoupon != null) {
@@ -684,17 +688,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       child: Row(
         // Required by UI spec:
         // - 1 month
+        // - 3 months
         // - 6th monthly (6 months)
         // - 1 yearly (12 months)
-        children: [1, 6, 12].map((m) {
+        children: [1, 3, 6, 12].map((m) {
           final isSelected = _selectedMonths == m;
           final label = m == 1
               ? '1 Month'
-              : m == 6
-                  ? '6 Monthly'
-                  : '1 Yearly';
+              : m == 3
+                  ? '3 Months'
+                  : m == 6
+                      ? '6 Monthly'
+                      : '1 Yearly';
 
-          final savings = m == 6 ? '-10%' : m == 12 ? '-20%' : null;
+          final savings = m == 3 ? '-10%' : m == 6 ? '-20%' : m == 12 ? '-30%' : null;
           final glowColor = _getGlowForSelectedPackage();
 
           return Expanded(
@@ -1206,9 +1213,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final totalPrice = _calculatePrice(pkg);
     final durationText = _selectedMonths == 1
         ? '1 month'
-        : _selectedMonths == 6
-            ? '6th monthly'
-            : '1 yearly';
+        : _selectedMonths == 3
+            ? '3 months'
+            : _selectedMonths == 6
+                ? '6 months'
+                : '1 yearly';
 
     final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
     final selectedPkgId = (pkg['id'] as num?)?.toInt();
