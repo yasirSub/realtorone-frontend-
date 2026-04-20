@@ -517,7 +517,7 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildSocialBtn(
+                          /* _buildSocialBtn(
                             customIcon: Image.asset(
                               'assets/images/google_logo.png',
                               width: 24,
@@ -526,7 +526,7 @@ class _LoginPageState extends State<LoginPage> {
                             label: 'Google',
                             color: const Color(0xFF4285F4),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 16), */
                           _buildSocialBtn(
                             icon: Icons.apple_rounded,
                             label: 'Apple',

@@ -394,7 +394,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            _buildSocialBtn(
+                            /* _buildSocialBtn(
                               customIcon: Image.asset(
                                 'assets/images/google_logo.png',
                                 width: 24,
@@ -403,7 +403,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               label: 'Google',
                               color: const Color(0xFF4285F4),
                             ),
-                            const SizedBox(width: 16),
+                            const SizedBox(width: 16), */
                             _buildSocialBtn(
                               icon: Icons.apple_rounded,
                               label: 'Apple',
