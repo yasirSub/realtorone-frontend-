@@ -3,32 +3,34 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com</string>
+	<string>790178174861-th3jhft66ge5jro6c29aa05cfjhb3aqi.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu</string>
+	<string>com.googleusercontent.apps.790178174861-th3jhft66ge5jro6c29aa05cfjhb3aqi</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>790178174861-0n4a8e4j4e79n919pbvoe5mup64n2qu6.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg</string>
+	<string>AIzaSyA5u5m67g1Y2U0OQTz7n1mIdxgpPWiDsy0</string>
 	<key>GCM_SENDER_ID</key>
 	<string>790178174861</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.example.realtorone</string>
+	<string>com.realtorone.app</string>
 	<key>PROJECT_ID</key>
 	<string>realtor-one</string>
 	<key>STORAGE_BUCKET</key>
 	<string>realtor-one.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:790178174861:ios:000000000000000000000000</string>
+	<string>1:790178174861:ios:fd52983e364439237ccfc4</string>
 </dict>
 </plist>

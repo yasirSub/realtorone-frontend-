@@ -34,6 +34,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '790178174861',
     projectId: 'realtor-one',
     storageBucket: 'realtor-one.firebasestorage.app',
-    iosBundleId: 'com.example.realtorone',
+    iosBundleId: 'com.realtorone.app',
   );
 }
