@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/auth_api.dart';
 import '../../api/api_client.dart';
 import '../../services/push_notification_service.dart';
@@ -102,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  Future<void> _handleGoogleRegister() async {
+  Future<void> _handleGoogleLogin() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -185,6 +187,69 @@ class _RegisterPageState extends State<RegisterPage> {
       if (mounted) {
         setState(() {
           _errorMessage = 'Google signup failed. $e';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleAppleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final response = await AuthApi.loginWithApple(
+        identityToken: credential.identityToken!,
+        email: credential.email,
+        firstName: credential.givenName,
+        lastName: credential.familyName,
+        userIdentifier: credential.userIdentifier,
+      );
+
+      if (!mounted) return;
+      if (response['status'] == 'ok' && response['token'] != null) {
+        await ApiClient.setToken(response['token']);
+        await PushNotificationService.syncTokenWithBackend();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', response['user']['name'] ?? '');
+        await prefs.setString('user_email', response['user']['email'] ?? '');
+        await prefs.setBool('hasSeenOnboarding', true);
+        await ApiClient.clearCache();
+
+        final profile = await ApiClient.get('/user/profile', requiresAuth: true);
+        if (!mounted) return;
+        if (profile['success'] == true) {
+          final userData = profile['data'];
+          if (userData['is_profile_complete'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+          } else if (userData['has_completed_diagnosis'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.main);
+          }
+        } else {
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
+        }
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Apple signup failed.';
+        });
+      }
+    } catch (e) {
+      debugPrint('[APPLE SIGNUP] Exception: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Apple signup failed. Check your network or cancel.';
         });
       }
     } finally {
@@ -394,7 +459,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            /* _buildSocialBtn(
+                            _buildSocialBtn(
                               customIcon: Image.asset(
                                 'assets/images/google_logo.png',
                                 width: 24,
@@ -402,13 +467,17 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                               label: 'Google',
                               color: const Color(0xFF4285F4),
+                              onTap: _handleGoogleLogin,
                             ),
-                            const SizedBox(width: 16), */
-                            _buildSocialBtn(
-                              icon: Icons.apple_rounded,
-                              label: 'Apple',
-                              color: Colors.black,
-                            ),
+                            if (Platform.isIOS) ...[
+                              const SizedBox(width: 16),
+                              _buildSocialBtn(
+                                icon: Icons.apple_rounded,
+                                label: 'Apple',
+                                color: Colors.black,
+                                onTap: _handleAppleLogin,
+                              ),
+                            ],
                           ],
                         ).animate().fadeIn(delay: 1100.ms).slideY(begin: 0.2),
 
@@ -555,12 +624,11 @@ class _RegisterPageState extends State<RegisterPage> {
     Widget? customIcon,
     required String label,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    final isGoogle = label.toLowerCase() == 'google';
-    final isApple = label.toLowerCase() == 'apple';
-    final enabled = isGoogle && !_isLoading;
+    final enabled = onTap != null && !_isLoading;
     return Opacity(
-      opacity: enabled || isApple ? 1 : 0.5,
+      opacity: enabled ? 1 : 0.5,
       child: Container(
         height: 60,
         width: 130,
@@ -572,19 +640,7 @@ class _RegisterPageState extends State<RegisterPage> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: enabled
-                ? _handleGoogleRegister
-                : (isApple
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Apple signup will be enabled soon.',
-                              ),
-                            ),
-                          );
-                        }
-                      : null),
+            onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

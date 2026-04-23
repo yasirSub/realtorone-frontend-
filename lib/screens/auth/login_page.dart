@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/api_client.dart';
 import '../../api/auth_api.dart';
 import '../../services/push_notification_service.dart';
@@ -182,6 +184,69 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         setState(() {
           _errorMessage = 'Google login failed. $e';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleAppleLogin() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+
+      final response = await AuthApi.loginWithApple(
+        identityToken: credential.identityToken!,
+        email: credential.email,
+        firstName: credential.givenName,
+        lastName: credential.familyName,
+        userIdentifier: credential.userIdentifier,
+      );
+
+      if (!mounted) return;
+      if (response['status'] == 'ok' && response['token'] != null) {
+        await ApiClient.setToken(response['token']);
+        await PushNotificationService.syncTokenWithBackend();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', response['user']['name'] ?? '');
+        await prefs.setString('user_email', response['user']['email'] ?? '');
+        await prefs.setBool('hasSeenOnboarding', true);
+        await ApiClient.clearCache();
+
+        final profile = await ApiClient.get('/user/profile', requiresAuth: true);
+        if (!mounted) return;
+        if (profile['success'] == true) {
+          final userData = profile['data'];
+          if (userData['is_profile_complete'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+          } else if (userData['has_completed_diagnosis'] != true) {
+            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+          } else {
+            Navigator.pushReplacementNamed(context, AppRoutes.main);
+          }
+        } else {
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
+        }
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Apple login failed.';
+        });
+      }
+    } catch (e) {
+      debugPrint('[APPLE LOGIN] Exception: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Apple login failed. Check your network or cancel.';
         });
       }
     } finally {
@@ -517,7 +582,7 @@ class _LoginPageState extends State<LoginPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          /* _buildSocialBtn(
+                          _buildSocialBtn(
                             customIcon: Image.asset(
                               'assets/images/google_logo.png',
                               width: 24,
@@ -525,13 +590,17 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             label: 'Google',
                             color: const Color(0xFF4285F4),
+                            onTap: _handleGoogleLogin,
                           ),
-                          const SizedBox(width: 16), */
-                          _buildSocialBtn(
-                            icon: Icons.apple_rounded,
-                            label: 'Apple',
-                            color: Colors.black,
-                          ),
+                          if (Platform.isIOS) ...[
+                            const SizedBox(width: 16),
+                            _buildSocialBtn(
+                              icon: Icons.apple_rounded,
+                              label: 'Apple',
+                              color: Colors.black,
+                              onTap: _handleAppleLogin,
+                            ),
+                          ],
                         ],
                       ).animate().fadeIn(delay: 1100.ms).slideY(begin: 0.2),
 
@@ -694,9 +763,9 @@ class _LoginPageState extends State<LoginPage> {
     Widget? customIcon,
     required String label,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    final isGoogle = label.toLowerCase() == 'google';
-    final enabled = isGoogle && !_isLoading;
+    final enabled = onTap != null && !_isLoading;
     return Opacity(
       opacity: enabled ? 1 : 0.5,
       child: Container(
@@ -710,7 +779,7 @@ class _LoginPageState extends State<LoginPage> {
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: enabled ? _handleGoogleLogin : null,
+            onTap: enabled ? onTap : null,
             borderRadius: BorderRadius.circular(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,

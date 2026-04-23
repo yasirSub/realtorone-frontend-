@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const String liveApiBaseUrl = 'http://aanantbishthealing.com/api';
+  static const String liveApiBaseUrl = 'http://187.77.184.129/api';
 
   /// Production website origin for Privacy / Terms (HTTPS). Used in release for Play Console and in-app browser links.
-  static const String liveWebOrigin = 'https://aanantbishthealing.com';
+  static const String liveWebOrigin = 'http://187.77.184.129';
 
   static const String _legalPrivacyOverride = String.fromEnvironment(
     'LEGAL_PRIVACY_URL',
@@ -56,6 +56,10 @@ class AppConfig {
       return _dartDefineApiBase;
     }
 
+    // ALWAYS use live API for testing right now as requested.
+    return liveApiBaseUrl;
+
+    /*
     if (kReleaseMode) {
       return liveApiBaseUrl;
     }
@@ -72,6 +76,7 @@ class AppConfig {
       case TargetPlatform.fuchsia:
         return _loopbackApi;
     }
+    */
   }
 
   /// Site origin for `WebViewController.loadHtmlString` baseUrl (API base without trailing `/api`).

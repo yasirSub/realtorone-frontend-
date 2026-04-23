@@ -50,13 +50,23 @@ class PushNotificationService {
   static Future<bool> initializeApp() async {
     if (_firebaseReady) return true;
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      }
+    } catch (e) {
+      if (!e.toString().contains('duplicate-app')) {
+        debugPrint('Firebase.initializeApp failed: $e');
+        return false;
+      }
+    }
+    
+    try {
       await _refreshUnreadCount();
       await _loadSettings();
       _firebaseReady = true;
       return true;
     } catch (e, st) {
-      debugPrint('Firebase.initializeApp failed: $e\n$st');
+      debugPrint('PushNotification setup failed: $e\n$st');
       return false;
     }
   }
@@ -267,23 +277,51 @@ class PushNotificationService {
   }
 
   static Future<void> syncTokenWithBackend() async {
-    if (!_firebaseReady) return;
+    debugPrint('PushNotificationService: syncTokenWithBackend started');
+    if (!_firebaseReady) {
+      debugPrint('PushNotificationService: not ready, returning');
+      return;
+    }
 
     try {
       if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
-        await _messaging.requestPermission(alert: true, badge: true, sound: true);
+        debugPrint('PushNotificationService: requesting permission');
+        await _messaging.requestPermission(alert: true, badge: true, sound: true).timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => throw Exception('requestPermission timeout'),
+        );
       }
 
+      debugPrint('PushNotificationService: ensuring foreground listener');
       _ensureForegroundListener();
 
-      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      debugPrint('PushNotificationService: getting initial message');
+      final initial = await FirebaseMessaging.instance.getInitialMessage().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+           debugPrint('PushNotificationService: getInitialMessage timed out');
+           return null;
+        }
+      );
       if (initial != null) {
         await storeNotificationFromMessage(initial);
       }
 
-      final token = await _messaging.getToken();
-      if (token == null || token.isEmpty) return;
+      debugPrint('PushNotificationService: getting token');
+      // Add timeout to prevent hanging on iOS simulators without APNs config
+      final token = await _messaging.getToken().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint('PushNotificationService: getToken() timed out.');
+          return null;
+        },
+      );
+      if (token == null || token.isEmpty) {
+        debugPrint('PushNotificationService: token is null or empty');
+        return;
+      }
 
+      debugPrint('PushNotificationService: syncing token to backend');
       final platform = (!kIsWeb && Platform.isIOS) ? 'ios' : 'android';
       await ApiClient.post('/user/push-token', {'token': token, 'platform': platform}, requiresAuth: true);
 
@@ -293,6 +331,7 @@ class PushNotificationService {
           await ApiClient.post('/user/push-token', {'token': newToken, 'platform': platform}, requiresAuth: true);
         });
       }
+      debugPrint('PushNotificationService: syncTokenWithBackend done');
     } catch (e, st) {
       debugPrint('PushNotificationService.syncTokenWithBackend: $e\n$st');
     }

@@ -60,6 +60,7 @@ dependencies:
   package_info_plus: ^9.0.0
   app_links: ^6.3.2
   syncfusion_flutter_pdfviewer: ^33.1.47
+  sign_in_with_apple: ^7.0.1
 
 dev_dependencies:
   flutter_test:

@@ -50,10 +50,33 @@ class AuthApi {
       if (name != null && name.isNotEmpty) 'name': name,
       if (photoUrl != null && photoUrl.isNotEmpty) 'photo_url': photoUrl,
     });
+    
+    if (response['status'] == 'ok' && response['token'] != null) {
+      await ApiClient.setToken(response['token']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<String, dynamic>> loginWithApple({
+    required String identityToken,
+    String? email,
+    String? firstName,
+    String? lastName,
+    String? userIdentifier,
+  }) async {
+    final response = await ApiClient.post('/auth/apple/callback', {
+      'identity_token': identityToken,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (firstName != null && firstName.isNotEmpty) 'first_name': firstName,
+      if (lastName != null && lastName.isNotEmpty) 'last_name': lastName,
+      if (userIdentifier != null && userIdentifier.isNotEmpty) 'user_identifier': userIdentifier,
+    });
 
     if (response['status'] == 'ok' && response['token'] != null) {
       await ApiClient.setToken(response['token']);
     }
+
     return response;
   }
 

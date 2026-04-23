@@ -42,27 +42,24 @@ android {
 
     buildTypes {
         release {
-            if (!keystorePropertiesFile.exists()) {
-                throw GradleException(
-                    "Missing android/key.properties for release signing. " +
-                        "Create it with storeFile, storePassword, keyAlias, keyPassword."
-                )
-            }
+            if (keystorePropertiesFile.exists()) {
+                val localStoreFilePath = keystoreProperties["storeFile"] as String?
+                    ?: throw GradleException("key.properties missing 'storeFile'")
+                val localStorePassword = keystoreProperties["storePassword"] as String?
+                    ?: throw GradleException("key.properties missing 'storePassword'")
+                val localKeyAlias = keystoreProperties["keyAlias"] as String?
+                    ?: throw GradleException("key.properties missing 'keyAlias'")
+                val localKeyPassword = keystoreProperties["keyPassword"] as String?
+                    ?: throw GradleException("key.properties missing 'keyPassword'")
 
-            val storeFilePath = keystoreProperties["storeFile"] as String?
-                ?: throw GradleException("key.properties missing 'storeFile'")
-            val storePassword = keystoreProperties["storePassword"] as String?
-                ?: throw GradleException("key.properties missing 'storePassword'")
-            val keyAlias = keystoreProperties["keyAlias"] as String?
-                ?: throw GradleException("key.properties missing 'keyAlias'")
-            val keyPassword = keystoreProperties["keyPassword"] as String?
-                ?: throw GradleException("key.properties missing 'keyPassword'")
-
-            signingConfig = signingConfigs.create("release") {
-                storeFile = file(storeFilePath)
-                this.storePassword = storePassword
-                this.keyAlias = keyAlias
-                this.keyPassword = keyPassword
+                signingConfig = signingConfigs.create("release") {
+                    this.keyAlias = localKeyAlias
+                    this.keyPassword = localKeyPassword
+                    this.storeFile = file(localStoreFilePath)
+                    this.storePassword = localStorePassword
+                }
+            } else {
+                logger.warn("Missing android/key.properties. Release build will fail to sign.")
             }
         }
     }
