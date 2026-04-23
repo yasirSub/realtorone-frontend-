@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../realtorone-backend"
+		},
+		{
+			"path": "../../../realtorone-research"
+		},
+		{
+			"path": "../../../realtorone-website"
+		}
+	],
+	"settings": {}
+}
