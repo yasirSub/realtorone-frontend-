@@ -3,6 +3,8 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 
+import '../../api/api_client.dart';
+import '../../api/api_endpoints.dart';
 import '../../api/chat_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
@@ -480,43 +482,57 @@ class _RevenChatPageState extends State<RevenChatPage> {
   )
   _parseMessageContent(String content) {
     if (content.isEmpty) return ('', null, null, null);
+
+    String text = content;
+    List<Map<String, dynamic>>? courses;
+    List<Map<String, dynamic>>? commands;
+    List<Map<String, dynamic>>? clients;
+
     if (content.startsWith('{')) {
       try {
         final decoded = jsonDecode(content) as Map<String, dynamic>?;
         if (decoded != null) {
-          final text = decoded['text'] as String? ?? '';
-          final courses = decoded['courses'];
-          final commands = decoded['commands'];
-          final clients = decoded['clients'];
-          final coursesList = courses is List && courses.isNotEmpty
-              ? courses
-                    .map(
-                      (e) =>
-                          e is Map<String, dynamic> ? e : <String, dynamic>{},
-                    )
-                    .toList()
-              : null;
-          final commandsList = commands is List && commands.isNotEmpty
-              ? commands
-                    .map(
-                      (e) =>
-                          e is Map<String, dynamic> ? e : <String, dynamic>{},
-                    )
-                    .toList()
-              : null;
-          final clientsList = clients is List && clients.isNotEmpty
-              ? clients
-                    .map(
-                      (e) =>
-                          e is Map<String, dynamic> ? e : <String, dynamic>{},
-                    )
-                    .toList()
-              : null;
-          return (text, coursesList, commandsList, clientsList);
+          text = decoded['text'] as String? ?? '';
+          final c = decoded['courses'];
+          if (c is List && c.isNotEmpty) {
+            courses = c.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+          }
+          final cmd = decoded['commands'];
+          if (cmd is List && cmd.isNotEmpty) {
+            commands = cmd.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+          }
+          final cl = decoded['clients'];
+          if (cl is List && cl.isNotEmpty) {
+            clients = cl.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+          }
         }
       } catch (_) {}
     }
-    return (content, null, null, null);
+
+    // --- NEW: Parse bracketed commands from text [View X] ---
+    final List<Map<String, dynamic>> extracted = commands ?? [];
+    // More inclusive regex to capture common navigation requests
+    final reg = RegExp(r'\[View\s+(Dashboard|Profile|Tasks|Learning|Courses|Deal Room|Active Clients|Clients|Home|Settings)\]', caseSensitive: false);
+    final matches = reg.allMatches(text).toList();
+    
+    if (matches.isNotEmpty) {
+      for (final m in matches) {
+        final fullMatch = m.group(0)!;
+        final target = m.group(1)!.toLowerCase();
+        
+        // Prevent duplicates
+        if (!extracted.any((e) => e['label'] == fullMatch)) {
+          extracted.add({
+            'label': fullMatch,
+            'keyword': fullMatch,
+            'target': target.replaceAll(' ', '-'),
+          });
+        }
+      }
+      commands = extracted;
+    }
+
+    return (text, courses, commands, clients);
   }
 
   void _scrollToBottom() {
@@ -549,31 +565,37 @@ class _RevenChatPageState extends State<RevenChatPage> {
       _messages.removeLast();
       _isLoading = false;
       if (res['success'] == true) {
-        final courses = res['courses'] as List?;
-        final commands = res['commands'] as List?;
-        final clients = res['clients'] as List?;
+        List<Map<String, dynamic>>? courses = res['courses'] is List
+            ? (res['courses'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            : null;
+        List<Map<String, dynamic>>? commands = res['commands'] is List
+            ? (res['commands'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            : null;
+        List<Map<String, dynamic>>? clients = res['clients'] is List
+            ? (res['clients'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            : null;
+
         _messages.add(
           _RevenMessage(
             text: res['reply'] as String? ?? 'No response.',
             isUser: false,
-            courses: courses
-                ?.map(
-                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
-                )
-                .toList(),
-            commands: commands
-                ?.map(
-                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
-                )
-                .toList(),
-            clients: clients
-                ?.map(
-                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
-                )
-                .toList(),
+            courses: courses,
+            commands: commands,
+            clients: clients,
             createdAt: DateTime.now(),
           ),
         );
+
+        // --- Auto-fetch clients if promised but not sent ---
+        final lastMsg = _messages.last;
+        final replyLower = lastMsg.text.toLowerCase();
+        if ((lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
+            (replyLower.contains('client names') ||
+                replyLower.contains('show you your client') ||
+                replyLower.contains('your active clients'))) {
+          _autoFetchClientsForLastMessage();
+        }
+
         final sid = res['session_id'];
         if (sid != null) {
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
@@ -591,6 +613,34 @@ class _RevenChatPageState extends State<RevenChatPage> {
       }
     });
     _scrollToBottom();
+  }
+
+  Future<void> _autoFetchClientsForLastMessage() async {
+    try {
+      final res = await ApiClient.get(
+        '${ApiEndpoints.results}?type=hot_lead',
+        requiresAuth: true,
+      );
+      if (res['success'] == true && res['data'] is List && mounted) {
+        final list = (res['data'] as List)
+            .take(5)
+            .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+            .toList();
+        if (list.isNotEmpty) {
+          setState(() {
+            final old = _messages.last;
+            _messages[_messages.length - 1] = _RevenMessage(
+              text: old.text,
+              isUser: old.isUser,
+              courses: old.courses,
+              commands: old.commands,
+              clients: list,
+              createdAt: old.createdAt,
+            );
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _sendMessage() {
@@ -746,6 +796,21 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                     blurRadius: 6,
                                   ),
                                 ],
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Go to Profile',
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                Navigator.of(context).pushNamed(
+                                  AppRoutes.main,
+                                  arguments: const {'initialIndex': 3},
+                                );
+                              },
+                              icon: Icon(
+                                Icons.person_outline_rounded,
+                                color: subtitleColor,
+                                size: 20,
                               ),
                             ),
                             IconButton(
@@ -1194,14 +1259,24 @@ class _CommandChips extends StatelessWidget {
         final surfaceColor = isDark ? const Color(0xFF131E30) : Colors.white;
 
         void openTarget() {
+          // IMPORTANT: Close the chat dialog before navigating
+          Navigator.of(context).pop();
+
           switch (target) {
             case 'dashboard':
-            case 'tasks':
+            case 'home':
               Navigator.of(
                 context,
               ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 0});
               return;
+            case 'tasks':
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 1});
+              return;
             case 'courses':
+            case 'learning':
+            case 'learn':
               Navigator.of(
                 context,
               ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 2});
@@ -1210,12 +1285,15 @@ class _CommandChips extends StatelessWidget {
               Navigator.of(context).pushNamed(AppRoutes.badges);
               return;
             case 'profile':
+            case 'settings':
               Navigator.of(
                 context,
               ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 3});
               return;
             case 'deal-room':
             case 'client-list':
+            case 'clients':
+            case 'active-clients':
               Navigator.of(context).pushNamed(
                 AppRoutes.main,
                 arguments: const {
