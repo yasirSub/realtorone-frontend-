@@ -84,6 +84,12 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     });
     _tourSyncListener = _applyTourSyncFromNotifier;
     widget.tourSyncNotifier?.addListener(_tourSyncListener!);
+    
+    // NEW: Apply initial sync if already present (e.g. from direct navigation)
+    if (widget.tourSyncNotifier?.value != null) {
+      _applyTourSyncFromNotifier();
+    }
+
     _loadTasks();
     _loadActivities();
     _checkAndShowDailyCrmFilter();

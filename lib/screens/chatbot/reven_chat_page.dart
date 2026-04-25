@@ -586,14 +586,37 @@ class _RevenChatPageState extends State<RevenChatPage> {
           ),
         );
 
-        // --- Auto-fetch clients if promised but not sent ---
+        // --- Auto-fetch clients/courses if promised but not sent ---
         final lastMsg = _messages.last;
         final replyLower = lastMsg.text.toLowerCase();
-        if ((lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
+        
+        final needsClients = (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
             (replyLower.contains('client names') ||
                 replyLower.contains('show you your client') ||
-                replyLower.contains('your active clients'))) {
+                replyLower.contains('your active clients') ||
+                replyLower.contains('your clients'));
+
+        final needsCourses = (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
+            (replyLower.contains('available courses') ||
+                replyLower.contains('show you courses') ||
+                replyLower.contains('course list') ||
+                replyLower.contains('your courses'));
+
+        final needsRevenue = lastMsg.revenueSummary == null &&
+            (replyLower.contains('revenue') ||
+                replyLower.contains('commission') ||
+                replyLower.contains('how much') ||
+                replyLower.contains('earned') ||
+                replyLower.contains('income'));
+
+        if (needsClients) {
           _autoFetchClientsForLastMessage();
+        }
+        if (needsCourses) {
+          _autoFetchCoursesForLastMessage();
+        }
+        if (needsRevenue) {
+          _autoFetchRevenueForLastMessage();
         }
 
         final sid = res['session_id'];
@@ -628,17 +651,78 @@ class _RevenChatPageState extends State<RevenChatPage> {
             .toList();
         if (list.isNotEmpty) {
           setState(() {
-            final old = _messages.last;
-            _messages[_messages.length - 1] = _RevenMessage(
+            final idx = _messages.indexWhere((m) => !m.isUser && m.clients == null);
+            if (idx != -1) {
+              final old = _messages[idx];
+              _messages[idx] = _RevenMessage(
+                text: old.text,
+                isUser: old.isUser,
+                courses: old.courses,
+                commands: old.commands,
+                clients: list,
+                createdAt: old.createdAt,
+              );
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _autoFetchCoursesForLastMessage() async {
+    try {
+      final res = await ApiClient.get(
+        ApiEndpoints.courses,
+        requiresAuth: true,
+      );
+      if (res['success'] == true && res['data'] is List && mounted) {
+        final list = (res['data'] as List)
+            .take(3)
+            .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+            .toList();
+        if (list.isNotEmpty) {
+          setState(() {
+            final idx = _messages.indexWhere((m) => !m.isUser && m.courses == null);
+            if (idx != -1) {
+              final old = _messages[idx];
+              _messages[idx] = _RevenMessage(
+                text: old.text,
+                isUser: old.isUser,
+                courses: list,
+                commands: old.commands,
+                clients: old.clients,
+                createdAt: old.createdAt,
+              );
+            }
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _autoFetchRevenueForLastMessage() async {
+    try {
+      final res = await ApiClient.get(
+        ApiEndpoints.results,
+        requiresAuth: true,
+      );
+      if (res['success'] == true && res['summary'] != null && mounted) {
+        setState(() {
+          final idx =
+              _messages.indexWhere((m) => !m.isUser && m.revenueSummary == null);
+          if (idx != -1) {
+            final old = _messages[idx];
+            _messages[idx] = _RevenMessage(
               text: old.text,
               isUser: old.isUser,
               courses: old.courses,
               commands: old.commands,
-              clients: list,
+              clients: old.clients,
+              revenueSummary: res['summary'],
               createdAt: old.createdAt,
             );
-          });
-        }
+          }
+        });
       }
     } catch (_) {}
   }
@@ -796,21 +880,6 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                     blurRadius: 6,
                                   ),
                                 ],
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Go to Profile',
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                Navigator.of(context).pushNamed(
-                                  AppRoutes.main,
-                                  arguments: const {'initialIndex': 3},
-                                );
-                              },
-                              icon: Icon(
-                                Icons.person_outline_rounded,
-                                color: subtitleColor,
-                                size: 20,
                               ),
                             ),
                             IconButton(
@@ -1129,6 +1198,18 @@ class _ChatBubble extends StatelessWidget {
                       subtitleColor: subtitleColor,
                     ),
                   ],
+                  if (message.revenueSummary != null && !isUser) ...[
+                    if (message.text.isNotEmpty ||
+                        (message.courses != null &&
+                            message.courses!.isNotEmpty) ||
+                        (message.clients != null &&
+                            message.clients!.isNotEmpty))
+                      const SizedBox(height: 12),
+                    _RevenueSummary(
+                      summary: message.revenueSummary!,
+                      titleColor: titleColor,
+                    ),
+                  ],
                   if (message.commands != null &&
                       message.commands!.isNotEmpty &&
                       !isUser) ...[
@@ -1173,59 +1254,109 @@ class _CourseList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: courses.map((c) {
-        final title = (c['title'] as String?) ?? 'Course';
-        final desc = (c['description'] as String?)?.toString();
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF4F7CFF).withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFF4F7CFF).withValues(alpha: 0.2),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Available Courses',
+              style: TextStyle(
+                color: titleColor.withOpacity(0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            _ListNavigateButton(
+              context: context,
+              label: 'Open Hub',
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  AppRoutes.main,
+                  (route) => false,
+                  arguments: const {'initialIndex': 2},
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...courses.map((c) {
+          final title = (c['title'] as String?) ?? 'Course';
+          final desc = (c['description'] as String?)?.toString();
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4F7CFF).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFF4F7CFF).withValues(alpha: 0.2),
+              ),
+            ),
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).pushNamed(
+                  AppRoutes.courseCurriculum,
+                  arguments: {
+                    'courseId': c['id'],
+                    'courseTitle': title,
+                  },
+                );
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Row(
                 children: [
-                  Icon(
-                    Icons.menu_book_rounded,
-                    size: 16,
-                    color: const Color(0xFF4F7CFF),
-                  ),
-                  const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: titleColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.menu_book_rounded,
+                              size: 16,
+                              color: const Color(0xFF4F7CFF),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  color: titleColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (desc != null && desc.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            desc,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: titleColor.withValues(alpha: 0.75),
+                              fontSize: 12,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
+                  Icon(
+                    Icons.play_circle_outline_rounded,
+                    size: 20,
+                    color: const Color(0xFF667EEA).withValues(alpha: 0.6),
                   ),
                 ],
               ),
-              if (desc != null && desc.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  desc,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: titleColor.withValues(alpha: 0.75),
-                    fontSize: 12,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      }).toList(),
+            ),
+          );
+        }),
     );
   }
 }
@@ -1265,37 +1396,46 @@ class _CommandChips extends StatelessWidget {
           switch (target) {
             case 'dashboard':
             case 'home':
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 0});
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRoutes.main,
+                (route) => false,
+                arguments: const {'initialIndex': 0},
+              );
               return;
             case 'tasks':
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 1});
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRoutes.main,
+                (route) => false,
+                arguments: const {'initialIndex': 1},
+              );
               return;
             case 'courses':
             case 'learning':
             case 'learn':
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 2});
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRoutes.main,
+                (route) => false,
+                arguments: const {'initialIndex': 2},
+              );
               return;
             case 'badges':
               Navigator.of(context).pushNamed(AppRoutes.badges);
               return;
             case 'profile':
             case 'settings':
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 3});
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRoutes.main,
+                (route) => false,
+                arguments: const {'initialIndex': 3},
+              );
               return;
             case 'deal-room':
             case 'client-list':
             case 'clients':
             case 'active-clients':
-              Navigator.of(context).pushNamed(
+              Navigator.of(context).pushNamedAndRemoveUntil(
                 AppRoutes.main,
+                (route) => false,
                 arguments: const {
                   'initialIndex': 1,
                   'activitiesTabIndex': 1,
@@ -1469,6 +1609,7 @@ class _RevenMessage {
   final List<Map<String, dynamic>>? courses;
   final List<Map<String, dynamic>>? commands;
   final List<Map<String, dynamic>>? clients;
+  final Map<String, dynamic>? revenueSummary;
   final DateTime? createdAt;
 
   const _RevenMessage({
@@ -1478,6 +1619,7 @@ class _RevenMessage {
     this.courses,
     this.commands,
     this.clients,
+    this.revenueSummary,
     this.createdAt,
   });
 }
@@ -1497,59 +1639,325 @@ class _ClientList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: clients.map((c) {
-        final name = (c['client_name'] as String?) ?? 'Client';
-        final status = (c['status'] as String?) ?? '-';
-        final source = (c['source'] as String?) ?? '-';
-        final value = c['value']?.toString() ?? '-';
-        final date = (c['date'] as String?) ?? '';
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.badge_rounded,
-                    size: 16,
-                    color: const Color(0xFF0EA5E9),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: TextStyle(
-                        color: titleColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Your Active Clients',
+              style: TextStyle(
+                color: titleColor.withOpacity(0.7),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Status: $status · Source: $source · Value: $value${date.isNotEmpty ? ' · Date: $date' : ''}',
+            ),
+            _ListNavigateButton(
+              context: context,
+              label: 'View All',
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  AppRoutes.main,
+                  (route) => false,
+                  arguments: const {
+                    'initialIndex': 1,
+                    'activitiesTabIndex': 1,
+                    'revenueSubTab': 0,
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...clients.map((c) {
+          final name = (c['client_name'] as String?) ?? 'Client';
+          final status = (c['status'] as String?) ?? '-';
+          final source = (c['source'] as String?) ?? '-';
+          final value = c['value']?.toString() ?? '-';
+          final date = (c['date'] as String?) ?? '';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.badge_rounded,
+                            size: 16,
+                            color: const Color(0xFF0EA5E9),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: TextStyle(
+                                color: titleColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Status: $status · Source: $source · Value: $value${date.isNotEmpty ? ' · Date: $date' : ''}',
+                        style: TextStyle(
+                          color: subtitleColor,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: subtitleColor.withOpacity(0.3),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+// ── Shared navigation button for lists ────────────────────────────────────
+
+class _ListNavigateButton extends StatelessWidget {
+  const _ListNavigateButton({
+    required this.context,
+    required this.label,
+    required this.onTap,
+  });
+
+  final BuildContext context;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF667EEA).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF667EEA),
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.open_in_new_rounded,
+              size: 10,
+              color: Color(0xFF667EEA),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RevenueSummary extends StatelessWidget {
+  const _RevenueSummary({required this.summary, required this.titleColor});
+
+  final Map<String, dynamic> summary;
+  final Color titleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final commission = (summary['total_commission'] ?? 0).toStringAsFixed(0);
+    final deals = summary['deals_closed'] ?? 0;
+    final conversion = summary['conversion_rate'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'REVENUE PERFORMANCE',
                 style: TextStyle(
-                  color: subtitleColor,
-                  fontSize: 12,
-                  height: 1.35,
+                  color: Colors.white70,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              _ListNavigateButton(
+                context: context,
+                label: 'Tracker',
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushNamedAndRemoveUntil(
+                    AppRoutes.main,
+                    (route) => false,
+                    arguments: const {
+                      'initialIndex': 1,
+                      'activitiesTabIndex': 1,
+                      'revenueSubTab': 1, // REVENUE tab
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _SummaryStat(
+                  label: 'COMMISSION',
+                  value: '$commission AED',
+                  icon: Icons.payments_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SummaryStat(
+                  label: 'DEALS',
+                  value: '$deals',
+                  icon: Icons.handshake_rounded,
                 ),
               ),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 8),
+          _SummaryStat(
+            label: 'CONVERSION RATE',
+            value: '$conversion%',
+            icon: Icons.trending_up_rounded,
+            horizontal: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.horizontal = false,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    if (horizontal) {
+      return Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
