@@ -1357,6 +1357,7 @@ class _CourseList extends StatelessWidget {
             ),
           );
         }),
+      ],
     );
   }
 }
