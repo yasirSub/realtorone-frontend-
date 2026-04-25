@@ -40,11 +40,15 @@ class RouteConfig {
       AppRoutes.register: (context) => const RegisterPage(),
       AppRoutes.forgotPassword: (context) => const ForgotPasswordPage(),
       AppRoutes.verifyOtp: (context) {
-        final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+        final email =
+            ModalRoute.of(context)?.settings.arguments as String? ?? '';
         return OtpVerificationPage(email: email);
       },
       AppRoutes.resetPassword: (context) {
-        final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+        final args =
+            ModalRoute.of(context)?.settings.arguments
+                as Map<String, dynamic>? ??
+            {};
         return ResetPasswordPage(
           email: args['email'] as String?,
           token: args['token'] as String?,
@@ -54,7 +58,17 @@ class RouteConfig {
       AppRoutes.editProfile: (context) => const EditProfilePage(),
       AppRoutes.diagnosis: (context) => const DiagnosisQuestionsPage(),
       AppRoutes.diagnosisResult: (context) => const DiagnosisResultPage(),
-      AppRoutes.main: (context) => const MainNavigation(),
+      AppRoutes.main: (context) {
+        final args =
+            ModalRoute.of(context)?.settings.arguments
+                as Map<String, dynamic>? ??
+            const <String, dynamic>{};
+        return MainNavigation(
+          initialIndex: (args['initialIndex'] as int?) ?? 0,
+          activitiesTabIndex: args['activitiesTabIndex'] as int?,
+          revenueSubTab: args['revenueSubTab'] as int?,
+        );
+      },
       AppRoutes.beliefRewiring: (context) => const BeliefRewiringPage(),
       AppRoutes.reports: (context) => const ReportsPage(),
       AppRoutes.settings: (context) => const SettingsPage(),
@@ -67,15 +81,17 @@ class RouteConfig {
       AppRoutes.badges: (context) => const BadgesPage(),
       AppRoutes.revenChat: (context) => const RevenChatPage(),
       AppRoutes.maintenance: (context) {
-        final args = ModalRoute.of(context)?.settings.arguments
-            as Map<String, dynamic>? ?? <String, dynamic>{};
-        return MaintenancePage(
-          message: (args['message'] as String?) ?? '',
-        );
+        final args =
+            ModalRoute.of(context)?.settings.arguments
+                as Map<String, dynamic>? ??
+            <String, dynamic>{};
+        return MaintenancePage(message: (args['message'] as String?) ?? '');
       },
       AppRoutes.updateRequired: (context) {
-        final args = ModalRoute.of(context)?.settings.arguments
-            as Map<String, dynamic>? ?? <String, dynamic>{};
+        final args =
+            ModalRoute.of(context)?.settings.arguments
+                as Map<String, dynamic>? ??
+            <String, dynamic>{};
         return UpdateRequiredPage(
           minVersion: (args['minVersion'] as String?) ?? '',
           storeUrl: (args['storeUrl'] as String?) ?? '',

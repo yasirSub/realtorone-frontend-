@@ -25,7 +25,16 @@ class _TourStepConfig {
 }
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  const MainNavigation({
+    super.key,
+    this.initialIndex = 0,
+    this.activitiesTabIndex,
+    this.revenueSubTab,
+  });
+
+  final int initialIndex;
+  final int? activitiesTabIndex;
+  final int? revenueSubTab;
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -92,6 +101,7 @@ class _MainNavigationState extends State<MainNavigation> {
     super.initState();
     _activitiesTourSync = ValueNotifier<ActivitiesTourSync?>(null);
     _tourActive = ValueNotifier<bool>(false);
+    _currentIndex = widget.initialIndex;
     _pages = [
       const HomePage(),
       ActivitiesPage(
@@ -104,6 +114,12 @@ class _MainNavigationState extends State<MainNavigation> {
       const LearningPage(),
       const ProfilePage(),
     ];
+    if (_currentIndex == 1 && widget.activitiesTabIndex != null) {
+      _activitiesTourSync.value = ActivitiesTourSync(
+        tabIndex: widget.activitiesTabIndex!,
+        revenueSubTab: widget.revenueSubTab,
+      );
+    }
     _maybeShowTourGuide();
   }
 

@@ -29,7 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
   String? _errorMessage;
   static const String _googleWebClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
-    defaultValue: '',
+    defaultValue: '790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com',
   );
   late final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: _googleWebClientId.isEmpty ? null : _googleWebClientId,
@@ -469,7 +469,6 @@ class _RegisterPageState extends State<RegisterPage> {
                               color: const Color(0xFF4285F4),
                               onTap: _handleGoogleLogin,
                             ),
-                            if (Platform.isIOS) ...[
                               const SizedBox(width: 16),
                               _buildSocialBtn(
                                 icon: Icons.apple_rounded,
@@ -477,7 +476,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                 color: Colors.black,
                                 onTap: _handleAppleLogin,
                               ),
-                            ],
                           ],
                         ).animate().fadeIn(delay: 1100.ms).slideY(begin: 0.2),
 

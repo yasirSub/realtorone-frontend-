@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import '../../api/chat_api.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
 
@@ -118,6 +119,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
                       isUser: role == 'user',
                       courses: parsed.$2,
                       commands: parsed.$3,
+                      clients: parsed.$4,
                       createdAt: createdAt,
                     ),
                   );
@@ -244,6 +246,8 @@ class _RevenChatPageState extends State<RevenChatPage> {
                   text: parsed.$1,
                   isUser: role == 'user',
                   courses: parsed.$2,
+                  commands: parsed.$3,
+                  clients: parsed.$4,
                   createdAt: createdAt,
                 ),
               );
@@ -468,9 +472,14 @@ class _RevenChatPageState extends State<RevenChatPage> {
     super.dispose();
   }
 
-  static (String, List<Map<String, dynamic>>?, List<Map<String, dynamic>>?)
+  static (
+    String,
+    List<Map<String, dynamic>>?,
+    List<Map<String, dynamic>>?,
+    List<Map<String, dynamic>>?,
+  )
   _parseMessageContent(String content) {
-    if (content.isEmpty) return ('', null, null);
+    if (content.isEmpty) return ('', null, null, null);
     if (content.startsWith('{')) {
       try {
         final decoded = jsonDecode(content) as Map<String, dynamic>?;
@@ -478,6 +487,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
           final text = decoded['text'] as String? ?? '';
           final courses = decoded['courses'];
           final commands = decoded['commands'];
+          final clients = decoded['clients'];
           final coursesList = courses is List && courses.isNotEmpty
               ? courses
                     .map(
@@ -494,11 +504,19 @@ class _RevenChatPageState extends State<RevenChatPage> {
                     )
                     .toList()
               : null;
-          return (text, coursesList, commandsList);
+          final clientsList = clients is List && clients.isNotEmpty
+              ? clients
+                    .map(
+                      (e) =>
+                          e is Map<String, dynamic> ? e : <String, dynamic>{},
+                    )
+                    .toList()
+              : null;
+          return (text, coursesList, commandsList, clientsList);
         }
       } catch (_) {}
     }
-    return (content, null, null);
+    return (content, null, null, null);
   }
 
   void _scrollToBottom() {
@@ -533,20 +551,26 @@ class _RevenChatPageState extends State<RevenChatPage> {
       if (res['success'] == true) {
         final courses = res['courses'] as List?;
         final commands = res['commands'] as List?;
+        final clients = res['clients'] as List?;
         _messages.add(
           _RevenMessage(
             text: res['reply'] as String? ?? 'No response.',
             isUser: false,
-            courses: courses?.map(
-                        (e) =>
-                            e is Map<String, dynamic> ? e : <String, dynamic>{},
-                      )
-                      .toList(),
-            commands: commands?.map(
-                        (e) =>
-                            e is Map<String, dynamic> ? e : <String, dynamic>{},
-                      )
-                      .toList(),
+            courses: courses
+                ?.map(
+                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                )
+                .toList(),
+            commands: commands
+                ?.map(
+                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                )
+                .toList(),
+            clients: clients
+                ?.map(
+                  (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                )
+                .toList(),
             createdAt: DateTime.now(),
           ),
         );
@@ -1027,6 +1051,19 @@ class _ChatBubble extends StatelessWidget {
                       titleColor: titleColor,
                     ),
                   ],
+                  if (message.clients != null &&
+                      message.clients!.isNotEmpty &&
+                      !isUser) ...[
+                    if (message.text.isNotEmpty ||
+                        (message.courses != null &&
+                            message.courses!.isNotEmpty))
+                      const SizedBox(height: 12),
+                    _ClientList(
+                      clients: message.clients!,
+                      titleColor: titleColor,
+                      subtitleColor: subtitleColor,
+                    ),
+                  ],
                   if (message.commands != null &&
                       message.commands!.isNotEmpty &&
                       !isUser) ...[
@@ -1149,16 +1186,58 @@ class _CommandChips extends StatelessWidget {
       children: commands.map((c) {
         final keyword = (c['keyword'] as String?) ?? '';
         final label = (c['label'] as String?) ?? keyword;
+        final target = (c['target'] as String?) ?? '';
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final borderColor = isDark
             ? const Color(0xFF263148)
             : const Color(0xFFDDE5F0);
         final surfaceColor = isDark ? const Color(0xFF131E30) : Colors.white;
 
+        void openTarget() {
+          switch (target) {
+            case 'dashboard':
+            case 'tasks':
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 0});
+              return;
+            case 'courses':
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 2});
+              return;
+            case 'badges':
+              Navigator.of(context).pushNamed(AppRoutes.badges);
+              return;
+            case 'profile':
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.main, arguments: const {'initialIndex': 3});
+              return;
+            case 'deal-room':
+            case 'client-list':
+              Navigator.of(context).pushNamed(
+                AppRoutes.main,
+                arguments: const {
+                  'initialIndex': 1,
+                  'activitiesTabIndex': 1,
+                  'revenueSubTab': 0,
+                },
+              );
+              return;
+          }
+        }
+
         return GestureDetector(
-          onTap: onCommandTapped != null && keyword.isNotEmpty
-              ? () => onCommandTapped!(keyword)
-              : null,
+          onTap: () {
+            if (target.isNotEmpty) {
+              openTarget();
+              return;
+            }
+            if (onCommandTapped != null && keyword.isNotEmpty) {
+              onCommandTapped!(keyword);
+            }
+          },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -1311,6 +1390,7 @@ class _RevenMessage {
   final bool isLoading;
   final List<Map<String, dynamic>>? courses;
   final List<Map<String, dynamic>>? commands;
+  final List<Map<String, dynamic>>? clients;
   final DateTime? createdAt;
 
   const _RevenMessage({
@@ -1319,6 +1399,79 @@ class _RevenMessage {
     this.isLoading = false,
     this.courses,
     this.commands,
+    this.clients,
     this.createdAt,
   });
+}
+
+class _ClientList extends StatelessWidget {
+  const _ClientList({
+    required this.clients,
+    required this.titleColor,
+    required this.subtitleColor,
+  });
+
+  final List<Map<String, dynamic>> clients;
+  final Color titleColor;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: clients.map((c) {
+        final name = (c['client_name'] as String?) ?? 'Client';
+        final status = (c['status'] as String?) ?? '-';
+        final source = (c['source'] as String?) ?? '-';
+        final value = c['value']?.toString() ?? '-';
+        final date = (c['date'] as String?) ?? '';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.badge_rounded,
+                    size: 16,
+                    color: const Color(0xFF0EA5E9),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Status: $status · Source: $source · Value: $value${date.isNotEmpty ? ' · Date: $date' : ''}',
+                style: TextStyle(
+                  color: subtitleColor,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
 }
