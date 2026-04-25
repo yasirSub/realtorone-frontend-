@@ -255,8 +255,8 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  /// Spotlight mask + tooltip anchored above the bottom nav (see-through hole
-  /// on the active tab so it stays tappable like your reference).
+  /// Spotlight mask + tooltip anchored above the bottom nav.
+  /// Features a pulsing border and a refined glassmorphic card.
   Widget _buildTourSpotlightLayer() {
     final size = MediaQuery.sizeOf(context);
     final pad = MediaQuery.paddingOf(context);
@@ -269,387 +269,336 @@ class _MainNavigationState extends State<MainNavigation> {
         ? navBox.localToGlobal(Offset.zero).dy
         : size.height - 88;
     final double tooltipBottom = math.max(
-      pad.bottom + 8,
-      size.height - navTop + 12,
+      pad.bottom + 16,
+      size.height - navTop + 20,
     );
 
     final l10n = AppLocalizations.of(context)!;
-    final themeWrapper = Semantics(
-      label: l10n.tourSemantics(
-        _tourStep + 1,
-        _kTourStepConfigs.length,
-        _tourTitleForStep(_tourStep, l10n),
-      ),
-      child: Theme(
-        data: ThemeData(brightness: Brightness.dark, useMaterial3: false),
-        child: _buildTourCard(),
-      ),
-    );
 
-    final children = <Widget>[
-      if (hole == null)
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {},
-            child: ColoredBox(color: Colors.black.withValues(alpha: 0.5)),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Darkened overlay
+        if (hole == null)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () {},
+              child: ColoredBox(color: Colors.black.withOpacity(0.65)),
+            ),
+          )
+        else ...[
+          _dimRegion(left: 0, top: 0, width: size.width, height: hole.top),
+          _dimRegion(
+            left: 0,
+            top: hole.bottom,
+            width: size.width,
+            height: size.height - hole.bottom,
           ),
-        )
-      else ...[
-        _dimRegion(
-          left: 0,
-          top: 0,
-          width: size.width,
-          height: math.max(0, hole.top),
-        ),
-        _dimRegion(
-          left: 0,
-          top: hole.bottom,
-          width: size.width,
-          height: math.max(0, size.height - hole.bottom),
-        ),
-        _dimRegion(
-          left: 0,
-          top: hole.top,
-          width: math.max(0, hole.left),
-          height: hole.height,
-        ),
-        _dimRegion(
-          left: hole.right,
-          top: hole.top,
-          width: math.max(0, size.width - hole.right),
-          height: hole.height,
-        ),
-        Positioned(
-          left: hole.left,
-          top: hole.top,
-          width: hole.width,
-          height: hole.height,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: RealtorOneBrand.accentTeal, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: RealtorOneBrand.accentTeal.withValues(alpha: 0.45),
-                    blurRadius: 22,
-                    spreadRadius: 1,
+          _dimRegion(
+            left: 0,
+            top: hole.top,
+            width: hole.left,
+            height: hole.height,
+          ),
+          _dimRegion(
+            left: hole.right,
+            top: hole.top,
+            width: size.width - hole.right,
+            height: hole.height,
+          ),
+
+          // Pulsing Spotlight Border
+          Positioned(
+            left: hole.left,
+            top: hole.top,
+            width: hole.width,
+            height: hole.height,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: RealtorOneBrand.accentTeal.withOpacity(0.8),
+                    width: 2.5,
                   ),
-                ],
+                ),
+              )
+                  .animate(onPlay: (controller) => controller.repeat())
+                  .scale(
+                    begin: const Offset(1, 1),
+                    end: const Offset(1.05, 1.05),
+                    duration: 1200.ms,
+                    curve: Curves.easeInOut,
+                  )
+                  .fadeIn(duration: 1200.ms)
+                  .then()
+                  .scale(
+                    begin: const Offset(1.05, 1.05),
+                    end: const Offset(1, 1),
+                  )
+                  .fadeOut(),
+            ),
+          ),
+
+          // Static Highlight Border
+          Positioned(
+            left: hole.left,
+            top: hole.top,
+            width: hole.width,
+            height: hole.height,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: RealtorOneBrand.accentTeal,
+                    width: 3,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: RealtorOneBrand.accentTeal.withOpacity(0.4),
+                      blurRadius: 25,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+        ],
+
+        // Tour Card Positioning
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: (hole != null && hole.bottom > navTop - 100)
+              ? null
+              : tooltipBottom,
+          top: (hole != null && hole.bottom <= navTop - 100)
+              ? hole.bottom + 16
+              : null,
+          child: _buildTourCard()
+              .animate(key: ValueKey(_tourStep))
+              .fadeIn(duration: 400.ms)
+              .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
         ),
       ],
-      if (hole != null &&
-          (_tourStep == 1 || _tourStep == 2) &&
-          hole.bottom <= navTop - 32)
-        Positioned(
-          left: 16,
-          right: 16,
-          top: (hole.bottom + 14).clamp(
-            pad.top + 8.0,
-            math.max(pad.top + 48, navTop - 100),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: math.max(140, navTop - hole.bottom - 16),
-            ),
-            child: SingleChildScrollView(child: themeWrapper),
-          ),
-        )
-      else
-        Positioned(
-          left: 16,
-          right: 16,
-          bottom: tooltipBottom,
-          child: themeWrapper,
-        ),
-    ];
-
-    return Stack(fit: StackFit.expand, children: children);
+    );
   }
 
   Widget _buildTourCard() {
     final l10n = AppLocalizations.of(context)!;
     final isLast = _tourStep == _kTourStepConfigs.length - 1;
-    final step = _kTourStepConfigs[_tourStep];
-    final progress = (_tourStep + 1) / _kTourStepConfigs.length;
+    final stepConfig = _kTourStepConfigs[_tourStep];
     final title = _tourTitleForStep(_tourStep, l10n);
     final body = _tourBodyForStep(_tourStep, l10n);
 
-    Future<void> skipTour() => _completeTourFlow();
-
-    Future<void> advanceTour() async {
-      if (!isLast) {
-        _setTourStep(_tourStep + 1);
-        return;
-      }
-      await _completeTourFlow();
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xE6162E5C), Color(0xE60B1224)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 28,
-                offset: const Offset(0, 14),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.4),
+            blurRadius: 40,
+            offset: const Offset(0, 20),
           ),
-          padding: const EdgeInsets.fromLTRB(18, 16, 14, 14),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.tourQuickLabel,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.4),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 2.2,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: List.generate(_kTourStepConfigs.length, (
-                            i,
-                          ) {
-                            final done = i < _tourStep;
-                            final active = i == _tourStep;
-                            return Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 2,
-                                ),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 260),
-                                  curve: Curves.easeOutCubic,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(2),
-                                    gradient: (done || active)
-                                        ? RealtorOneBrand.splashGradient
-                                        : null,
-                                    color: (done || active)
-                                        ? null
-                                        : Colors.white.withValues(alpha: 0.12),
-                                    boxShadow: active
-                                        ? [
-                                            BoxShadow(
-                                              color: RealtorOneBrand.accentTeal
-                                                  .withValues(alpha: 0.45),
-                                              blurRadius: 8,
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: skipTour,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      foregroundColor: Colors.white60,
-                      padding: const EdgeInsets.all(10),
-                      minimumSize: const Size(40, 40),
-                    ),
-                    icon: const Icon(Icons.close_rounded, size: 22),
-                    tooltip: l10n.tourSkipTooltip,
-                  ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF1E293B).withOpacity(0.95),
+                  const Color(0xFF0F172A).withOpacity(0.98),
                 ],
               ),
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: RealtorOneBrand.splashGradient,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: RealtorOneBrand.accentTeal.withValues(
-                            alpha: 0.3,
-                          ),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Icon(step.icon, color: Colors.white, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.tourStepCounter(
-                            _tourStep + 1,
-                            _kTourStepConfigs.length,
-                          ),
-                          style: TextStyle(
-                            color: RealtorOneBrand.accentTeal,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 11,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            height: 1.18,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              border: Border.all(
+                color: Colors.white.withOpacity(0.12),
+                width: 1.5,
               ),
-              const SizedBox(height: 10),
-              Text(
-                body,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 13.5,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 5,
-                child: Stack(
-                  fit: StackFit.expand,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with Progress & Close
+                Row(
                   children: [
-                    DecoratedBox(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(99),
-                        color: Colors.white.withValues(alpha: 0.08),
+                        color: RealtorOneBrand.accentTeal.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: RealtorOneBrand.accentTeal.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        l10n.tourStepCounter(
+                          _tourStep + 1,
+                          _kTourStepConfigs.length,
+                        ).toUpperCase(),
+                        style: TextStyle(
+                          color: RealtorOneBrand.accentTeal,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.5,
+                        ),
                       ),
                     ),
-                    FractionallySizedBox(
-                      widthFactor: progress.clamp(0.0, 1.0),
-                      alignment: Alignment.centerLeft,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(99),
-                          gradient: RealtorOneBrand.splashGradient,
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _completeTourFlow,
+                      icon: const Icon(Icons.close_rounded),
+                      color: Colors.white.withOpacity(0.4),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.white.withOpacity(0.05),
+                        padding: const EdgeInsets.all(8),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Icon & Title
+                Row(
+                  children: [
+                    Container(
+                      height: 54,
+                      width: 54,
+                      decoration: BoxDecoration(
+                        gradient: RealtorOneBrand.splashGradient,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: RealtorOneBrand.accentTeal.withOpacity(0.3),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Icon(stepConfig.icon, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _tourStep > 0
-                    ? TextButton(
+                const SizedBox(height: 16),
+
+                // Description
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.85),
+                    fontSize: 15,
+                    height: 1.5,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Action Bar
+                Row(
+                  children: [
+                    if (_tourStep > 0)
+                      TextButton(
                         onPressed: () => _setTourStep(_tourStep - 1),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.white60,
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                         ),
                         child: Text(
                           l10n.tourBack,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      )
-                    : const SizedBox(height: 2),
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: advanceTour,
-                    child: Ink(
-                      decoration: BoxDecoration(
-                        gradient: RealtorOneBrand.splashGradient,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: RealtorOneBrand.accentIndigo.withValues(
-                              alpha: 0.38,
-                            ),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
                       ),
-                      child: Center(
-                        child: Text(
-                          isLast ? l10n.tourGetStarted : l10n.tourContinue,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                            fontSize: 12,
-                          ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: isLast ? _completeTourFlow : () => _setTourStep(_tourStep + 1),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 28,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: RealtorOneBrand.splashGradient,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: RealtorOneBrand.accentIndigo.withOpacity(0.4),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isLast ? l10n.tourGetStarted : l10n.tourContinue,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ),
-              TextButton(
-                onPressed: skipTour,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white38,
-                  visualDensity: VisualDensity.compact,
+                
+                // Progress Dots
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_kTourStepConfigs.length, (i) {
+                    final active = i == _tourStep;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: active ? 24 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: active
+                            ? RealtorOneBrand.accentTeal
+                            : Colors.white.withOpacity(0.15),
+                        gradient: active ? RealtorOneBrand.splashGradient : null,
+                      ),
+                    );
+                  }),
                 ),
-                child: Text(
-                  l10n.tourSkipEntire,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

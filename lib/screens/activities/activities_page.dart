@@ -313,13 +313,20 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         return Container(
           padding: EdgeInsets.fromLTRB(
             24,
+            12,
             24,
-            24,
-            MediaQuery.of(context).viewInsets.bottom + 24,
+            MediaQuery.of(context).viewInsets.bottom + 32,
           ),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF020617) : Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            color: isDark ? const Color(0xFF0F172A) : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 30,
+                offset: const Offset(0, -10),
+              ),
+            ],
           ),
           child: SafeArea(
             top: false,
@@ -329,56 +336,93 @@ class _ActivitiesPageState extends State<ActivitiesPage>
               children: [
                 Center(
                   child: Container(
-                    width: 40,
-                    height: 4,
+                    width: 48,
+                    height: 5,
                     decoration: BoxDecoration(
                       color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
-                      borderRadius: BorderRadius.circular(2),
+                      borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: RealtorOneBrand.accentIndigo.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.rocket_launch_rounded,
+                        color: RealtorOneBrand.accentIndigo,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'GUIDANCE SETUP',
+                            style: TextStyle(
+                              color: RealtorOneBrand.accentIndigo,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'What is your current situation?',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Text(
-                  'What is your current situation?',
+                  'Choose the path that best describes your business today. We will tailor your revenue actions accordingly.',
                   style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.2,
+                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
+                    fontSize: 14,
+                    height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'This helps us guide your next best revenue actions.',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 32),
                 _buildSituationOption(
                   label: 'I already have active clients',
                   subtitle: 'Focus on serving and expanding your client base.',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
+                  icon: Icons.people_alt_rounded,
+                  color: const Color(0xFF10B981),
+                  onTap: () => Navigator.of(context).pop(),
                   isDark: isDark,
+                  index: 0,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 _buildSituationOption(
                   label: 'I have some leads but no deals yet',
-                  subtitle:
-                      'Prioritize follow-ups and deal conversion actions.',
-                  onTap: () {
-                    Navigator.of(context).pop();
-                  },
+                  subtitle: 'Prioritize follow-ups and deal conversion actions.',
+                  icon: Icons.track_changes_rounded,
+                  color: const Color(0xFFF59E0B),
+                  onTap: () => Navigator.of(context).pop(),
                   isDark: isDark,
+                  index: 1,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 _buildSituationOption(
                   label: "I don't have any leads yet",
                   subtitle: 'Start with prospecting and learning foundations.',
+                  icon: Icons.auto_awesome_rounded,
+                  color: RealtorOneBrand.accentIndigo,
                   onTap: () {
                     Navigator.of(context).pop();
                     Navigator.of(context).push(
@@ -386,6 +430,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                     );
                   },
                   isDark: isDark,
+                  index: 2,
                   isPrimary: true,
                 ),
               ],
@@ -399,42 +444,41 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   Widget _buildSituationOption({
     required String label,
     required String subtitle,
+    required IconData icon,
+    required Color color,
     required VoidCallback onTap,
     required bool isDark,
+    required int index,
     bool isPrimary = false,
   }) {
-    final Color accent = isPrimary
-        ? const Color(0xFF667eea)
-        : const Color(0xFF0EA5E9);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(18),
+          color: isDark 
+              ? (isPrimary ? color.withOpacity(0.08) : const Color(0xFF1E293B).withOpacity(0.5))
+              : (isPrimary ? color.withOpacity(0.05) : const Color(0xFFF8FAFC)),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: accent.withValues(alpha: isPrimary ? 0.6 : 0.25),
-            width: isPrimary ? 1.6 : 1.1,
+            color: isPrimary 
+                ? color.withOpacity(0.4) 
+                : (isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0)),
+            width: isPrimary ? 2 : 1.5,
           ),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(
-                isPrimary ? Icons.bolt_rounded : Icons.check_circle_rounded,
-                size: 18,
-                color: accent,
-              ),
+              child: Icon(icon, size: 24, color: color),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,28 +487,36 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                     label,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 11,
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
+                      height: 1.3,
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.arrow_forward_ios_rounded, size: 14, color: accent),
+            Icon(
+              Icons.arrow_forward_ios_rounded, 
+              size: 16, 
+              color: isDark ? Colors.white24 : Colors.black12,
+            ),
           ],
         ),
       ),
-    );
+    )
+    .animate(delay: (index * 100).ms)
+    .fadeIn(duration: 400.ms)
+    .slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
   }
 
   @override
