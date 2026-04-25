@@ -575,9 +575,27 @@ class _RevenChatPageState extends State<RevenChatPage> {
             ? (res['clients'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
             : null;
 
+        // --- Parse bracketed commands from text if commands is empty ---
+        String replyText = res['reply'] as String? ?? '';
+        if (commands == null || commands.isEmpty) {
+          final regex = RegExp(r'\[(.*?)\]');
+          final matches = regex.allMatches(replyText);
+          if (matches.isNotEmpty) {
+            commands = matches.map((m) {
+              final label = m.group(1)!;
+              return {
+                'label': label,
+                'target': label.toLowerCase().replaceAll(' ', '-'),
+              };
+            }).toList();
+            // Optional: Remove the bracketed parts from the text to avoid duplication
+            replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
+          }
+        }
+
         _messages.add(
           _RevenMessage(
-            text: res['reply'] as String? ?? 'No response.',
+            text: replyText,
             isUser: false,
             courses: courses,
             commands: commands,
