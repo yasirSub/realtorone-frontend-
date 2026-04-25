@@ -609,21 +609,23 @@ class _RevenChatPageState extends State<RevenChatPage> {
         final replyLower = lastMsg.text.toLowerCase();
         
         final needsClients = (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
-            (replyLower.contains('client names') ||
-                replyLower.contains('show you your client') ||
-                replyLower.contains('your active clients') ||
+            (replyLower.contains('client') ||
+                replyLower.contains('lead') ||
+                replyLower.contains('deal room') ||
+                replyLower.contains('active clients') ||
                 replyLower.contains('your clients'));
 
         final needsCourses = (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
-            (replyLower.contains('available courses') ||
-                replyLower.contains('show you courses') ||
-                replyLower.contains('course list') ||
+            (replyLower.contains('course') ||
+                replyLower.contains('learn') ||
+                replyLower.contains('curriculum') ||
+                replyLower.contains('available courses') ||
                 replyLower.contains('your courses'));
 
         final needsRevenue = lastMsg.revenueSummary == null &&
             (replyLower.contains('revenue') ||
                 replyLower.contains('commission') ||
-                replyLower.contains('how much') ||
+                replyLower.contains('performance') ||
                 replyLower.contains('earned') ||
                 replyLower.contains('income'));
 
@@ -669,7 +671,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
             .toList();
         if (list.isNotEmpty) {
           setState(() {
-            final idx = _messages.indexWhere((m) => !m.isUser && m.clients == null);
+          final idx = _messages.lastIndexWhere((m) => !m.isUser && m.clients == null);
             if (idx != -1) {
               final old = _messages[idx];
               _messages[idx] = _RevenMessage(
@@ -700,7 +702,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
             .toList();
         if (list.isNotEmpty) {
           setState(() {
-            final idx = _messages.indexWhere((m) => !m.isUser && m.courses == null);
+          final idx = _messages.lastIndexWhere((m) => !m.isUser && m.courses == null);
             if (idx != -1) {
               final old = _messages[idx];
               _messages[idx] = _RevenMessage(
@@ -727,7 +729,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
       if (res['success'] == true && res['summary'] != null && mounted) {
         setState(() {
           final idx =
-              _messages.indexWhere((m) => !m.isUser && m.revenueSummary == null);
+              _messages.lastIndexWhere((m) => !m.isUser && m.revenueSummary == null);
           if (idx != -1) {
             final old = _messages[idx];
             _messages[idx] = _RevenMessage(
