@@ -45,8 +45,9 @@ class UserApi {
     if (onboardingStep != null) {
       data['onboarding_step'] = onboardingStep;
     }
-    if (isProfileComplete != null)
+    if (isProfileComplete != null) {
       data['is_profile_complete'] = isProfileComplete;
+    }
 
     final result = await ApiClient.put(
       ApiEndpoints.updateProfile,
@@ -83,8 +84,9 @@ class UserApi {
       'city': city,
       'brokerage': brokerage,
     };
-    if (isProfileComplete != null)
+    if (isProfileComplete != null) {
       data['is_profile_complete'] = isProfileComplete;
+    }
     if (onboardingStep != null) {
       data['onboarding_step'] = onboardingStep;
     }

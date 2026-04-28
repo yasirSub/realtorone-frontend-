@@ -91,7 +91,7 @@ class LearningApi {
   }) async {
     return await ApiClient.post(ApiEndpoints.courseExamSubmit(courseId), {
       'answers': answers,
-      if (startedAt != null) 'started_at': startedAt,
+      'started_at': ?startedAt,
     }, requiresAuth: true);
   }
 }

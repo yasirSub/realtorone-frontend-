@@ -44,6 +44,11 @@
 	<true/>
 	<key>GIDClientID</key>
 	<string>790178174861-th3jhft66ge5jro6c29aa05cfjhb3aqi.apps.googleusercontent.com</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationQueriesSchemes</key>
@@ -66,6 +71,8 @@
 	<string>Allow saving images you export from RealtorOne to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo Library access is required to update your Profile Picture.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized services and analytics to improve your app experience.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

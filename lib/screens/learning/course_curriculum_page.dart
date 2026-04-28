@@ -158,8 +158,9 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   }
 
   Widget _buildAppBar() {
-    if (_playingMaterial != null)
+    if (_playingMaterial != null) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     return SliverAppBar(
       expandedHeight: 220,
@@ -220,7 +221,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
               Image.network(
                 _fullThumbnailUrl(_course!.thumbnailUrl!) ?? '',
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
               ),
             // Soft overlay so title stays readable
             Container(
@@ -579,7 +580,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         delegate: SliverChildListDelegate([
           ...modules.asMap().entries.map((entry) {
             return _buildModuleItem(entry.value, entry.key);
-          }).toList(),
+          }),
         ]),
       ),
     );
@@ -602,7 +603,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Complete all videos in Module ${index} to unlock.',
+                    'Complete all videos in Module $index to unlock.',
                   ),
                   backgroundColor: const Color(0xFF6366F1),
                   behavior: SnackBarBehavior.floating,
@@ -737,7 +738,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         if (isExpanded && !isLocked)
           ...module.lessons
               .map((lesson) => _buildLessonItem(lesson, index))
-              .toList(),
+              ,
         const SizedBox(height: 16),
       ],
     ).animate().fadeIn(delay: (index * 100).ms).slideY(begin: 0.05);
@@ -1031,7 +1032,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
       if (filename.isNotEmpty) {
         if (url.contains('course-assets/')) {
           candidates.add('course-assets/${filename}_thumb.jpg');
-          candidates.add('course-assets/${filename}.jpg');
+          candidates.add('course-assets/$filename.jpg');
           candidates.add('course-assets/thumbnails/$filename.jpg');
         }
       }
@@ -1269,7 +1270,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
           placeholder = Image.network(
             thumbUrl,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(color: Colors.black),
+            errorBuilder: (_, _, _) => Container(color: Colors.black),
           );
         }
       }
@@ -1504,7 +1505,7 @@ class _TryThumbnailUrlsState extends State<_TryThumbnailUrls> {
           width: 56,
           height: 56,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
+          errorBuilder: (_, _, _) {
             if (_index + 1 < widget.urls.length && mounted) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) setState(() => _index++);

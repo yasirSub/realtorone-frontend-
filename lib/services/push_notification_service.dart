@@ -13,7 +13,13 @@ import '../firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Background isolates have their own Dart context, so Firebase.apps may be
+  // empty even if the main isolate already initialized. Guard to prevent
+  // "invalid reuse after initialization failure" on re-entrant calls.
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+  }
   await PushNotificationService.storeNotificationFromMessage(message);
   debugPrint('Background message: ${message.messageId}');
 }
@@ -39,6 +45,11 @@ class PushNotificationService {
   static const String _storeKey = 'notification_history_v1';
 
   static bool _firebaseReady = false;
+  // Tracks whether initializeApp() was ever called, regardless of success.
+  // This prevents "invalid reuse after initialization failure" — Firebase
+  // throws that error if initializeApp() is called a second time on an app
+  // instance that previously failed to initialize.
+  static bool _initAttempted = false;
   static GlobalKey<NavigatorState>? _navigatorKey;
   static bool _foregroundListening = false;
   static bool _tokenRefreshListening = false;
@@ -49,17 +60,27 @@ class PushNotificationService {
 
   static Future<bool> initializeApp() async {
     if (_firebaseReady) return true;
-    try {
-      if (Firebase.apps.isEmpty) {
-        await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // If we already attempted (and possibly failed) do not call initializeApp
+    // again — Firebase will throw "invalid reuse after initialization failure".
+    if (!_initAttempted) {
+      _initAttempted = true;
+      try {
+        if (Firebase.apps.isEmpty) {
+          await Firebase.initializeApp(
+              options: DefaultFirebaseOptions.currentPlatform);
+        }
+      } catch (e) {
+        if (!e.toString().contains('duplicate-app')) {
+          debugPrint('Firebase.initializeApp failed: $e');
+          return false;
+        }
       }
-    } catch (e) {
-      if (!e.toString().contains('duplicate-app')) {
-        debugPrint('Firebase.initializeApp failed: $e');
-        return false;
-      }
+    } else if (Firebase.apps.isEmpty) {
+      // A prior attempt failed and left no app — bail out.
+      debugPrint('Firebase.initializeApp skipped: prior attempt failed.');
+      return false;
     }
-    
+
     try {
       await _refreshUnreadCount();
       await _loadSettings();

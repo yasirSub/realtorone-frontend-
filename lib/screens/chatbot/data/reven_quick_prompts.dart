@@ -3,6 +3,7 @@
 /// real AI / knowledge-base integration is wired in.
 ///
 /// To add a new category or prompt, simply append to [revenPromptCategories].
+library;
 
 class RevenQuickPrompt {
   final String emoji;

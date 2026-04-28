@@ -1,5 +1,5 @@
 name: realtorone
-description: "A new Flutter project."
+description: "RealtorOne CRM and learning platform for real estate professionals."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -61,6 +61,7 @@ dependencies:
   app_links: ^6.3.2
   syncfusion_flutter_pdfviewer: ^33.1.47
   sign_in_with_apple: ^7.0.1
+  in_app_purchase: ^3.2.3
 
 dev_dependencies:
   flutter_test:

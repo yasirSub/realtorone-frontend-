@@ -555,7 +555,7 @@ class _RevenueTrackerWidgetState extends State<RevenueTrackerWidget> {
       if (notes is String && notes.isNotEmpty) {
         map = jsonDecode(notes) as Map<String, dynamic>?;
       } else if (notes is Map) {
-        map = Map<String, dynamic>.from(notes as Map);
+        map = Map<String, dynamic>.from(notes);
       }
       final stage = map?['lead_stage']?.toString().trim();
       if (stage != null && stage.isNotEmpty) {

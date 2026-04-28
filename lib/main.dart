@@ -9,6 +9,7 @@ import 'routes/route_config.dart';
 import 'api/api_client.dart';
 import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/iap_service.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -21,6 +22,7 @@ Future<void> main() async {
   }
   PushNotificationService.attachNavigatorKey(appNavigatorKey);
   await DeepLinkService.initialize(appNavigatorKey);
+  IapService().initialize();
   runApp(
     MultiProvider(
       providers: [

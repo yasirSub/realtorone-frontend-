@@ -26,8 +26,21 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
+# Force PromisesObjC to be static to fix dSYM and Simulator slice issues
+pre_install do |installer|
+  installer.pod_targets.each do |pod_target|
+    if pod_target.name == 'PromisesObjC'
+      pod_target.instance_variable_set(:@build_type, Pod::BuildType.static_library)
+      def pod_target.build_type; Pod::BuildType.static_library; end
+    end
+  end
+end
+
 target 'Runner' do
   use_frameworks! :linkage => :static
+  
+  # Force PromisesObjC to use modular headers to fix symbol mapping
+  pod 'PromisesObjC', :modular_headers => true
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -36,28 +49,77 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
+  # 1. Update each pod target
+  installer.pods_project.targets.each do |pod_target|
+    flutter_additional_ios_build_settings(pod_target)
 
-    target.build_configurations.each do |config|
+    pod_target.build_configurations.each do |config|
+      # Suppress Xcode "Update to recommended settings"
+      config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+
+      # Enforce minimum iOS deployment target (13.0 for Swift concurrency)
+      min_ios = '13.0'
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if current.nil? || current.to_f < min_ios.to_f
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios
+      end
+
+      # 'Nuclear' symbol preservation strategy for archiving
+      config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'YES'
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+      config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+      config.build_settings['ENABLE_BITCODE'] = 'NO'
+
+      # Architecture Fixes
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphoneos*]'] = ''
+
+      # ── Level 2 Nuclear Fix for PromisesObjC ──
+      if pod_target.name == 'PromisesObjC'
+        config.build_settings['MACH_O_TYPE'] = 'staticlib'
+        config.build_settings['SKIP_INSTALL'] = 'YES'
+      end
+
+      # Permission definitions
       raw = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS']
-      defs =
-        if raw.nil?
-          ['$(inherited)']
-        elsif raw.is_a?(String)
-          ['$(inherited)', raw]
-        else
-          raw.dup.tap { |d| d.unshift('$(inherited)') unless d.include?('$(inherited)') }
-        end
-      %w[
-        PERMISSION_CAMERA=1
-        PERMISSION_MICROPHONE=1
-        PERMISSION_PHOTOS=1
-        PERMISSION_NOTIFICATIONS=1
-      ].each do |macro|
+      defs = raw.nil? ? ['$(inherited)'] : (raw.is_a?(String) ? ['$(inherited)', raw] : raw.dup)
+      defs << '$(inherited)' unless defs.include?('$(inherited)')
+      %w[PERMISSION_CAMERA=1 PERMISSION_MICROPHONE=1 PERMISSION_PHOTOS=1 PERMISSION_NOTIFICATIONS=1].each do |macro|
         defs << macro unless defs.include?(macro)
       end
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
     end
+  end
+
+  # 2. Update Pods project level settings
+  installer.pods_project.build_configurations.each do |config|
+    config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+    config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'YES'
+    config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+    config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+    config.build_settings['COPY_PHASE_STRIP'] = 'NO'
+  end
+
+  # 3. Final Safety Net: Forcefully remove objective_c.framework from the bundle
+  installer.aggregate_targets.each do |agg_target|
+    agg_target.user_project.targets.each do |user_project_target|
+      if user_project_target.name == 'Runner'
+        phase = user_project_target.shell_script_build_phases.find { |p| p.name == 'Fix Firebase Frameworks' }
+        if phase.nil?
+          phase = user_project_target.new_shell_script_build_phase('Fix Firebase Frameworks')
+          phase.shell_script = <<~SH
+            FRAMEWORK_PATH="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework"
+            if [ -d "$FRAMEWORK_PATH" ]; then
+                echo "Removing problematic framework: $FRAMEWORK_PATH"
+                rm -rf "$FRAMEWORK_PATH"
+            fi
+          SH
+          phase.show_env_vars_in_log = '0'
+        end
+      end
+    end
+    agg_target.user_project.save
   end
 end

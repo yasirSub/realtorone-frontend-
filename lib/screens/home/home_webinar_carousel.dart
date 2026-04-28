@@ -120,7 +120,7 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             itemCount: _webinars.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            separatorBuilder: (_, _) => const SizedBox(width: 16),
             itemBuilder: (context, index) {
               final w = _webinars[index];
               return _WebinarCard(
@@ -197,7 +197,7 @@ class _WebinarCard extends StatelessWidget {
                     fit: BoxFit.cover,
                     color: Colors.black.withValues(alpha: 0.55),
                     colorBlendMode: BlendMode.darken,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ),

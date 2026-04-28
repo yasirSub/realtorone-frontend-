@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
+import '../../services/iap_service.dart';
 import '../../widgets/elite_loader.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -161,6 +162,25 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   Future<void> _purchasePackage() async {
     if (_selectedPackageId == null) return;
+
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      setState(() => _isPurchasing = true);
+      IapService().onPurchaseResult = (success, message) {
+        if (mounted) {
+          setState(() => _isPurchasing = false);
+          if (success) {
+            _showSuccessDialog();
+            _loadData();
+          } else if (message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), backgroundColor: Colors.red),
+            );
+          }
+        }
+      };
+      await IapService().buyPackage(_selectedPackageId!, _selectedMonths);
+      return;
+    }
 
     setState(() => _isPurchasing = true);
 

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:flutter/services.dart';
 
 class PdfViewerPage extends StatefulWidget {
   final String title;
