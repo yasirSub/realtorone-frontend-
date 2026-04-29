@@ -239,31 +239,7 @@ class _CourseExamPageState extends State<CourseExamPage> {
                 color: Color(0xFF1E293B),
               ),
             ),
-            if (passed) ...[
-              const SizedBox(height: 24),
-              OutlinedButton.icon(
-                onPressed: () {
-                  // Certificate download will be added soon
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Certificate download coming soon.'),
-                      backgroundColor: Color(0xFF10B981),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.download_rounded, size: 20),
-                label: const Text('Download certificate'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF10B981),
-                  side: const BorderSide(color: Color(0xFF10B981)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
+
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () => Navigator.pop(context),

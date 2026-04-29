@@ -163,7 +163,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Future<void> _purchasePackage() async {
     if (_selectedPackageId == null) return;
 
-    if (Theme.of(context).platform == TargetPlatform.iOS) {
+    // Use native In-App Purchases for both iOS and Android
+    // This is a "real" payment method and complies with App Store / Google Play guidelines.
+    final isMobile = Theme.of(context).platform == TargetPlatform.iOS || 
+                     Theme.of(context).platform == TargetPlatform.android;
+    
+    if (isMobile) {
       setState(() => _isPurchasing = true);
       IapService().onPurchaseResult = (success, message) {
         if (mounted) {
@@ -172,8 +177,16 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             _showSuccessDialog();
             _loadData();
           } else if (message != null) {
+            // Check if user cancelled to avoid showing annoying errors
+            if (message.contains('cancelled') || message.contains('Canceled')) {
+               return;
+            }
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(message), 
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+              ),
             );
           }
         }
@@ -405,6 +418,29 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   ),
                   onPressed: () => Navigator.pop(context),
                 ),
+                actions: [
+                  if (Theme.of(context).platform == TargetPlatform.iOS)
+                    TextButton(
+                      onPressed: () async {
+                        setState(() => _isPurchasing = true);
+                        try {
+                          await IapService().restorePurchases();
+                        } finally {
+                          if (mounted) setState(() => _isPurchasing = false);
+                        }
+                      },
+                      child: const Text(
+                        'RESTORE',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
                     fit: StackFit.expand,
@@ -554,12 +590,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ),
 
               // Coupon Section
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  child: _buildCouponSection(isDark),
+              if (Theme.of(context).platform != TargetPlatform.iOS)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: _buildCouponSection(isDark),
+                  ),
                 ),
-              ),
 
               // Bottom spacer
               const SliverToBoxAdapter(child: SizedBox(height: 120)),

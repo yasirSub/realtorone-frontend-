@@ -79,7 +79,8 @@ class IapService {
     }
 
     if (product == null) {
-      onPurchaseResult?.call(false, 'Product not found ($productId). Ensure it is configured in App Store Connect / Google Play Console.');
+      onPurchaseResult?.call(false, 'This plan is currently unavailable in the App Store. Please try again later.');
+      debugPrint('Product not found: $productId');
       return;
     }
 
@@ -145,6 +146,16 @@ class IapService {
       }
     } else {
       onPurchaseResult?.call(false, 'Unknown product ID format: ${purchase.productID}');
+    }
+  }
+
+  Future<void> restorePurchases() async {
+    if (!isAvailable) return;
+    try {
+      await _inAppPurchase.restorePurchases();
+    } catch (e) {
+      debugPrint('Restore error: $e');
+      onPurchaseResult?.call(false, 'Failed to restore purchases: $e');
     }
   }
 

@@ -46,8 +46,8 @@ const List<RevenPromptCategory> revenPromptCategories = [
         message: 'What can you do?',
         reply:
             'I can help you navigate your training, track tasks, explain courses, '
-            'and answer real estate questions. AI-powered answers and a full '
-            'knowledge base are coming soon!',
+            'and answer real estate questions. I\'m constantly learning new '
+            'skills to better assist you!',
       ),
       RevenQuickPrompt(
         emoji: '📚',
@@ -55,8 +55,8 @@ const List<RevenPromptCategory> revenPromptCategories = [
         message: 'Show me my enrolled courses',
         reply:
             'Your enrolled programs are in the Courses tab. '
-            'Soon I\'ll show your progress and suggest what to study next '
-            'right here!',
+            'You can track your progress there and see which modules are '
+            'completed!',
       ),
       RevenQuickPrompt(
         emoji: '🏆',
@@ -98,8 +98,8 @@ const List<RevenPromptCategory> revenPromptCategories = [
         message: 'What are my tasks for today?',
         reply:
             'Your daily tasks are on the Dashboard. '
-            'Soon I\'ll be able to summarise and prioritise them for you '
-            'right here!',
+            'You can view and manage your priorities there to stay on '
+            'top of your goals!',
       ),
     ],
   ),

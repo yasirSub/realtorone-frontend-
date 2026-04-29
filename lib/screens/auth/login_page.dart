@@ -637,22 +637,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          Positioned(
-            right: 20,
-            bottom: 20,
-            child: Opacity(
-              opacity: 0.3,
-              child: FloatingActionButton.small(
-                onPressed: _showDebugLogin,
-                backgroundColor: const Color(0xFF1E293B),
-                child: const Icon(
-                  Icons.bug_report_outlined,
-                  size: 20,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
+
         ],
       ),
     );

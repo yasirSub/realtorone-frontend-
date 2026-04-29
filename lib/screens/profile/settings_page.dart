@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
 import '../../l10n/app_localizations.dart';
@@ -306,9 +307,18 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _logout() async {
     setState(() => _isLoading = true);
     try {
+      // 1. Clear session token
       await ApiClient.clearToken();
+      
+      // 2. Sign out from Google to ensure account picker shows next time
+      try {
+        await GoogleSignIn().signOut();
+      } catch (_) {}
+
+      // 3. Clear all local preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
           context,

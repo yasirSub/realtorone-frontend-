@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../api/api_client.dart';
@@ -58,6 +60,24 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _checkLoginStatus() async {
     debugPrint('Splash: _checkLoginStatus started');
     final prefs = await SharedPreferences.getInstance();
+    
+    // --- Fresh Install Detection ---
+    // On iOS, SharedPreferences can be restored from iCloud backup after reinstall.
+    // To ensure a clean session on fresh install, we check a file in the temporary directory
+    // which is NOT backed up and is cleared on uninstall.
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final installFlagFile = File('${tempDir.path}/install_flag.txt');
+      if (!await installFlagFile.exists()) {
+        debugPrint('Splash: Fresh install detected (or cache cleared). Cleaning session.');
+        await ApiClient.clearToken();
+        await prefs.clear();
+        await installFlagFile.create();
+      }
+    } catch (e) {
+      debugPrint('Splash: Error checking install flag: $e');
+    }
+
     final token = prefs.getString('token');
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 

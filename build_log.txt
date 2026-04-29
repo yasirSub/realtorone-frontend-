@@ -1,0 +1,1832 @@
+Resolving dependencies...
+Downloading packages...
+  _flutterfire_internals 1.3.59 (1.3.69 available)
+  app_links 6.4.1 (7.0.0 available)
+  async 2.13.0 (2.13.1 available)
+  chewie 1.13.0 (1.14.0 available)
+  cupertino_icons 1.0.8 (1.0.9 available)
+  device_info_plus 12.4.0 (13.1.0 available)
+  device_info_plus_platform_interface 7.0.3 (8.1.0 available)
+  ffi 2.1.5 (2.2.0 available)
+  file_picker 8.3.7 (11.0.2 available)
+  firebase_core 3.15.2 (4.7.0 available)
+  firebase_core_platform_interface 6.0.2 (6.0.3 available)
+  firebase_core_web 2.24.1 (3.6.0 available)
+  firebase_messaging 15.2.10 (16.2.0 available)
+  firebase_messaging_platform_interface 4.6.10 (4.7.9 available)
+  firebase_messaging_web 3.10.10 (4.1.5 available)
+  fl_chart 0.66.2 (1.2.0 available)
+  flutter_plugin_android_lifecycle 2.0.33 (2.0.34 available)
+  google_sign_in 6.3.0 (7.2.0 available)
+  google_sign_in_android 6.2.1 (7.2.10 available)
+  google_sign_in_ios 5.9.0 (6.3.0 available)
+  google_sign_in_platform_interface 2.5.0 (3.1.0 available)
+  google_sign_in_web 0.12.4+4 (1.1.3 available)
+  hooks 1.0.1 (1.0.3 available)
+  image_picker_android 0.8.13+13 (0.8.13+16 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.17.0 (1.18.2 available)
+  native_toolchain_c 0.17.4 (0.18.0 available)
+  package_info_plus 9.0.0 (10.1.0 available)
+  package_info_plus_platform_interface 3.2.1 (4.1.0 available)
+  path_provider_android 2.2.22 (2.3.1 available)
+  permission_handler 11.4.0 (12.0.1 available)
+  permission_handler_android 12.1.0 (13.0.1 available)
+  share_plus 10.1.4 (13.1.0 available)
+  share_plus_platform_interface 5.0.2 (7.1.0 available)
+  shared_preferences 2.5.4 (2.5.5 available)
+  shared_preferences_android 2.4.20 (2.4.23 available)
+  shared_preferences_platform_interface 2.4.1 (2.4.2 available)
+  source_span 1.10.1 (1.10.2 available)
+  syncfusion_flutter_core 33.1.47 (33.2.4 available)
+  syncfusion_flutter_pdf 33.1.47 (33.2.4 available)
+  syncfusion_flutter_pdfviewer 33.1.47 (33.2.4 available)
+  syncfusion_flutter_signaturepad 33.1.47 (33.2.4 available)
+  syncfusion_pdfviewer_linux 33.1.47 (33.2.4 available)
+  syncfusion_pdfviewer_macos 33.1.47 (33.2.4 available)
+  syncfusion_pdfviewer_platform_interface 33.1.47 (33.2.4 available)
+  syncfusion_pdfviewer_web 33.1.47 (33.2.4 available)
+  syncfusion_pdfviewer_windows 33.1.47 (33.2.4 available)
+  synchronized 3.4.0 (3.4.0+1 available)
+  test_api 0.7.10 (0.7.12 available)
+  url_launcher_android 6.3.28 (6.3.29 available)
+  vector_math 2.2.0 (2.3.0 available)
+  video_player 2.11.0 (2.11.1 available)
+  video_player_android 2.9.4 (2.9.5 available)
+  video_player_avfoundation 2.9.3 (2.9.4 available)
+  vm_service 15.0.2 (15.1.0 available)
+  wakelock_plus 1.4.0 (1.6.0 available)
+  wakelock_plus_platform_interface 1.3.0 (1.5.0 available)
+  webview_flutter_android 4.10.15 (4.11.0 available)
+  webview_flutter_wkwebview 3.24.2 (3.24.5 available)
+  win32 5.15.0 (6.1.0 available)
+  win32_registry 2.1.0 (3.0.3 available)
+  xml 6.6.1 (7.0.1 available)
+Got dependencies!
+62 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Warning: Building for device with codesigning disabled. You will have to manually codesign before deploying to device.
+Archiving com.realtorone.app...
+Running Xcode build...                                          
+Xcode archive done.                                         28.9s
+Failed to build iOS app
+Error output from Xcode build:
+↳
+    ** ARCHIVE FAILED **
+
+
+Xcode's output:
+↳
+    Writing result bundle at path:
+    	/var/folders/x0/xb3qd5vx0d15p_11jgyp5xdc0000gn/T/flutter_tools.skhm4f/flutter_ios_build_temp_dirGAJ3Sf/temporary_xcresult_bundle
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/syncfusion_flutter_pdfviewer-33.1.47/ios/syncfusion_flutter_pdfviewer/Sources/syncfusion_flutter_pdfviewer/SyncfusionFlutterPdfViewerPlugin.swift:181:13: warning: initialization of immutable value 'imageRect' was never used; consider replacing with assignment to '_' or removing it
+            let imageRect = CGRect(x: 0,y: 0,width: width,height: height)
+            ~~~~^~~~~~~~~
+            _
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/SwiftyGif/SwiftyGif/ObjcAssociatedWeakObject.swift:13:14: warning: weak variable 'weakValue' was never mutated; consider changing to 'let' constant
+        weak var weakValue = value
+             ~~~ ^
+             let
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:14:40: warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+    12 | 
+    13 | // Converts an instance of SKProduct into a dictionary.
+    14 | + (NSDictionary *)getMapFromSKProduct:(SKProduct *)product;
+       |                                        `- warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+    15 | 
+    16 | // Converts an instance of SKProductSubscriptionPeriod into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProduct.h:41:12: note: 'SKProduct' has been explicitly marked deprecated here
+    39 | API_DEPRECATED("Use Product.", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    40 | NS_SWIFT_SENDABLE
+    41 | @interface SKProduct : NSObject {
+       |            `- note: 'SKProduct' has been explicitly marked deprecated here
+    42 | @private
+    43 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:17:58: warning: 'SKProductSubscriptionPeriod' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionPeriod.
+    15 | 
+    16 | // Converts an instance of SKProductSubscriptionPeriod into a dictionary.
+    17 | + (NSDictionary *)getMapFromSKProductSubscriptionPeriod:(SKProductSubscriptionPeriod *)period
+       |                                                          `- warning: 'SKProductSubscriptionPeriod' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionPeriod.
+    18 |     API_AVAILABLE(ios(11.2));
+    19 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProduct.h:27:12: note: 'SKProductSubscriptionPeriod' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use Product.SubscriptionPeriod.", ios(11.2, 18.0), macos(10.13.2, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKProductSubscriptionPeriod : NSObject {
+       |            `- note: 'SKProductSubscriptionPeriod' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:21:48: warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    19 | 
+    20 | // Converts an instance of SKProductDiscount into a dictionary.
+    21 | + (NSDictionary *)getMapFromSKProductDiscount:(SKProductDiscount *)discount
+       |                                                `- warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    22 |     API_AVAILABLE(ios(11.2));
+    23 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductDiscount.h:33:12: note: 'SKProductDiscount' has been explicitly marked deprecated here
+    31 | API_DEPRECATED("Use Product.SubscriptionOffer.", ios(11.2, 18.0), macos(10.13.2, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    32 | NS_SWIFT_SENDABLE
+    33 | @interface SKProductDiscount : NSObject {
+       |            `- note: 'SKProductDiscount' has been explicitly marked deprecated here
+    34 | @private
+    35 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:26:22: warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    24 | // Converts an array of SKProductDiscount instances into an array of dictionaries.
+    25 | + (nonnull NSArray *)getMapArrayFromSKProductDiscounts:
+    26 |     (nonnull NSArray<SKProductDiscount *> *)productDiscounts API_AVAILABLE(ios(12.2));
+       |                      `- warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    27 | 
+    28 | // Converts an instance of SKProductsResponse into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductDiscount.h:33:12: note: 'SKProductDiscount' has been explicitly marked deprecated here
+    31 | API_DEPRECATED("Use Product.SubscriptionOffer.", ios(11.2, 18.0), macos(10.13.2, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    32 | NS_SWIFT_SENDABLE
+    33 | @interface SKProductDiscount : NSObject {
+       |            `- note: 'SKProductDiscount' has been explicitly marked deprecated here
+    34 | @private
+    35 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:29:49: warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+    27 | 
+    28 | // Converts an instance of SKProductsResponse into a dictionary.
+    29 | + (NSDictionary *)getMapFromSKProductsResponse:(SKProductsResponse *)productResponse;
+       |                                                 `- warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+    30 | 
+    31 | // Converts an instance of SKPayment into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductsRequest.h:44:12: note: 'SKProductsResponse' has been explicitly marked deprecated here
+    42 | API_DEPRECATED("Get products using Product.products(for:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    43 | NS_SWIFT_SENDABLE
+    44 | @interface SKProductsResponse : NSObject {
+       |            `- note: 'SKProductsResponse' has been explicitly marked deprecated here
+    45 | @private
+    46 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:32:40: warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    30 | 
+    31 | // Converts an instance of SKPayment into a dictionary.
+    32 | + (NSDictionary *)getMapFromSKPayment:(SKPayment *)payment;
+       |                                        `- warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    33 | 
+    34 | // Converts an instance of NSLocale into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:19:12: note: 'SKPayment' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKPayment : NSObject <NSCopying, NSMutableCopying> {
+       |            `- note: 'SKPayment' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:38:4: warning: 'SKMutablePayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    36 | 
+    37 | // Creates an instance of the SKMutablePayment class based on the supplied dictionary.
+    38 | + (SKMutablePayment *)getSKMutablePaymentFromMap:(NSDictionary *)map;
+       |    `- warning: 'SKMutablePayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    39 | 
+    40 | // Converts an instance of SKPaymentTransaction into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:52:12: note: 'SKMutablePayment' has been explicitly marked deprecated here
+    50 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    51 | NS_SWIFT_NONSENDABLE
+    52 | @interface SKMutablePayment : SKPayment
+       |            `- note: 'SKMutablePayment' has been explicitly marked deprecated here
+    53 | 
+    54 | @property(nonatomic, copy, readwrite, nullable) NSString *applicationUsername API_DEPRECATED("Create a Product.PurchaseOption.appAccountToken to use in Product.purchase(confirmIn:options:).", ios(7.0, 18.0), macos(10.9, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0));
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:41:51: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    39 | 
+    40 | // Converts an instance of SKPaymentTransaction into a dictionary.
+    41 | + (NSDictionary *)getMapFromSKPaymentTransaction:(SKPaymentTransaction *)transaction;
+       |                                                   `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    42 | 
+    43 | // Converts an instance of NSError into a dictionary.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:47:43: warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    45 | 
+    46 | // Converts an instance of SKStorefront into a dictionary.
+    47 | + (NSDictionary *)getMapFromSKStorefront:(SKStorefront *)storefront
+       |                                           `- warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    48 |     API_AVAILABLE(ios(13), macos(10.15), watchos(6.2));
+    49 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKStorefront.h:16:12: note: 'SKStorefront' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Use Storefront.", ios(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKStorefront : NSObject
+       |            `- note: 'SKStorefront' has been explicitly marked deprecated here
+    17 | 
+    18 | /* The three letter country code for the current storefront */
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:51:43: warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    49 | 
+    50 | // Converts the supplied instances of SKStorefront and SKPaymentTransaction into a dictionary.
+    51 | + (NSDictionary *)getMapFromSKStorefront:(SKStorefront *)storefront
+       |                                           `- warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    52 |                  andSKPaymentTransaction:(SKPaymentTransaction *)transaction
+    53 |     API_AVAILABLE(ios(13), macos(10.15), watchos(6.2));
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKStorefront.h:16:12: note: 'SKStorefront' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Use Storefront.", ios(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKStorefront : NSObject
+       |            `- note: 'SKStorefront' has been explicitly marked deprecated here
+    17 | 
+    18 | /* The three letter country code for the current storefront */
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:52:43: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    50 | // Converts the supplied instances of SKStorefront and SKPaymentTransaction into a dictionary.
+    51 | + (NSDictionary *)getMapFromSKStorefront:(SKStorefront *)storefront
+    52 |                  andSKPaymentTransaction:(SKPaymentTransaction *)transaction
+       |                                           `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    53 |     API_AVAILABLE(ios(13), macos(10.15), watchos(6.2));
+    54 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:56:13: warning: 'SKPaymentDiscount' is deprecated: first deprecated in iOS 18.0 - Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).
+    54 | 
+    55 | // Creates an instance of the SKPaymentDiscount class based on the supplied dictionary.
+    56 | + (nullable SKPaymentDiscount *)getSKPaymentDiscountFromMap:(NSDictionary *)map
+       |             `- warning: 'SKPaymentDiscount' is deprecated: first deprecated in iOS 18.0 - Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).
+    57 |                                                   withError:(NSString *_Nullable *_Nullable)error
+    58 |     API_AVAILABLE(ios(12.2));
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentDiscount.h:16:12: note: 'SKPaymentDiscount' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).", ios(12.2, 18.0), tvos(12.2, 18.0), macos(10.14.4, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKPaymentDiscount : NSObject {
+       |            `- note: 'SKPaymentDiscount' has been explicitly marked deprecated here
+    17 | @private
+    18 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:61:15: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    59 | 
+    60 | + (nullable FIASKPaymentTransactionMessage *)convertTransactionToPigeon:
+    61 |     (nullable SKPaymentTransaction *)transaction;
+       |               `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    62 | 
+    63 | + (nullable FIASKStorefrontMessage *)convertStorefrontToPigeon:(nullable SKStorefront *)storefront
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:63:74: warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    61 |     (nullable SKPaymentTransaction *)transaction;
+    62 | 
+    63 | + (nullable FIASKStorefrontMessage *)convertStorefrontToPigeon:(nullable SKStorefront *)storefront
+       |                                                                          `- warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    64 |     API_AVAILABLE(ios(13.0));
+    65 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKStorefront.h:16:12: note: 'SKStorefront' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Use Storefront.", ios(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKStorefront : NSObject
+       |            `- note: 'SKStorefront' has been explicitly marked deprecated here
+    17 | 
+    18 | /* The three letter country code for the current storefront */
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:67:15: warning: 'SKPaymentDiscount' is deprecated: first deprecated in iOS 18.0 - Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).
+    65 | 
+    66 | + (nullable FIASKPaymentDiscountMessage *)convertPaymentDiscountToPigeon:
+    67 |     (nullable SKPaymentDiscount *)discount API_AVAILABLE(ios(12.2));
+       |               `- warning: 'SKPaymentDiscount' is deprecated: first deprecated in iOS 18.0 - Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).
+    68 | 
+    69 | + (nullable FIASKPaymentMessage *)convertPaymentToPigeon:(nullable SKPayment *)payment
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentDiscount.h:16:12: note: 'SKPaymentDiscount' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Create a Product.PurchaseOption.promotionalOffer to use in Product.purchase(confirmIn:options:).", ios(12.2, 18.0), tvos(12.2, 18.0), macos(10.14.4, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKPaymentDiscount : NSObject {
+       |            `- note: 'SKPaymentDiscount' has been explicitly marked deprecated here
+    17 | @private
+    18 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:69:68: warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    67 |     (nullable SKPaymentDiscount *)discount API_AVAILABLE(ios(12.2));
+    68 | 
+    69 | + (nullable FIASKPaymentMessage *)convertPaymentToPigeon:(nullable SKPayment *)payment
+       |                                                                    `- warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    70 |     API_AVAILABLE(ios(12.2));
+    71 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:19:12: note: 'SKPayment' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKPayment : NSObject <NSCopying, NSMutableCopying> {
+       |            `- note: 'SKPayment' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:75:15: warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+    73 | 
+    74 | + (nullable FIASKProductsResponseMessage *)convertProductsResponseToPigeon:
+    75 |     (nullable SKProductsResponse *)payment;
+       |               `- warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+    76 | 
+    77 | + (nullable FIASKProductMessage *)convertProductToPigeon:(nullable SKProduct *)product
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductsRequest.h:44:12: note: 'SKProductsResponse' has been explicitly marked deprecated here
+    42 | API_DEPRECATED("Get products using Product.products(for:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    43 | NS_SWIFT_SENDABLE
+    44 | @interface SKProductsResponse : NSObject {
+       |            `- note: 'SKProductsResponse' has been explicitly marked deprecated here
+    45 | @private
+    46 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:77:68: warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+    75 |     (nullable SKProductsResponse *)payment;
+    76 | 
+    77 | + (nullable FIASKProductMessage *)convertProductToPigeon:(nullable SKProduct *)product
+       |                                                                    `- warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+    78 |     API_AVAILABLE(ios(12.2));
+    79 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProduct.h:41:12: note: 'SKProduct' has been explicitly marked deprecated here
+    39 | API_DEPRECATED("Use Product.", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    40 | NS_SWIFT_SENDABLE
+    41 | @interface SKProduct : NSObject {
+       |            `- note: 'SKProduct' has been explicitly marked deprecated here
+    42 | @private
+    43 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:81:15: warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    79 | 
+    80 | + (nullable FIASKProductDiscountMessage *)convertProductDiscountToPigeon:
+    81 |     (nullable SKProductDiscount *)productDiscount API_AVAILABLE(ios(12.2));
+       |               `- warning: 'SKProductDiscount' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionOffer.
+    82 | 
+    83 | + (nullable FIASKPriceLocaleMessage *)convertNSLocaleToPigeon:(nullable NSLocale *)locale
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductDiscount.h:33:12: note: 'SKProductDiscount' has been explicitly marked deprecated here
+    31 | API_DEPRECATED("Use Product.SubscriptionOffer.", ios(11.2, 18.0), macos(10.13.2, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    32 | NS_SWIFT_SENDABLE
+    33 | @interface SKProductDiscount : NSObject {
+       |            `- note: 'SKProductDiscount' has been explicitly marked deprecated here
+    34 | @private
+    35 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    11 | #endif
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:13:
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAObjectTranslator.h:87:15: warning: 'SKProductSubscriptionPeriod' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionPeriod.
+    85 | 
+    86 | + (nullable FIASKProductSubscriptionPeriodMessage *)convertSKProductSubscriptionPeriodToPigeon:
+    87 |     (nullable SKProductSubscriptionPeriod *)period API_AVAILABLE(ios(12.2));
+       |               `- warning: 'SKProductSubscriptionPeriod' is deprecated: first deprecated in iOS 18.0 - Use Product.SubscriptionPeriod.
+    88 | @end
+    89 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProduct.h:27:12: note: 'SKProductSubscriptionPeriod' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use Product.SubscriptionPeriod.", ios(11.2, 18.0), macos(10.13.2, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKProductSubscriptionPeriod : NSObject {
+       |            `- note: 'SKProductSubscriptionPeriod' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:13:30: warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    11 | 
+    12 | /// An object containing the location and unique identifier of an Apple App Store storefront.
+    13 | @property(nonatomic, strong) SKStorefront *storefront API_AVAILABLE(ios(13.0));
+       |                              `- warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+    14 | 
+    15 | /// A list of SKPaymentTransactions, which each represents a single transaction
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKStorefront.h:16:12: note: 'SKStorefront' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Use Storefront.", ios(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKStorefront : NSObject
+       |            `- note: 'SKStorefront' has been explicitly marked deprecated here
+    17 | 
+    18 | /* The three letter country code for the current storefront */
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:16:38: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    14 | 
+    15 | /// A list of SKPaymentTransactions, which each represents a single transaction
+    16 | @property(nonatomic, strong) NSArray<SKPaymentTransaction *> *transactions API_AVAILABLE(
+       |                                      `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    17 |     ios(3.0), macos(10.7), watchos(6.2));
+    18 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:20:41: warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    18 | 
+    19 | /// An object that provides information needed to complete transactions.
+    20 | @property(nonatomic, weak, nullable) id<SKPaymentQueueDelegate> delegate API_AVAILABLE(
+       |                                         `- warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    21 |     ios(13.0), macos(10.15), watchos(6.2));
+    22 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:78:11: note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     76 | 
+     77 | API_DEPRECATED("No longer supported.", ios(13.0, 18.0), tvos(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     78 | @protocol SKPaymentQueueDelegate <NSObject>
+        |           `- note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     79 | @optional
+     80 | // Sent when the storefront changes while a payment is processing.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:25:36: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    23 | /// Remove a finished (i.e. failed or completed) transaction from the queue.  Attempting to finish a
+    24 | /// purchasing transaction will throw an exception.
+    25 | - (void)finishTransaction:(nonnull SKPaymentTransaction *)transaction;
+       |                                    `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+    26 | 
+    27 | /// Observers are not retained.  The transactions array will only be synchronized with the server
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:29:36: warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+    27 | /// Observers are not retained.  The transactions array will only be synchronized with the server
+    28 | /// while the queue has observers.  This may require that the user authenticate.
+    29 | - (void)addTransactionObserver:(id<SKPaymentTransactionObserver>)observer;
+       |                                    `- warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+    30 | 
+    31 | /// Add a payment to the server queue.  The payment is copied to add an SKPaymentTransaction to the
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:91:11: note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     89 | 
+     90 | API_DEPRECATED("Use StoreKit 2 Transaction APIs.", ios(3.0, 18.0), tvos(9.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     91 | @protocol SKPaymentTransactionObserver <NSObject>
+        |           `- note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     92 | @required
+     93 | // Sent when the transaction array has changed (additions or state changes).  Client should check state of transactions and finish as appropriate.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:34:21: warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    32 | /// transactions array.  The same payment can be added multiple times to create multiple
+    33 | /// transactions.
+    34 | - (void)addPayment:(SKPayment *_Nonnull)payment;
+       |                     `- warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+    35 | 
+    36 | /// Will add completed transactions for the current user back to the queue to be re-completed.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:19:12: note: 'SKPayment' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKPayment : NSObject <NSCopying, NSMutableCopying> {
+       |            `- note: 'SKPayment' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      5 | #import <StoreKit/StoreKit.h>
+      6 | #import "FIATransactionCache.h"
+      7 | #import "FLTPaymentQueueProtocol.h"
+        |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:7:
+      8 | #import "FLTTransactionCacheProtocol.h"
+      9 | 
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueProtocol.h:61:32: warning: 'SKPaymentQueue' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    59 | 
+    60 | /// Initialize this wrapper with an SKPaymentQueue
+    61 | - (instancetype)initWithQueue:(SKPaymentQueue *)queue NS_DESIGNATED_INITIALIZER;
+       |                                `- warning: 'SKPaymentQueue' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    62 | 
+    63 | /// The default initializer is unavailable, as it this must be initlai
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:25:12: note: 'SKPaymentQueue' has been explicitly marked deprecated here
+     23 | API_DEPRECATED("No longer supported.", ios(3.0, 18.0), tvos(9.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     24 | NS_SWIFT_SENDABLE
+     25 | @interface SKPaymentQueue : NSObject {
+        |            `- note: 'SKPaymentQueue' has been explicitly marked deprecated here
+     26 | @private
+     27 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:11:45: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+      9 | 
+     10 | NS_ASSUME_NONNULL_BEGIN
+     11 | typedef void (^TransactionsUpdated)(NSArray<SKPaymentTransaction *> *transactions);
+        |                                             `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     12 | typedef void (^TransactionsRemoved)(NSArray<SKPaymentTransaction *> *transactions);
+     13 | typedef void (^RestoreTransactionFailed)(NSError *error);
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:12:45: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     10 | NS_ASSUME_NONNULL_BEGIN
+     11 | typedef void (^TransactionsUpdated)(NSArray<SKPaymentTransaction *> *transactions);
+     12 | typedef void (^TransactionsRemoved)(NSArray<SKPaymentTransaction *> *transactions);
+        |                                             `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     13 | typedef void (^RestoreTransactionFailed)(NSError *error);
+     14 | typedef void (^RestoreCompletedTransactionsFinished)(void);
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:15:39: warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+     13 | typedef void (^RestoreTransactionFailed)(NSError *error);
+     14 | typedef void (^RestoreCompletedTransactionsFinished)(void);
+     15 | typedef BOOL (^ShouldAddStorePayment)(SKPayment *payment, SKProduct *product);
+        |                                       `- warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+     16 | typedef void (^UpdatedDownloads)(NSArray<SKDownload *> *downloads);
+     17 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:19:12: note: 'SKPayment' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKPayment : NSObject <NSCopying, NSMutableCopying> {
+       |            `- note: 'SKPayment' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:15:59: warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+     13 | typedef void (^RestoreTransactionFailed)(NSError *error);
+     14 | typedef void (^RestoreCompletedTransactionsFinished)(void);
+     15 | typedef BOOL (^ShouldAddStorePayment)(SKPayment *payment, SKProduct *product);
+        |                                                           `- warning: 'SKProduct' is deprecated: first deprecated in iOS 18.0 - Use Product.
+     16 | typedef void (^UpdatedDownloads)(NSArray<SKDownload *> *downloads);
+     17 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProduct.h:41:12: note: 'SKProduct' has been explicitly marked deprecated here
+    39 | API_DEPRECATED("Use Product.", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    40 | NS_SWIFT_SENDABLE
+    41 | @interface SKProduct : NSObject {
+       |            `- note: 'SKProduct' has been explicitly marked deprecated here
+    42 | @private
+    43 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:16:42: warning: 'SKDownload' is deprecated: first deprecated in iOS 16.0 - Hosted content is no longer supported.
+     14 | typedef void (^RestoreCompletedTransactionsFinished)(void);
+     15 | typedef BOOL (^ShouldAddStorePayment)(SKPayment *payment, SKProduct *product);
+     16 | typedef void (^UpdatedDownloads)(NSArray<SKDownload *> *downloads);
+        |                                          `- warning: 'SKDownload' is deprecated: first deprecated in iOS 16.0 - Hosted content is no longer supported.
+     17 | 
+     18 | /// A protocol that conforms to SKPaymentTransactionObserver and handles SKPaymentQueue methods
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKDownload.h:26:182: note: 'SKDownload' has been explicitly marked deprecated here
+    24 | SK_EXTERN NSTimeInterval SKDownloadTimeRemainingUnknown API_DEPRECATED("Hosted content is no longer supported.", ios(6.0, 16.0), macos(10.14, 13.0), tvos(9.0, 16.0), watchos(6.2, 9.0)) API_UNAVAILABLE(visionos);
+    25 | 
+    26 | SK_EXTERN_CLASS API_DEPRECATED("Hosted content is no longer supported.", ios(6.0, 16.0), macos(10.8, 13.0), tvos(9.0, 16.0), watchos(6.2, 9.0)) API_UNAVAILABLE(visionos) @interface SKDownload : NSObject {
+       |                                                                                                                                                                                      `- note: 'SKDownload' has been explicitly marked deprecated here
+    27 | @private
+    28 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:19:53: warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+     17 | 
+     18 | /// A protocol that conforms to SKPaymentTransactionObserver and handles SKPaymentQueue methods
+     19 | @protocol FLTPaymentQueueHandlerProtocol <NSObject, SKPaymentTransactionObserver>
+        |                                                     `- warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+     20 | /// An object that provides information needed to complete transactions.
+     21 | @property(nonatomic, weak, nullable) id<SKPaymentQueueDelegate> delegate API_AVAILABLE(
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:91:11: note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     89 | 
+     90 | API_DEPRECATED("Use StoreKit 2 Transaction APIs.", ios(3.0, 18.0), tvos(9.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     91 | @protocol SKPaymentTransactionObserver <NSObject>
+        |           `- note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     92 | @required
+     93 | // Sent when the transaction array has changed (additions or state changes).  Client should check state of transactions and finish as appropriate.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:21:41: warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+     19 | @protocol FLTPaymentQueueHandlerProtocol <NSObject, SKPaymentTransactionObserver>
+     20 | /// An object that provides information needed to complete transactions.
+     21 | @property(nonatomic, weak, nullable) id<SKPaymentQueueDelegate> delegate API_AVAILABLE(
+        |                                         `- warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+     22 |     ios(13.0), macos(10.15), watchos(6.2));
+     23 | /// An object containing the location and unique identifier of an Apple App Store storefront.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:78:11: note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     76 | 
+     77 | API_DEPRECATED("No longer supported.", ios(13.0, 18.0), tvos(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     78 | @protocol SKPaymentQueueDelegate <NSObject>
+        |           `- note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     79 | @optional
+     80 | // Sent when the storefront changes while a payment is processing.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:25:5: warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+     23 | /// An object containing the location and unique identifier of an Apple App Store storefront.
+     24 | @property(nonatomic, readonly, nullable)
+     25 |     SKStorefront *storefront API_AVAILABLE(ios(13.0), macos(10.15), watchos(6.2));
+        |     `- warning: 'SKStorefront' is deprecated: first deprecated in iOS 18.0 - Use Storefront.
+     26 | 
+     27 | /// Creates a new FIAPaymentQueueHandler.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKStorefront.h:16:12: note: 'SKStorefront' has been explicitly marked deprecated here
+    14 | API_DEPRECATED("Use Storefront.", ios(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    15 | NS_SWIFT_SENDABLE
+    16 | @interface SKStorefront : NSObject
+       |            `- note: 'SKStorefront' has been explicitly marked deprecated here
+    17 | 
+    18 | /* The three letter country code for the current storefront */
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:74:36: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     72 | 
+     73 | /// Can throw exceptions if the transaction type is purchasing, should always used in a @try block.
+     74 | - (void)finishTransaction:(nonnull SKPaymentTransaction *)transaction;
+        |                                    `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     75 | 
+     76 | /// Attempt to restore transactions. Require app store receipt url.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:83:12: warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     81 | 
+     82 | /// Return all transactions that are not marked as complete.
+     83 | - (NSArray<SKPaymentTransaction *> *)getUnfinishedTransactions;
+        |            `- warning: 'SKPaymentTransaction' is deprecated: first deprecated in iOS 18.0 - Use PurchaseResult from Product.purchase(confirmIn:options:).
+     84 | 
+     85 | /// This method needs to be called before any other methods.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentTransaction.h:27:12: note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    25 | API_DEPRECATED("Use PurchaseResult from Product.purchase(confirmIn:options:).",ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    26 | NS_SWIFT_SENDABLE
+    27 | @interface SKPaymentTransaction : NSObject {
+       |            `- note: 'SKPaymentTransaction' has been explicitly marked deprecated here
+    28 | @private
+    29 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FIATransactionCache.h"
+     8 | #import "FLTPaymentQueueHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:8:
+     9 | #import "FLTPaymentQueueProtocol.h"
+    10 | #import "FLTTransactionCacheProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTPaymentQueueHandlerProtocol.h:95:21: warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+     93 | /// @param payment Payment object to be added to the payment queue.
+     94 | /// @return whether "addPayment" was successful.
+     95 | - (BOOL)addPayment:(SKPayment *)payment;
+        |                     `- warning: 'SKPayment' is deprecated: first deprecated in iOS 18.0 - Use Product.purchase(confirmIn:options:).
+     96 | 
+     97 | /// Displays the price consent sheet.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPayment.h:19:12: note: 'SKPayment' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("Use Product.purchase(confirmIn:options:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKPayment : NSObject <NSCopying, NSMutableCopying> {
+       |            `- note: 'SKPayment' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    12 | 
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:14:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPaymentQueueHandler.h:17:17: warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+    15 | 
+    16 | @interface FIAPaymentQueueHandler
+    17 |     : NSObject <SKPaymentTransactionObserver, FLTPaymentQueueHandlerProtocol>
+       |                 `- warning: 'SKPaymentTransactionObserver' is deprecated: first deprecated in iOS 18.0 - Use StoreKit 2 Transaction APIs.
+    18 | @end
+    19 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:91:11: note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     89 | 
+     90 | API_DEPRECATED("Use StoreKit 2 Transaction APIs.", ios(3.0, 18.0), tvos(9.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     91 | @protocol SKPaymentTransactionObserver <NSObject>
+        |           `- note: 'SKPaymentTransactionObserver' has been explicitly marked deprecated here
+     92 | @required
+     93 | // Sent when the transaction array has changed (additions or state changes).  Client should check state of transactions and finish as appropriate.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:15:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:15:
+    13 | #import "FIAObjectTranslator.h"
+    14 | #import "FIAPaymentQueueHandler.h"
+    15 | #import "FIAPPaymentQueueDelegate.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:15:
+    16 | #import "FIAPReceiptManager.h"
+    17 | #import "FIAPRequestHandler.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPPaymentQueueDelegate.h:19:49: warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    17 | API_AVAILABLE(ios(13), macos(10.15))
+    18 | API_UNAVAILABLE(tvos, watchos)
+    19 | @interface FIAPPaymentQueueDelegate : NSObject <SKPaymentQueueDelegate>
+       |                                                 `- warning: 'SKPaymentQueueDelegate' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    20 | - (id)initWithMethodChannel:(id<FLTMethodChannelProtocol>)methodChannel;
+    21 | @end
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKPaymentQueue.h:78:11: note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     76 | 
+     77 | API_DEPRECATED("No longer supported.", ios(13.0, 18.0), tvos(13.0, 18.0), macos(10.15, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+     78 | @protocol SKPaymentQueueDelegate <NSObject>
+        |           `- note: 'SKPaymentQueueDelegate' has been explicitly marked deprecated here
+     79 | @optional
+     80 | // Sent when the storefront changes while a payment is processing.
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+    17 | #import "FIAPRequestHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:
+    18 | #import "FIATransactionCache.h"
+    19 | #import "FLTMethodChannelProtocol.h"
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPRequestHandler.h:7:9: note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPRequestHandler.h:7:
+     5 | #import <Foundation/Foundation.h>
+     6 | #import <StoreKit/StoreKit.h>
+     7 | #import "FLTRequestHandlerProtocol.h"
+       |         `- note: in file included from /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPRequestHandler.h:7:
+     8 | 
+     9 | NS_ASSUME_NONNULL_BEGIN
+
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FLTRequestHandlerProtocol.h:8:42: warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+     6 | 
+     7 | NS_ASSUME_NONNULL_BEGIN
+     8 | typedef void (^ProductRequestCompletion)(SKProductsResponse *_Nullable response,
+       |                                          `- warning: 'SKProductsResponse' is deprecated: first deprecated in iOS 18.0 - Get products using Product.products(for:).
+     9 |                                          NSError *_Nullable errror);
+    10 | /// A protocol that wraps SKRequest.
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKProductsRequest.h:44:12: note: 'SKProductsResponse' has been explicitly marked deprecated here
+    42 | API_DEPRECATED("Get products using Product.products(for:).", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    43 | NS_SWIFT_SENDABLE
+    44 | @interface SKProductsResponse : NSObject {
+       |            `- note: 'SKProductsResponse' has been explicitly marked deprecated here
+    45 | @private
+    46 |     id _internal;
+
+    <module-includes>:1:9: note: in file included from <module-includes>:1:
+    1 | #import "Headers/in_app_purchase_storekit-umbrella.h"
+      |         `- note: in file included from <module-includes>:1:
+    2 | 
+
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:9: note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:
+    15 | #import "FIAPPaymentQueueDelegate.h"
+    16 | #import "FIAPReceiptManager.h"
+    17 | #import "FIAPRequestHandler.h"
+       |         `- note: in file included from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/in_app_purchase_storekit/in_app_purchase_storekit-umbrella.h:17:
+    18 | #import "FIATransactionCache.h"
+    19 | #import "FLTMethodChannelProtocol.h"
+
+    42 warnings generated.
+    /Users/yasir/.pub-cache/hosted/pub.dev/in_app_purchase_storekit-0.4.8+1/darwin/in_app_purchase_storekit/Sources/in_app_purchase_storekit_objc/include/in_app_purchase_storekit_objc/FIAPRequestHandler.h:13:34: warning: 'SKRequest' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    11 | @interface FIAPRequestHandler : NSObject <FLTRequestHandlerProtocol>
+    12 | 
+    13 | - (instancetype)initWithRequest:(SKRequest *)request;
+       |                                  `- warning: 'SKRequest' is deprecated: first deprecated in iOS 18.0 - No longer supported.
+    14 | - (void)startProductRequestWithCompletionHandler:(ProductRequestCompletion)completion;
+    15 | 
+
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/StoreKit.framework/Headers/SKRequest.h:19:12: note: 'SKRequest' has been explicitly marked deprecated here
+    17 | API_DEPRECATED("No longer supported.", ios(3.0, 18.0), macos(10.7, 15.0), watchos(6.2, 11.0), visionos(1.0, 2.0))
+    18 | NS_SWIFT_NONSENDABLE
+    19 | @interface SKRequest : NSObject {
+       |            `- note: 'SKRequest' has been explicitly marked deprecated here
+    20 | @private
+    21 |     id _requestInternal;
+    /Users/yasir/.pub-cache/hosted/pub.dev/audioplayers_darwin-6.4.0/darwin/audioplayers_darwin/Sources/audioplayers_darwin/WrappedMediaPlayer.swift:205:14: warning: main actor-isolated property 'eventHandler' can not be referenced from a Sendable closure
+            self.eventHandler.onLog(message: "player status: \(status), change: \(change)")
+                 ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/audioplayers_darwin-6.4.0/darwin/audioplayers_darwin/Sources/audioplayers_darwin/WrappedMediaPlayer.swift:20:20: note: property declared here
+      private(set) var eventHandler: AudioPlayersStreamHandler
+                       ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/audioplayers_darwin-6.4.0/darwin/audioplayers_darwin/Sources/audioplayers_darwin/WrappedMediaPlayer.swift:211:16: warning: call to main actor-isolated instance method 'reset()' in a synchronous nonisolated context
+              self.reset()
+                   ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/audioplayers_darwin-6.4.0/darwin/audioplayers_darwin/Sources/audioplayers_darwin/WrappedMediaPlayer.swift:250:16: note: calls to instance method 'reset()' from outside of its actor context are implicitly asynchronous
+      private func reset() {
+                   ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/sign_in_with_apple-7.0.1/ios/Classes/SignInWithAppleError.swift:99:13: warning: switch must be exhaustive
+                switch code {
+                ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/sign_in_with_apple-7.0.1/ios/Classes/SignInWithAppleError.swift:99:13: note: add missing case: '.preferSignInWithApple'
+                switch code {
+                ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/sign_in_with_apple-7.0.1/ios/Classes/SignInWithAppleError.swift:99:13: note: add missing case: '.deviceNotConfiguredForPasskeyCreation'
+                switch code {
+                ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/sign_in_with_apple-7.0.1/ios/Classes/SignInWithAppleError.swift:99:13: note: add missing cases
+                switch code {
+                ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/audio_waveforms-2.0.2/ios/Classes/SwiftAudioWaveformsPlugin.swift:4:51: warning: conformance of 'SwiftAudioWaveformsPlugin' to protocol 'FlutterPlugin' crosses into main actor-isolated code and can cause data races; this is an error in the Swift 6 language mode
+    public class SwiftAudioWaveformsPlugin: NSObject, FlutterPlugin {
+                                                      ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/audio_waveforms-2.0.2/ios/Classes/SwiftAudioWaveformsPlugin.swift:4:51: note: isolate this conformance to the main actor with '@MainActor'
+    public class SwiftAudioWaveformsPlugin: NSObject, FlutterPlugin {
+                                                      ^
+                                                      @MainActor 
+    /Users/yasir/.pub-cache/hosted/pub.dev/audio_waveforms-2.0.2/ios/Classes/SwiftAudioWaveformsPlugin.swift:4:51: note: turn data races into runtime errors with '@preconcurrency'
+    public class SwiftAudioWaveformsPlugin: NSObject, FlutterPlugin {
+                                                      ^
+                                                      @preconcurrency 
+    /Users/yasir/.pub-cache/hosted/pub.dev/audio_waveforms-2.0.2/ios/Classes/SwiftAudioWaveformsPlugin.swift:27:28: note: main actor-isolated instance method 'handle(_:result:)' cannot satisfy nonisolated requirement
+        @MainActor public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+                               ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/PhonePermissionStrategy.m:49:35: warning: 'subscriberCellularProvider' is deprecated: first deprecated in iOS 12.0 [-Wdeprecated-declarations]
+       49 |     CTCarrier *carrier = [netInfo subscriberCellularProvider];
+          |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~
+          |                                   serviceSubscriberCellularProviders
+    In module 'CoreTelephony' imported from /Users/yasir/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/PhonePermissionStrategy.m:8:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/CoreTelephony.framework/Headers/CTTelephonyNetworkInfo.h:114:50: note: property 'subscriberCellularProvider' is declared deprecated here
+      114 | @property(readonly, retain, nullable) CTCarrier *subscriberCellularProvider API_DEPRECATED_WITH_REPLACEMENT("serviceSubscriberCellularProviders", ios(4.0, 12.0)) API_UNAVAILABLE(macos);
+          |                                                  ^
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/System/Library/Frameworks/CoreTelephony.framework/Headers/CTTelephonyNetworkInfo.h:114:50: note: 'subscriberCellularProvider' has been explicitly marked deprecated here
+    1 warning generated.
+    /Users/yasir/.pub-cache/hosted/pub.dev/permission_handler_apple-9.4.7/ios/Classes/strategies/NotificationPermissionStrategy.m:57:9: warning: @available does not guard availability here; use if (@available) instead [-Wunsupported-availability-guard]
+       57 |     if (@available(iOS 12 , *) && settings.authorizationStatus == UNAuthorizationStatusProvisional) {
+          |         ^
+    1 warning generated.
+    libtool: warning: 'UIApplication+idleTimerLock.o' has no symbols
+    /Users/yasir/.pub-cache/hosted/pub.dev/share_plus-10.1.4/ios/share_plus/Sources/share_plus/FPPSharePlusPlugin.m:25:46: warning: 'keyWindow' is deprecated: first deprecated in iOS 13.0 - Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes [-Wdeprecated-declarations]
+       25 |     return [UIApplication sharedApplication].keyWindow.rootViewController;
+          |                                              ^
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/share_plus/share_plus-prefix.pch:2:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:108:51: note: 'keyWindow' has been explicitly marked deprecated here
+      108 | @property(nullable, nonatomic,readonly) UIWindow *keyWindow API_DEPRECATED("Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes", ios(2.0, 13.0)) API_UNAVAILABLE(visionos, watchos);
+          |                                                   ^
+    1 warning generated.
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Transform.m:761:58: warning: bitwise operation between different enumeration types ('CGBitmapInfo' (aka 'enum CGBitmapInfo') and 'enum CGImagePixelFormatInfo') [-Wenum-enum-conversion]
+      761 |         CGImagePixelFormatInfo pixelFormat = (bitmapInfo & kCGImagePixelFormatMask);
+          |                                               ~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Transform.m:847:58: warning: bitwise operation between different enumeration types ('CGBitmapInfo' (aka 'enum CGBitmapInfo') and 'enum CGImagePixelFormatInfo') [-Wenum-enum-conversion]
+      847 |         CGImagePixelFormatInfo pixelFormat = (bitmapInfo & kCGImagePixelFormatMask);
+          |                                               ~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/SDWebImage/SDWebImage/Core/UIImage+Transform.m:964:55: warning: bitwise operation between different enumeration types ('enum CGImageAlphaInfo' and 'const CGBitmapInfo' (aka 'const enum CGBitmapInfo')) [-Wenum-enum-conversion]
+      964 |         .bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host, //requests a BGRA buffer.
+          |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~~~~~~~~~~~~
+    3 warnings generated.
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/SDWebImage/SDWebImage/Core/SDImageIOAnimatedCoder.m:203:51: warning: bitwise operation between different enumeration types ('CGImageAlphaInfo' (aka 'enum CGImageAlphaInfo') and 'CGBitmapInfo' (aka 'enum CGBitmapInfo')) [-Wenum-enum-conversion]
+      203 |         CGBitmapInfo newBitmapInfo = newAlphaInfo | byteOrderInfo;
+          |                                      ~~~~~~~~~~~~ ^ ~~~~~~~~~~~~~
+    1 warning generated.
+    libtool: warning: 'NSBezierPath+SDRoundedCorners.o' has no symbols
+    libtool: warning: 'NSButton+WebCache.o' has no symbols
+    libtool: warning: 'NSData+ImageContentType.o' has no symbols
+    libtool: warning: 'NSImage+Compatibility.o' has no symbols
+    libtool: warning: 'SDAnimatedImageRep.o' has no symbols
+    libtool: warning: 'SDWebImageCompat.o' has no symbols
+    libtool: warning: 'UIColor+SDHexString.o' has no symbols
+    libtool: warning: 'UIImage+ExtendedCacheData.o' has no symbols
+    libtool: warning: 'UIImage+ForceDecode.o' has no symbols
+    libtool: warning: 'UIImage+GIF.o' has no symbols
+    libtool: warning: 'UIImage+MemoryCacheCost.o' has no symbols
+    libtool: warning: 'UIImage+MultiFormat.o' has no symbols
+    libtool: warning: 'UIView+WebCacheOperation.o' has no symbols
+    libtool: warning: 'GTMSessionFetcherLogging.o' has no symbols
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PDFPreview/DKPDFView.swift:50:48: warning: 'gray' was deprecated in iOS 13.0: renamed to 'UIActivityIndicatorView.Style.medium'
+            return UIActivityIndicatorView(style: .gray)
+                                                   ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PDFPreview/DKPDFView.swift:50:48: note: use 'UIActivityIndicatorView.Style.medium' instead
+            return UIActivityIndicatorView(style: .gray)
+                                                   ^~~~
+                                                   UIActivityIndicatorView.Style.medium
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoBaseImagePreviewVC.swift:171:30: warning: 'UIPreviewAction' was deprecated in iOS 13.0: Please use UIContextMenuInteraction.
+            let saveActionItem = UIPreviewAction(title: DKPhotoGalleryResource.localizedStringWithKey("preview.3DTouch.saveImage.title"),
+                                 ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGallery.swift:144:62: warning: 'statusBarStyle' was deprecated in iOS 13.0: Use the statusBarManager property of the window scene instead.
+        private let defaultStatusBarStyle = UIApplication.shared.statusBarStyle
+                                                                 ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryContentVC.swift:39:52: warning: using 'class' keyword to define a class-constrained protocol is deprecated; use 'AnyObject' instead
+    internal protocol DKPhotoGalleryContentDataSource: class {
+                                                       ^~~~~
+                                                       AnyObject
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryContentVC.swift:55:50: warning: using 'class' keyword to define a class-constrained protocol is deprecated; use 'AnyObject' instead
+    internal protocol DKPhotoGalleryContentDelegate: class {
+                                                     ^~~~~
+                                                     AnyObject
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoGalleryContentVC.swift:107:14: warning: 'automaticallyAdjustsScrollViewInsets' was deprecated in iOS 11.0: Use UIScrollView's contentInsetAdjustmentBehavior instead
+            self.automaticallyAdjustsScrollViewInsets = false
+                 ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/ImagePreview/DKPhotoImageDownloader.swift:94:42: warning: 'requestImageData(for:options:resultHandler:)' was deprecated in iOS 13
+                    PHImageManager.default().requestImageData(for: asset,
+                                             ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/QRCode/DKPhotoWebVC.swift:46:56: warning: 'gray' was deprecated in iOS 13.0: renamed to 'UIActivityIndicatorView.Style.medium'
+            self.spinner = UIActivityIndicatorView(style: .gray)
+                                                           ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/QRCode/DKPhotoWebVC.swift:46:56: note: use 'UIActivityIndicatorView.Style.medium' instead
+            self.spinner = UIActivityIndicatorView(style: .gray)
+                                                           ^~~~
+                                                           UIActivityIndicatorView.Style.medium
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PlayerPreview/DKPlayerView.swift:152:48: warning: 'gray' was deprecated in iOS 13.0: renamed to 'UIActivityIndicatorView.Style.medium'
+            return UIActivityIndicatorView(style: .gray)
+                                                   ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/Preview/PlayerPreview/DKPlayerView.swift:152:48: note: use 'UIActivityIndicatorView.Style.medium' instead
+            return UIActivityIndicatorView(style: .gray)
+                                                   ^~~~
+                                                   UIActivityIndicatorView.Style.medium
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoIncrementalIndicator.swift:161:124: warning: forming 'UnsafeMutableRawPointer' to an inout variable of type String exposes the internal representation rather than the string contents.
+            scrollView.addObserver(self, forKeyPath: DKPhotoIncrementalIndicator.contentSizeKeyPath, options: [.new], context: &DKPhotoIncrementalIndicator.context)
+                                                                                          ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoIncrementalIndicator.swift:162:126: warning: forming 'UnsafeMutableRawPointer' to an inout variable of type String exposes the internal representation rather than the string contents.
+            scrollView.addObserver(self, forKeyPath: DKPhotoIncrementalIndicator.contentOffsetKeyPath, options: [.new], context: &DKPhotoIncrementalIndicator.context)
+                                                                                          ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKPhotoGallery/DKPhotoGallery/DKPhotoIncrementalIndicator.swift:171:23: warning: forming 'UnsafeMutableRawPointer' to an inout variable of type String exposes the internal representation rather than the string contents.
+            if context == &DKPhotoIncrementalIndicator.context {
+                          ^
+    libtool: warning: 'GACAppCheckStoredToken+GACAppCheckToken.o' has no symbols
+    libtool: warning: 'GACAppCheckToken+APIResponse.o' has no symbols
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOSCustomBrowser.m:151:44: warning: 'openURL:' is deprecated: first deprecated in iOS 10.0 [-Wdeprecated-declarations]
+      151 |         [[UIApplication sharedApplication] openURL:_appStoreURL];
+          |                                            ^~~~~~~
+          |                                            openURL:options:completionHandler:
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/AppAuth/AppAuth-prefix.pch:2:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:97:1: note: 'openURL:' has been explicitly marked deprecated here
+       97 | - (BOOL)openURL:(NSURL*)url API_DEPRECATED_WITH_REPLACEMENT("openURL:options:completionHandler:", ios(2.0, 10.0)) API_UNAVAILABLE(visionos, watchos);
+          | ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOSCustomBrowser.m:165:63: warning: 'openURL:' is deprecated: first deprecated in iOS 10.0 [-Wdeprecated-declarations]
+      165 |     BOOL openedInBrowser = [[UIApplication sharedApplication] openURL:requestURL];
+          |                                                               ^~~~~~~
+          |                                                               openURL:options:completionHandler:
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/AppAuth/AppAuth-prefix.pch:2:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:97:1: note: 'openURL:' has been explicitly marked deprecated here
+       97 | - (BOOL)openURL:(NSURL*)url API_DEPRECATED_WITH_REPLACEMENT("openURL:options:completionHandler:", ios(2.0, 10.0)) API_UNAVAILABLE(visionos, watchos);
+          | ^
+    2 warnings generated.
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:53:3: warning: 'SFAuthenticationSession' is deprecated: first deprecated in iOS 12.0 [-Wdeprecated-declarations]
+       53 |   SFAuthenticationSession *_authenticationVC;
+          |   ^~~~~~~~~~~~~~~~~~~~~~~
+          |   ASWebAuthenticationSession
+    In module 'SafariServices' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:25:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/SafariServices.framework/Headers/SFAuthenticationSession.h:63:12: note: 'SFAuthenticationSession' has been explicitly marked deprecated here
+       63 | @interface SFAuthenticationSession : NSObject
+          |            ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:143:7: warning: 'SFAuthenticationSession' is deprecated: first deprecated in iOS 12.0 [-Wdeprecated-declarations]
+      143 |       SFAuthenticationSession *authenticationVC =
+          |       ^~~~~~~~~~~~~~~~~~~~~~~
+          |       ASWebAuthenticationSession
+    In module 'SafariServices' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:25:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/SafariServices.framework/Headers/SFAuthenticationSession.h:63:12: note: 'SFAuthenticationSession' has been explicitly marked deprecated here
+       63 | @interface SFAuthenticationSession : NSObject
+          |            ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:144:37: warning: 'SFAuthenticationSession' is deprecated: first deprecated in iOS 12.0 [-Wdeprecated-declarations]
+      144 |           [[SFAuthenticationSession alloc] initWithURL:requestURL
+          |                                     ^~~~~
+          |                                     ASWebAuthenticationSession
+    In module 'SafariServices' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:25:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/SafariServices.framework/Headers/SFAuthenticationSession.h:63:12: note: 'SFAuthenticationSession' has been explicitly marked deprecated here
+       63 | @interface SFAuthenticationSession : NSObject
+          |            ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:180:58: warning: 'openURL:' is deprecated: first deprecated in iOS 10.0 [-Wdeprecated-declarations]
+      180 |     openedUserAgent = [[UIApplication sharedApplication] openURL:requestURL];
+          |                                                          ^~~~~~~
+          |                                                          openURL:options:completionHandler:
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/AppAuth/AppAuth-prefix.pch:2:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIApplication.h:97:1: note: 'openURL:' has been explicitly marked deprecated here
+       97 | - (BOOL)openURL:(NSURL*)url API_DEPRECATED_WITH_REPLACEMENT("openURL:options:completionHandler:", ios(2.0, 10.0)) API_UNAVAILABLE(visionos, watchos);
+          | ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:203:3: warning: 'SFAuthenticationSession' is deprecated: first deprecated in iOS 12.0 [-Wdeprecated-declarations]
+      203 |   SFAuthenticationSession *authenticationVC = _authenticationVC;
+          |   ^~~~~~~~~~~~~~~~~~~~~~~
+          |   ASWebAuthenticationSession
+    In module 'SafariServices' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/AppAuth/Sources/AppAuth/iOS/OIDExternalUserAgentIOS.m:25:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/SafariServices.framework/Headers/SFAuthenticationSession.h:63:12: note: 'SFAuthenticationSession' has been explicitly marked deprecated here
+       63 | @interface SFAuthenticationSession : NSObject
+          |            ^
+    5 warnings generated.
+    libtool: warning: 'OIDAuthorizationService+IOS.o' has no symbols
+    libtool: warning: 'OIDAuthState+IOS.o' has no symbols
+    libtool: warning: 'OIDExternalUserAgentCatalyst.o' has no symbols
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/GoogleSignIn/GoogleSignIn/Sources/GIDAppCheck/UI/GIDActivityIndicatorViewController.m:34:13: warning: 'UIActivityIndicatorViewStyleGray' is deprecated: first deprecated in iOS 13.0 [-Wdeprecated-declarations]
+       34 |     style = UIActivityIndicatorViewStyleGray;
+          |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          |             UIActivityIndicatorViewStyleMedium
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/GoogleSignIn/GoogleSignIn/Sources/GIDAppCheck/UI/GIDActivityIndicatorViewController.h:21:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIActivityIndicatorView.h:20:5: note: 'UIActivityIndicatorViewStyleGray' has been explicitly marked deprecated here
+       20 |     UIActivityIndicatorViewStyleGray API_DEPRECATED_WITH_REPLACEMENT("UIActivityIndicatorViewStyleMedium", ios(2.0, 13.0)) API_UNAVAILABLE(tvos, visionos, watchos) = 2,
+          |     ^
+    1 warning generated.
+    /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/FLTFirebaseCorePlugin.m:92:49: warning: 'deepLinkURLScheme' is deprecated [-Wdeprecated-declarations]
+       92 |   pigeonOptions.deepLinkURLScheme = (id)options.deepLinkURLScheme ?: [NSNull null];
+          |                                                 ^
+    In module 'FirebaseCore' imported from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/FLTFirebasePlugin.h:10:
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/FirebaseCore/FirebaseCore/Sources/Public/FirebaseCore/FIROptions.h:86:66: note: 'deepLinkURLScheme' has been explicitly marked deprecated here
+       86 | @property(nonatomic, copy, nullable) NSString *deepLinkURLScheme DEPRECATED_ATTRIBUTE;
+          |                                                                  ^
+    In module '_DarwinFoundation1' imported from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/FLTFirebaseCorePlugin.h:4:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include/AvailabilityMacros.h:150:60: note: expanded from macro 'DEPRECATED_ATTRIBUTE'
+      150 |         #define DEPRECATED_ATTRIBUTE        __attribute__((deprecated))
+          |                                                            ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/FLTFirebaseCorePlugin.m:168:13: warning: 'deepLinkURLScheme' is deprecated [-Wdeprecated-declarations]
+      168 |     options.deepLinkURLScheme = initializeAppRequest.deepLinkURLScheme;
+          |             ^
+    In module 'FirebaseCore' imported from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/FLTFirebasePlugin.h:10:
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/FirebaseCore/FirebaseCore/Sources/Public/FirebaseCore/FIROptions.h:86:66: note: 'deepLinkURLScheme' has been explicitly marked deprecated here
+       86 | @property(nonatomic, copy, nullable) NSString *deepLinkURLScheme DEPRECATED_ATTRIBUTE;
+          |                                                                  ^
+    In module '_DarwinFoundation1' imported from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/FLTFirebaseCorePlugin.h:4:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include/AvailabilityMacros.h:150:60: note: expanded from macro 'DEPRECATED_ATTRIBUTE'
+      150 |         #define DEPRECATED_ATTRIBUTE        __attribute__((deprecated))
+          |                                                            ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/FLTFirebaseCorePlugin.m:255:74: warning: conflicting parameter types in implementation of 'setAutomaticResourceManagementEnabledAppName:enabled:completion:': 'BOOL' (aka '_Bool') vs 'NSNumber * _Nonnull __strong' [-Wmismatched-parameter-types]
+      255 |                                              enabled:(nonnull NSNumber *)enabled
+          |                                                                          ^
+    In file included from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/FLTFirebaseCorePlugin.m:6:
+    In file included from /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/FLTFirebaseCorePlugin.h:16:
+    /Users/yasir/.pub-cache/hosted/pub.dev/firebase_core-3.15.2/ios/firebase_core/Sources/firebase_core/include/firebase_core/messages.g.h:91:60: note: previous definition is here
+       91 |                                              enabled:(BOOL)enabled
+          |                                                       ~~~~ ^
+    3 warnings generated.
+    libtool: warning: 'dummy.o' has no symbols
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/View/DKAssetGroupDetailVC.swift:344:14: warning: 'frameInterval' was deprecated in iOS 10.0: preferredFramesPerSecond
+            link.frameInterval = 1
+                 ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImageAssetExporter.swift:557:38: warning: capture of 'fileManager' with non-Sendable type 'FileManager' in an isolated local function; this is an error in the Swift 6 language mode
+                                    try? fileManager.removeItem(at: auxiliaryDirectory)
+                                         ^
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSFileManager.h:96:12: note: class 'FileManager' does not conform to the 'Sendable' protocol
+    @interface NSFileManager : NSObject
+               ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImageDataManager/DKImageDataManager.swift:154:43: warning: 'requestImageData(for:options:resultHandler:)' was deprecated in iOS 13
+            let imageRequestID = self.manager.requestImageData(
+                                              ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/Extensions/DKImageExtensionGallery.swift:35:38: warning: 'keyWindow' was deprecated in iOS 13.0: Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes
+                    UIApplication.shared.keyWindow!.rootViewController!.present(photoGallery: gallery)
+                                         ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImagePickerController.swift:265:45: warning: 'keyWindow' was deprecated in iOS 13.0: Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes
+                targetVC = UIApplication.shared.keyWindow!.rootViewController!
+                                                ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKImagePickerController.swift:281:34: warning: 'keyWindow' was deprecated in iOS 13.0: Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes
+                UIApplication.shared.keyWindow!.rootViewController!.dismiss(animated: true,
+                                     ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKPopoverViewController.swift:30:43: warning: 'keyWindow' was deprecated in iOS 13.0: Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes
+            let window = UIApplication.shared.keyWindow!
+                                              ^
+    /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/DKImagePickerController/Sources/DKImagePickerController/DKPopoverViewController.swift:43:43: warning: 'keyWindow' was deprecated in iOS 13.0: Should not be used for applications that support multiple scenes as it returns a key window across all connected scenes
+            let window = UIApplication.shared.keyWindow!
+                                              ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/file_picker-8.3.7/ios/file_picker/Sources/file_picker/FileUtils.m:133:30: warning: unused variable 'exportError' [-Wunused-variable]
+      133 |                     NSError *exportError = exporter.error;
+          |                              ^~~~~~~~~~~
+    1 warning generated.
+    /Users/yasir/.pub-cache/hosted/pub.dev/file_picker-8.3.7/ios/file_picker/Sources/file_picker/FilePickerPlugin.m:293:106: warning: 'UIActivityIndicatorViewStyleWhite' is deprecated: first deprecated in iOS 13.0 [-Wdeprecated-declarations]
+      293 |     UIActivityIndicatorView* indicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhite];
+          |                                                                                                          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          |                                                                                                          UIActivityIndicatorViewStyleMedium
+    In module 'UIKit' imported from /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-/ios/Pods/Target Support Files/file_picker/file_picker-prefix.pch:2:
+    /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/UIKit.framework/Headers/UIActivityIndicatorView.h:19:5: note: 'UIActivityIndicatorViewStyleWhite' has been explicitly marked deprecated here
+       19 |     UIActivityIndicatorViewStyleWhite API_DEPRECATED_WITH_REPLACEMENT("UIActivityIndicatorViewStyleMedium", ios(2.0, 13.0), tvos(9.0, 13.0)) API_UNAVAILABLE(visionos, watchos) = 1,
+          |     ^
+    /Users/yasir/.pub-cache/hosted/pub.dev/file_picker-8.3.7/ios/file_picker/Sources/file_picker/FilePickerPlugin.m:409:17: warning: incompatible pointer types assigning to 'NSMutableArray<NSURL *> *' from 'NSArray<NSURL *> *' [-Wincompatible-pointer-types]
+      409 |         newUrls = urls;
+          |                 ^ ~~~~
+    2 warnings generated.
+    lib/screens/chatbot/data/reven_quick_prompts.dart:43:23: Error: Too many positional arguments: 0 allowed, but 1 found.
+    Try removing the extra positional arguments.
+          RevenQuickPrompt(
+                          ^
+    lib/screens/chatbot/data/reven_quick_prompts.dart:20:9: Context: Found this candidate, but the arguments don't match.
+      const RevenQuickPrompt({
+            ^^^^^^^^^^^^^^^^
+    lib/screens/chatbot/data/reven_quick_prompts.dart:51:23: Error: Too many positional arguments: 0 allowed, but 1 found.
+    Try removing the extra positional arguments.
+          RevenQuickPrompt(
+                          ^
+    lib/screens/chatbot/data/reven_quick_prompts.dart:20:9: Context: Found this candidate, but the arguments don't match.
+      const RevenQuickPrompt({
+            ^^^^^^^^^^^^^^^^
+    lib/screens/chatbot/data/reven_quick_prompts.dart:93:23: Error: Too many positional arguments: 0 allowed, but 1 found.
+    Try removing the extra positional arguments.
+          RevenQuickPrompt(
+                          ^
+    lib/screens/chatbot/data/reven_quick_prompts.dart:20:9: Context: Found this candidate, but the arguments don't match.
+      const RevenQuickPrompt({
+            ^^^^^^^^^^^^^^^^
+    Target kernel_snapshot_program failed: Exception
+    Failed to package /Users/yasir/Projects/Office/RealtorOne/realtorone-frontend-.
+    Command PhaseScriptExecution failed with a nonzero exit code
+    note: Run script build phase 'Run Script' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+    note: Run script build phase 'Thin Binary' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'Runner' from project 'Runner')
+    warning: Run script build phase 'Remove Problematic Frameworks' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'Runner' from project 'Runner')
+    warning: Run script build phase 'Fix Firebase Frameworks' will be run during every build because it does not specify any outputs. To address this issue, either add output dependencies to the script phase, or configure it to run in every build by unchecking "Based on dependency analysis" in the script phase. (in target 'Runner' from project 'Runner')
+
+Encountered error while archiving for device.
