@@ -1240,6 +1240,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     final String taskTitle = activityType['task_title'] ?? 'TASK DESCRIPTION';
     final String scriptTitle = activityType['script_title'] ?? 'QUESTION / PROMPT';
     final bool isMcq = activityType['is_mcq'] == true;
+    final bool aiEnabled = activityType['ai_enabled'] != false;
     final String? mcqQuestion = activityType['mcq_question'];
     final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
     final int? mcqCorrectOption = activityType['mcq_correct_option'] != null ? (activityType['mcq_correct_option'] as num).toInt() : null;
@@ -1270,6 +1271,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         mcqQuestion: mcqQuestion,
         mcqOptions: mcqOptions,
         mcqCorrectOption: mcqCorrectOption,
+        aiEnabled: aiEnabled,
         activityType: activityType,
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: (String userResponse, int listenedPercent) {
@@ -1974,6 +1976,7 @@ class _ActivityTaskModalContent extends StatefulWidget {
     this.mcqQuestion,
     required this.mcqOptions,
     this.mcqCorrectOption,
+    required this.aiEnabled,
     required this.activityType,
     required this.onCancel,
     required this.onSubmit,
@@ -1997,6 +2000,7 @@ class _ActivityTaskModalContent extends StatefulWidget {
   final List<String> mcqOptions;
   final int? mcqCorrectOption;
   final Map<String, dynamic> activityType;
+  final bool aiEnabled;
   final VoidCallback onCancel;
   final void Function(String userResponse, int listenedPercent) onSubmit;
   final Widget Function({
@@ -2174,6 +2178,39 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                           ),
                         ),
                       ),
+                    if (widget.aiEnabled) ...[
+                      const SizedBox(width: 8),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _showAiAdvisor(context),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF667eea).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -2480,6 +2517,268 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showAiAdvisor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : Colors.black12,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF667eea).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF667eea), size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AI ADVISOR',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF667eea),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      Text(
+                        'Consulting Knowledge Base...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                ),
+                child: _AiAdvisorDialog(
+                  taskTitle: widget.taskTitle,
+                  taskDescription: widget.taskDescription,
+                  scriptIdea: widget.scriptIdea,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF667eea),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                child: const Text('GOT IT, THANKS!', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AiAdvisorDialog extends StatefulWidget {
+  final String taskTitle;
+  final String taskDescription;
+  final String scriptIdea;
+
+  const _AiAdvisorDialog({
+    required this.taskTitle,
+    required this.taskDescription,
+    required this.scriptIdea,
+  });
+
+  @override
+  State<_AiAdvisorDialog> createState() => _AiAdvisorDialogState();
+}
+
+class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
+  bool _loading = true;
+  String _reply = '';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdvice();
+  }
+
+  Future<void> _fetchAdvice() async {
+    try {
+      final res = await ApiClient.consultMomentumAi(
+        taskTitle: widget.taskTitle,
+        taskDescription: widget.taskDescription,
+        scriptIdea: widget.scriptIdea,
+      );
+
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          if (res['success'] == true) {
+            _reply = res['reply'] ?? 'No advice found.';
+          } else {
+            _error = res['message'] ?? 'Failed to get advice.';
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = 'Connection error. Please try again.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF667eea)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Analyzing task...',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : Colors.black45,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 48),
+            const SizedBox(height: 16),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDark ? Colors.white70 : Colors.black87,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _error = null;
+                });
+                _fetchAdvice();
+              },
+              child: const Text('RETRY', style: TextStyle(color: Color(0xFF667eea), fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _reply,
+            style: TextStyle(
+              fontSize: 15,
+              height: 1.6,
+              color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF334155),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF667eea).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.tips_and_updates_rounded, color: Color(0xFF667eea), size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "Tip: This advice is based on our company's internal Knowledge Base.",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

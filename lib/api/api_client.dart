@@ -159,6 +159,24 @@ class ApiClient {
     return get('/webinars', requiresAuth: true, useCache: true);
   }
 
+  /// Momentum AI Advisor consultation
+  static Future<Map<String, dynamic>> consultMomentumAi({
+    required String taskTitle,
+    String? taskDescription,
+    String? scriptIdea,
+  }) async {
+    return post(
+      '/momentum/ai-advisor',
+      {
+        'task_title': taskTitle,
+        'task_description': taskDescription,
+        'script_idea': scriptIdea,
+      },
+      requiresAuth: true,
+      timeout: const Duration(seconds: 60),
+    );
+  }
+
   /// Multipart upload (e.g. Excel import). Field name must match API (`file`).
   static Future<Map<String, dynamic>> postMultipartFile(
     String endpoint, {
