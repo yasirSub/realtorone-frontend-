@@ -1238,7 +1238,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         (activityType['daily_require_user_response'] ?? false) == true;
     final String dayTitle = activityType['day_title'] ?? 'DAY $todayDay TASK';
     final String taskTitle = activityType['task_title'] ?? 'TASK DESCRIPTION';
-    final String scriptTitle = 'QUESTION / PROMPT';
+    final String scriptTitle = activityType['script_title'] ?? 'QUESTION / PROMPT';
     final bool isMcq = activityType['is_mcq'] == true;
     final String? mcqQuestion = activityType['mcq_question'];
     final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
