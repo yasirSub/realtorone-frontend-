@@ -604,36 +604,52 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 40),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text(
-                            "Don't have an account? ",
-                            style: TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 14,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pushReplacementNamed(
-                              context,
-                              AppRoutes.register,
-                            ),
-                            child: const Text(
-                              'Sign Up',
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Don't have an account? ",
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF667eea),
+                                color: Color(0xFF64748B),
                                 fontSize: 14,
                               ),
                             ),
+                            TextButton(
+                              onPressed: () => Navigator.pushReplacementNamed(
+                                context,
+                                AppRoutes.register,
+                              ),
+                              child: const Text(
+                                'Sign Up',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF667eea),
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ).animate().fadeIn(delay: 1000.ms),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: _showDebugLogin,
+                            icon: const Icon(Icons.bug_report_outlined, size: 16),
+                            label: const Text(
+                              'DEBUG ACCESS HUB',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1,
+                                color: Color(0xFF94A3B8),
+                              ),
+                            ),
                           ),
-                        ],
-                      ).animate().fadeIn(delay: 1000.ms),
-                    ],
+                        ).animate().fadeIn(delay: 1200.ms),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ),
           ),
 
