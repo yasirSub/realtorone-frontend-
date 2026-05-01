@@ -423,12 +423,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
           // Tactical Typography
           Container(
-            padding: const EdgeInsets.only(left: 12),
-            decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: data.gradient[0], width: 4),
-              ),
-            ),
+            padding: const EdgeInsets.only(left: 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -438,14 +433,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     fontSize: 12,
                     color: data.gradient[0],
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 3,
+                    letterSpacing: 2,
                   ),
                 ).animate().fadeIn(delay: 200.ms).slideX(),
                 const SizedBox(height: 8),
                 Text(
                   data.title,
                   style: const TextStyle(
-                    fontSize: 36,
+                    fontSize: 34,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
                     letterSpacing: -1,

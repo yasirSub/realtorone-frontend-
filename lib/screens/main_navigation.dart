@@ -314,29 +314,30 @@ class _MainNavigationState extends State<MainNavigation> {
             width: hole.width,
             height: hole.height,
             child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: RealtorOneBrand.accentTeal.withOpacity(0.8),
-                    width: 2.5,
-                  ),
-                ),
-              )
-                  .animate(onPlay: (controller) => controller.repeat())
-                  .scale(
-                    begin: const Offset(1, 1),
-                    end: const Offset(1.05, 1.05),
-                    duration: 1200.ms,
-                    curve: Curves.easeInOut,
-                  )
-                  .fadeIn(duration: 1200.ms)
-                  .then()
-                  .scale(
-                    begin: const Offset(1.05, 1.05),
-                    end: const Offset(1, 1),
-                  )
-                  .fadeOut(),
+              child:
+                  Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: RealtorOneBrand.accentTeal.withOpacity(0.4),
+                            width: 1.5,
+                          ),
+                        ),
+                      )
+                      .animate(onPlay: (controller) => controller.repeat())
+                      .scale(
+                        begin: const Offset(1, 1),
+                        end: const Offset(1.02, 1.02),
+                        duration: 1200.ms,
+                        curve: Curves.easeInOut,
+                      )
+                      .fadeIn(duration: 1200.ms)
+                      .then()
+                      .scale(
+                        begin: const Offset(1.02, 1.02),
+                        end: const Offset(1, 1),
+                      )
+                      .fadeOut(),
             ),
           ),
 
@@ -351,14 +352,14 @@ class _MainNavigationState extends State<MainNavigation> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: RealtorOneBrand.accentTeal,
-                    width: 3,
+                    color: RealtorOneBrand.accentTeal.withOpacity(0.6),
+                    width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: RealtorOneBrand.accentTeal.withOpacity(0.4),
-                      blurRadius: 25,
-                      spreadRadius: 2,
+                      color: RealtorOneBrand.accentTeal.withOpacity(0.2),
+                      blurRadius: 15,
+                      spreadRadius: 1,
                     ),
                   ],
                 ),
@@ -375,12 +376,14 @@ class _MainNavigationState extends State<MainNavigation> {
               ? null
               : tooltipBottom,
           top: (hole != null && hole.bottom <= navTop - 100)
-              ? hole.bottom + 16
+              ? hole.bottom + 10
               : null,
-          child: _buildTourCard()
-              .animate(key: ValueKey(_tourStep))
-              .fadeIn(duration: 400.ms)
-              .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+          child: Center(
+            child: _buildTourCard()
+                .animate(key: ValueKey(_tourStep))
+                .fadeIn(duration: 400.ms)
+                .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
+          ),
         ),
       ],
     );
@@ -394,34 +397,35 @@ class _MainNavigationState extends State<MainNavigation> {
     final body = _tourBodyForStep(_tourStep, l10n);
 
     return Container(
+      width: 340,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 40,
-            offset: const Offset(0, 20),
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
+        borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF1E293B).withOpacity(0.95),
-                  const Color(0xFF0F172A).withOpacity(0.98),
+                  const Color(0xFF1E293B).withOpacity(0.92),
+                  const Color(0xFF0F172A).withOpacity(0.95),
                 ],
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.12),
-                width: 1.5,
+                color: Colors.white.withOpacity(0.1),
+                width: 1.2,
               ),
             ),
             child: Column(
@@ -433,26 +437,28 @@ class _MainNavigationState extends State<MainNavigation> {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: RealtorOneBrand.accentTeal.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        color: RealtorOneBrand.accentTeal.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: RealtorOneBrand.accentTeal.withOpacity(0.3),
+                          color: RealtorOneBrand.accentTeal.withOpacity(0.2),
                         ),
                       ),
                       child: Text(
-                        l10n.tourStepCounter(
-                          _tourStep + 1,
-                          _kTourStepConfigs.length,
-                        ).toUpperCase(),
+                        l10n
+                            .tourStepCounter(
+                              _tourStep + 1,
+                              _kTourStepConfigs.length,
+                            )
+                            .toUpperCase(),
                         style: TextStyle(
                           color: RealtorOneBrand.accentTeal,
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
+                          letterSpacing: 1.2,
                         ),
                       ),
                     ),
@@ -460,62 +466,67 @@ class _MainNavigationState extends State<MainNavigation> {
                     IconButton(
                       onPressed: _completeTourFlow,
                       icon: const Icon(Icons.close_rounded),
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.white.withOpacity(0.35),
+                      iconSize: 20,
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withOpacity(0.05),
-                        padding: const EdgeInsets.all(8),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Icon & Title
-                Row(
-                  children: [
-                    Container(
-                      height: 54,
-                      width: 54,
-                      decoration: BoxDecoration(
-                        gradient: RealtorOneBrand.splashGradient,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: RealtorOneBrand.accentTeal.withOpacity(0.3),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Icon(stepConfig.icon, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5,
-                        ),
+                        backgroundColor: Colors.white.withOpacity(0.04),
+                        padding: const EdgeInsets.all(6),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
+                // Icon & Title
+                Row(
+                  children: [
+                    Container(
+                      height: 44,
+                      width: 44,
+                      decoration: BoxDecoration(
+                        gradient: RealtorOneBrand.splashGradient,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: RealtorOneBrand.accentTeal.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        stepConfig.icon,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
                 // Description
                 Text(
                   body,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 15,
-                    height: 1.5,
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 13,
+                    height: 1.4,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // Action Bar
                 Row(
@@ -524,30 +535,38 @@ class _MainNavigationState extends State<MainNavigation> {
                       TextButton(
                         onPressed: () => _setTourStep(_tourStep - 1),
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.white60,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          foregroundColor: Colors.white54,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          visualDensity: VisualDensity.compact,
                         ),
                         child: Text(
                           l10n.tourBack,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     const Spacer(),
                     GestureDetector(
-                      onTap: isLast ? _completeTourFlow : () => _setTourStep(_tourStep + 1),
+                      onTap: isLast
+                          ? _completeTourFlow
+                          : () => _setTourStep(_tourStep + 1),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 28,
-                          vertical: 14,
+                          horizontal: 22,
+                          vertical: 12,
                         ),
                         decoration: BoxDecoration(
                           gradient: RealtorOneBrand.splashGradient,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: RealtorOneBrand.accentIndigo.withOpacity(0.4),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
+                              color: RealtorOneBrand.accentIndigo.withOpacity(
+                                0.3,
+                              ),
+                              blurRadius: 15,
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
@@ -559,15 +578,15 @@ class _MainNavigationState extends State<MainNavigation> {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: 1,
-                                fontSize: 13,
+                                letterSpacing: 0.8,
+                                fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             const Icon(
                               Icons.arrow_forward_rounded,
                               color: Colors.white,
-                              size: 18,
+                              size: 16,
                             ),
                           ],
                         ),
@@ -575,7 +594,7 @@ class _MainNavigationState extends State<MainNavigation> {
                     ),
                   ],
                 ),
-                
+
                 // Progress Dots
                 const SizedBox(height: 24),
                 Row(
@@ -592,7 +611,9 @@ class _MainNavigationState extends State<MainNavigation> {
                         color: active
                             ? RealtorOneBrand.accentTeal
                             : Colors.white.withOpacity(0.15),
-                        gradient: active ? RealtorOneBrand.splashGradient : null,
+                        gradient: active
+                            ? RealtorOneBrand.splashGradient
+                            : null,
                       ),
                     );
                   }),

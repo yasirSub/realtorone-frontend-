@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:audio_waveforms/audio_waveforms.dart' show WaveformExtractionController;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
@@ -2739,47 +2740,88 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
       );
     }
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _reply,
-            style: TextStyle(
-              fontSize: 15,
-              height: 1.6,
-              color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF334155),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 40),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF667eea).withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.tips_and_updates_rounded, color: Color(0xFF667eea), size: 20),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Tip: This advice is based on our company's internal Knowledge Base.",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                    ),
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 40),
+                child: Text(
+                  _reply.replaceAll('**', ''),
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.6,
+                    color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF334155),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(height: 40),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF667eea).withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.tips_and_updates_rounded, color: Color(0xFF667eea), size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Tip: This advice is based on our company's internal Knowledge Base.",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: _reply.replaceAll('**', '')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Advice copied to clipboard!'),
+                    backgroundColor: const Color(0xFF667eea),
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.content_copy_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white60 : Colors.black45,
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
