@@ -12,6 +12,7 @@ import '../../api/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/push_notification_service.dart';
 import '../../utils/version_utils.dart';
+import 'package:app_tracking_transparency/app_tracking_transparency.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -76,6 +77,19 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (e) {
       debugPrint('Splash: Error checking install flag: $e');
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      try {
+        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        if (status == TrackingStatus.notDetermined) {
+          // Add a tiny delay so the UI is fully mounted before iOS throws the alert
+          await Future.delayed(const Duration(milliseconds: 500));
+          await AppTrackingTransparency.requestTrackingAuthorization();
+        }
+      } catch (e) {
+        debugPrint('Splash: error requesting tracking: $e');
+      }
     }
 
     final token = prefs.getString('token');

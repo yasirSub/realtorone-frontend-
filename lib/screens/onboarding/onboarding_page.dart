@@ -326,8 +326,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildPage(OnboardingData data) {
-    return Container(
-      padding: const EdgeInsets.all(32),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(left: 32, right: 32, top: 100, bottom: 200),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -464,7 +464,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ).animate().fadeIn(delay: 600.ms),
 
-          const SizedBox(height: 80), // Space for bottom navigation
+          const SizedBox(height: 20), // Reduced from 80 because padding handles it
         ],
       ),
     );

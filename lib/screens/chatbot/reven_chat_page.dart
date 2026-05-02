@@ -1304,65 +1304,78 @@ class _CourseList extends StatelessWidget {
         ...courses.map((c) {
           final title = (c['title'] as String?) ?? 'Course';
           final desc = (c['description'] as String?)?.toString();
-          return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4F7CFF).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: const Color(0xFF4F7CFF).withValues(alpha: 0.2),
+          final isPublished = (c['is_published'] == true || c['is_published'] == 1 || c['is_published'] == "1");
+          final isOffline = !isPublished;
+
+          return Opacity(
+            opacity: isOffline ? 0.5 : 1.0,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F7CFF).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFF4F7CFF).withValues(alpha: 0.2),
+                ),
               ),
-            ),
-            child: InkWell(
-              onTap: () {
-                Navigator.of(context).pushNamed(
-                  AppRoutes.courseCurriculum,
-                  arguments: {
-                    'courseId': c['id'],
-                    'courseTitle': title,
-                  },
-                );
-              },
-              borderRadius: BorderRadius.circular(10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.menu_book_rounded,
-                              size: 16,
-                              color: const Color(0xFF4F7CFF),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: TextStyle(
-                                  color: titleColor,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+              child: InkWell(
+                onTap: isOffline ? null : () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.courseCurriculum,
+                    arguments: {
+                      'courseId': c['id'],
+                      'courseTitle': title,
+                    },
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    color: titleColor,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              if (isOffline)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'OFFLINE',
+                                    style: TextStyle(color: Colors.red, fontSize: 7, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (desc != null && desc.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              desc,
+                              style: TextStyle(
+                                color: titleColor.withOpacity(0.5),
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
-                        ),
-                        if (desc != null && desc.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            desc,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: titleColor.withValues(alpha: 0.75),
-                              fontSize: 12,
-                              height: 1.35,
-                            ),
-                          ),
                         ],
                       ],
                     ),

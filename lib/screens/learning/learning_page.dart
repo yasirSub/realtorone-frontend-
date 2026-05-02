@@ -340,146 +340,170 @@ class _LearningPageState extends State<LearningPage>
       },
     );
   }
-
   Widget _buildEbookCard(EbookModel ebook, Color tierColor) {
-    final bool isUnlocked = _isTierUnlocked(ebook.minTier);
+    final bool isOffline = !ebook.isPublished;
+    final bool isLocked = !isOffline && !_isTierUnlocked(ebook.minTier);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            if (isUnlocked) {
-              // Open PDF logic
-              _openEbook(ebook);
-            } else {
-              _showUpgradePrompt(ebook.minTier);
-            }
-          },
+    return Opacity(
+      opacity: isOffline ? 0.5 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Row(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              if (isOffline) {
+                // Do nothing
+                return;
+              }
+              if (isLocked) {
+                _showUpgradePrompt(ebook.minTier);
+              } else {
+                _openEbook(ebook);
+              }
+            },
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
               children: [
-                // Ebook Thumbnail
-                Container(
-                  width: 80,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: tierColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    image: ebook.thumbnailUrl != null
-                        ? DecorationImage(
-                            image: NetworkImage(
-                              _resolveAssetUrl(ebook.thumbnailUrl!),
-                            ),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: ebook.thumbnailUrl == null
-                      ? Center(
-                          child: Icon(
-                            Icons.book_rounded,
-                            color: tierColor,
-                            size: 32,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 16),
-                // Details
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              ebook.title.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF1E293B),
-                                letterSpacing: 0.5,
+                      // Ebook Thumbnail
+                      Container(
+                        width: 80,
+                        height: 110,
+                        decoration: BoxDecoration(
+                          color: tierColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          image: ebook.thumbnailUrl != null
+                              ? DecorationImage(
+                                  image: NetworkImage(
+                                    _resolveAssetUrl(ebook.thumbnailUrl!),
+                                  ),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: ebook.thumbnailUrl == null
+                            ? Center(
+                                child: Icon(
+                                  Icons.book_rounded,
+                                  color: tierColor,
+                                  size: 32,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 16),
+                      // Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    ebook.title.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF1E293B),
+                                      letterSpacing: 0.5,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isOffline)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text(
+                                      'OFFLINE',
+                                      style: TextStyle(color: Colors.red, fontSize: 8, fontWeight: FontWeight.bold),
+                                    ),
+                                  )
+                                else if (isLocked)
+                                  Icon(
+                                    Icons.lock_rounded,
+                                    color: Colors.grey[400],
+                                    size: 16,
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              ebook.description,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                height: 1.4,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          if (!isUnlocked)
-                            Icon(
-                              Icons.lock_rounded,
-                              color: Colors.grey[400],
-                              size: 16,
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: tierColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'PDF ASSET',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      color: tierColor,
+                                      letterSpacing: 1,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  isOffline ? 'COMING SOON' : (isLocked ? 'LOCKED - GET ACCESS' : 'READ NOW'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    color: isOffline
+                                        ? Colors.grey
+                                        : (isLocked
+                                            ? const Color(0xFFEF4444)
+                                            : const Color(0xFF6366F1)),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                if (!isOffline && isLocked)
+                                  const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    color: Color(0xFF6366F1),
+                                    size: 10,
+                                  ),
+                              ],
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        ebook.description,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                          height: 1.4,
+                          ],
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tierColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'PDF ASSET',
-                              style: TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: tierColor,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            isUnlocked ? 'READ NOW' : 'LOCKED - GET ACCESS',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: isUnlocked
-                                  ? const Color(0xFF6366F1)
-                                  : const Color(0xFFEF4444),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          if (isUnlocked)
-                            const Icon(
-                              Icons.arrow_forward_ios_rounded,
-                              color: Color(0xFF6366F1),
-                              size: 10,
-                            ),
-                        ],
                       ),
                     ],
                   ),
@@ -641,135 +665,155 @@ class _LearningPageState extends State<LearningPage>
   }
 
   Widget _buildCourseCard(CourseModel course, Color moduleColor) {
-    final bool isLocked = course.isLocked && !_isTierUnlocked(course.minTier);
+    final bool isOffline = !course.isPublished;
+    final bool isLocked = !isOffline && (course.isLocked && !_isTierUnlocked(course.minTier));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      height: 90, // Fixed height for absolute rendering stability
-      decoration: BoxDecoration(
-        color: isLocked ? Colors.white.withOpacity(0.5) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: moduleColor.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () => _openCourse(course),
-        borderRadius: BorderRadius.circular(20),
-        child: ClipRRect(
+    return Opacity(
+      opacity: isOffline ? 0.5 : 1.0,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        height: 90, // Fixed height for absolute rendering stability
+        decoration: BoxDecoration(
+          color: (isLocked || isOffline) ? Colors.white.withOpacity(0.5) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          child: Row(
-            children: [
-              // Fixed Size Side Thumbnail
-              Container(
-                width: 100,
-                height: 90,
-                color: moduleColor.withOpacity(0.1),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (course.thumbnailUrl != null &&
-                        course.thumbnailUrl!.isNotEmpty)
-                      Image.network(
-                        _resolveAssetUrl(course.thumbnailUrl!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(
-                              Icons.broken_image_rounded,
-                              color: Colors.grey,
-                            ),
-                      )
-                    else
-                      Center(
-                        child: Icon(
-                          isLocked
-                              ? Icons.lock_outline_rounded
-                              : Icons.play_circle_fill_rounded,
-                          color: moduleColor.withOpacity(0.4),
-                          size: 32,
-                        ),
-                      ),
-                    if (isLocked)
-                      Container(
-                        color: Colors.white.withOpacity(0.3),
-                        child: const Center(
-                          child: Icon(
-                            Icons.lock_rounded,
-                            color: Color(0xFF64748B),
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // Course Content
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
+          boxShadow: [
+            BoxShadow(
+              color: moduleColor.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: InkWell(
+          onTap: () {
+            if (isOffline) {
+              // Do nothing
+              return;
+            }
+            _openCourse(course);
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Row(
+              children: [
+                // Fixed Size Side Thumbnail
+                Container(
+                  width: 100,
+                  height: 90,
+                  color: moduleColor.withOpacity(0.1),
+                  child: Stack(
+                    fit: StackFit.expand,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              course.title,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
-                                color: isLocked
-                                    ? const Color(0xFF64748B)
-                                    : const Color(0xFF1E293B),
-                                letterSpacing: -0.3,
+                      if (course.thumbnailUrl != null &&
+                          course.thumbnailUrl!.isNotEmpty)
+                        Image.network(
+                          _resolveAssetUrl(course.thumbnailUrl!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(
+                                Icons.broken_image_rounded,
+                                color: Colors.grey,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildTierPill(course.minTier, isLocked: isLocked),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        course.description,
-                        style: TextStyle(
-                          color: isLocked ? Colors.grey[400] : Colors.grey[600],
-                          fontSize: 10,
-                          height: 1.2,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (!isLocked && course.progressPercent > 0) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: course.progressPercent / 100,
-                            backgroundColor: Colors.grey[100],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              moduleColor,
-                            ),
-                            minHeight: 2,
+                        )
+                      else
+                        Center(
+                          child: Icon(
+                            (isLocked || isOffline)
+                                ? Icons.lock_outline_rounded
+                                : Icons.play_circle_fill_rounded,
+                            color: moduleColor.withOpacity(0.4),
+                            size: 32,
                           ),
                         ),
-                      ],
+                      if (isOffline)
+                        Container(
+                          color: Colors.black.withOpacity(0.1),
+                          child: const Center(
+                            child: Text(
+                              'OFFLINE',
+                              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        )
+                      else if (isLocked)
+                        Container(
+                          color: Colors.white.withOpacity(0.3),
+                          child: const Center(
+                            child: Icon(
+                              Icons.lock_rounded,
+                              color: Color(0xFF64748B),
+                              size: 24,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              ),
-            ],
+  
+                // Course Content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                course.title,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  color: (isLocked || isOffline)
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF1E293B),
+                                  letterSpacing: -0.3,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildTierPill(course.minTier, isLocked: (isLocked || isOffline)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          course.description,
+                          style: TextStyle(
+                            color: (isLocked || isOffline) ? Colors.grey[400] : Colors.grey[600],
+                            fontSize: 10,
+                            height: 1.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (!isLocked && !isOffline && course.progressPercent > 0) ...[
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: course.progressPercent / 100,
+                              backgroundColor: Colors.grey[100],
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                moduleColor,
+                              ),
+                              minHeight: 2,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
