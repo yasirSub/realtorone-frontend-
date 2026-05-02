@@ -495,15 +495,21 @@ class _RevenChatPageState extends State<RevenChatPage> {
           text = decoded['text'] as String? ?? '';
           final c = decoded['courses'];
           if (c is List && c.isNotEmpty) {
-            courses = c.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+            courses = c
+                .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+                .toList();
           }
           final cmd = decoded['commands'];
           if (cmd is List && cmd.isNotEmpty) {
-            commands = cmd.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+            commands = cmd
+                .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+                .toList();
           }
           final cl = decoded['clients'];
           if (cl is List && cl.isNotEmpty) {
-            clients = cl.map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList();
+            clients = cl
+                .map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{})
+                .toList();
           }
         }
       } catch (_) {}
@@ -512,14 +518,17 @@ class _RevenChatPageState extends State<RevenChatPage> {
     // --- NEW: Parse bracketed commands from text [View X] ---
     final List<Map<String, dynamic>> extracted = commands ?? [];
     // More inclusive regex to capture common navigation requests
-    final reg = RegExp(r'\[View\s+(Dashboard|Profile|Tasks|Learning|Courses|Deal Room|Active Clients|Clients|Home|Settings)\]', caseSensitive: false);
+    final reg = RegExp(
+      r'\[View\s+(Dashboard|Profile|Tasks|Learning|Courses|Deal Room|Active Clients|Clients|Home|Settings)\]',
+      caseSensitive: false,
+    );
     final matches = reg.allMatches(text).toList();
-    
+
     if (matches.isNotEmpty) {
       for (final m in matches) {
         final fullMatch = m.group(0)!;
         final target = m.group(1)!.toLowerCase();
-        
+
         // Prevent duplicates
         if (!extracted.any((e) => e['label'] == fullMatch)) {
           extracted.add({
@@ -566,13 +575,25 @@ class _RevenChatPageState extends State<RevenChatPage> {
       _isLoading = false;
       if (res['success'] == true) {
         List<Map<String, dynamic>>? courses = res['courses'] is List
-            ? (res['courses'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            ? (res['courses'] as List)
+                  .map(
+                    (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                  )
+                  .toList()
             : null;
         List<Map<String, dynamic>>? commands = res['commands'] is List
-            ? (res['commands'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            ? (res['commands'] as List)
+                  .map(
+                    (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                  )
+                  .toList()
             : null;
         List<Map<String, dynamic>>? clients = res['clients'] is List
-            ? (res['clients'] as List).map((e) => e is Map<String, dynamic> ? e : <String, dynamic>{}).toList()
+            ? (res['clients'] as List)
+                  .map(
+                    (e) => e is Map<String, dynamic> ? e : <String, dynamic>{},
+                  )
+                  .toList()
             : null;
 
         // --- Parse bracketed commands from text if commands is empty ---
@@ -589,7 +610,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
               };
             }).toList();
             // Optional: Remove the bracketed parts from the text to avoid duplication
-            replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
+            replyText = replyText
+                .replaceAll(RegExp(r'\s*\[.*?\]\s*'), '')
+                .trim();
           }
         }
 
@@ -607,22 +630,25 @@ class _RevenChatPageState extends State<RevenChatPage> {
         // --- Auto-fetch clients/courses if promised but not sent ---
         final lastMsg = _messages.last;
         final replyLower = lastMsg.text.toLowerCase();
-        
-        final needsClients = (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
+
+        final needsClients =
+            (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
             (replyLower.contains('client') ||
                 replyLower.contains('lead') ||
                 replyLower.contains('deal room') ||
                 replyLower.contains('active clients') ||
                 replyLower.contains('your clients'));
 
-        final needsCourses = (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
+        final needsCourses =
+            (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
             (replyLower.contains('course') ||
                 replyLower.contains('learn') ||
                 replyLower.contains('curriculum') ||
                 replyLower.contains('available courses') ||
                 replyLower.contains('your courses'));
 
-        final needsRevenue = lastMsg.revenueSummary == null &&
+        final needsRevenue =
+            lastMsg.revenueSummary == null &&
             (replyLower.contains('revenue') ||
                 replyLower.contains('commission') ||
                 replyLower.contains('performance') ||
@@ -671,7 +697,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
             .toList();
         if (list.isNotEmpty) {
           setState(() {
-          final idx = _messages.lastIndexWhere((m) => !m.isUser && m.clients == null);
+            final idx = _messages.lastIndexWhere(
+              (m) => !m.isUser && m.clients == null,
+            );
             if (idx != -1) {
               final old = _messages[idx];
               _messages[idx] = _RevenMessage(
@@ -691,10 +719,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
 
   Future<void> _autoFetchCoursesForLastMessage() async {
     try {
-      final res = await ApiClient.get(
-        ApiEndpoints.courses,
-        requiresAuth: true,
-      );
+      final res = await ApiClient.get(ApiEndpoints.courses, requiresAuth: true);
       if (res['success'] == true && res['data'] is List && mounted) {
         final list = (res['data'] as List)
             .take(3)
@@ -702,7 +727,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
             .toList();
         if (list.isNotEmpty) {
           setState(() {
-          final idx = _messages.lastIndexWhere((m) => !m.isUser && m.courses == null);
+            final idx = _messages.lastIndexWhere(
+              (m) => !m.isUser && m.courses == null,
+            );
             if (idx != -1) {
               final old = _messages[idx];
               _messages[idx] = _RevenMessage(
@@ -722,14 +749,12 @@ class _RevenChatPageState extends State<RevenChatPage> {
 
   Future<void> _autoFetchRevenueForLastMessage() async {
     try {
-      final res = await ApiClient.get(
-        ApiEndpoints.results,
-        requiresAuth: true,
-      );
+      final res = await ApiClient.get(ApiEndpoints.results, requiresAuth: true);
       if (res['success'] == true && res['summary'] != null && mounted) {
         setState(() {
-          final idx =
-              _messages.lastIndexWhere((m) => !m.isUser && m.revenueSummary == null);
+          final idx = _messages.lastIndexWhere(
+            (m) => !m.isUser && m.revenueSummary == null,
+          );
           if (idx != -1) {
             final old = _messages[idx];
             _messages[idx] = _RevenMessage(
@@ -1304,7 +1329,10 @@ class _CourseList extends StatelessWidget {
         ...courses.map((c) {
           final title = (c['title'] as String?) ?? 'Course';
           final desc = (c['description'] as String?)?.toString();
-          final isPublished = (c['is_published'] == true || c['is_published'] == 1 || c['is_published'] == "1");
+          final isPublished =
+              (c['is_published'] == true ||
+              c['is_published'] == 1 ||
+              c['is_published'] == "1");
           final isOffline = !isPublished;
 
           return Opacity(
@@ -1320,15 +1348,17 @@ class _CourseList extends StatelessWidget {
                 ),
               ),
               child: InkWell(
-                onTap: isOffline ? null : () {
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.courseCurriculum,
-                    arguments: {
-                      'courseId': c['id'],
-                      'courseTitle': title,
-                    },
-                  );
-                },
+                onTap: isOffline
+                    ? null
+                    : () {
+                        Navigator.of(context).pushNamed(
+                          AppRoutes.courseCurriculum,
+                          arguments: {
+                            'courseId': c['id'],
+                            'courseTitle': title,
+                          },
+                        );
+                      },
                 borderRadius: BorderRadius.circular(10),
                 child: Row(
                   children: [
@@ -1352,14 +1382,21 @@ class _CourseList extends StatelessWidget {
                               ),
                               if (isOffline)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.red.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: const Text(
                                     'OFFLINE',
-                                    style: TextStyle(color: Colors.red, fontSize: 7, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 7,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -1377,15 +1414,15 @@ class _CourseList extends StatelessWidget {
                             ),
                           ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  Icon(
-                    Icons.play_circle_outline_rounded,
-                    size: 20,
-                    color: const Color(0xFF667EEA).withValues(alpha: 0.6),
-                  ),
-                ],
+                    Icon(
+                      Icons.play_circle_outline_rounded,
+                      size: 20,
+                      color: const Color(0xFF667EEA).withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

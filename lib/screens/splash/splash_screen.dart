@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../../api/api_client.dart';
@@ -61,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _checkLoginStatus() async {
     debugPrint('Splash: _checkLoginStatus started');
     final prefs = await SharedPreferences.getInstance();
-    
+
     // --- Fresh Install Detection ---
     // On iOS, SharedPreferences can be restored from iCloud backup after reinstall.
     // To ensure a clean session on fresh install, we check a file in the temporary directory
@@ -70,7 +69,9 @@ class _SplashScreenState extends State<SplashScreen>
       final tempDir = await getTemporaryDirectory();
       final installFlagFile = File('${tempDir.path}/install_flag.txt');
       if (!await installFlagFile.exists()) {
-        debugPrint('Splash: Fresh install detected (or cache cleared). Cleaning session.');
+        debugPrint(
+          'Splash: Fresh install detected (or cache cleared). Cleaning session.',
+        );
         await ApiClient.clearToken();
         await prefs.clear();
         await installFlagFile.create();
@@ -81,7 +82,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       try {
-        final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+        final status =
+            await AppTrackingTransparency.trackingAuthorizationStatus;
         if (status == TrackingStatus.notDetermined) {
           // Add a tiny delay so the UI is fully mounted before iOS throws the alert
           await Future.delayed(const Duration(milliseconds: 500));
@@ -95,7 +97,9 @@ class _SplashScreenState extends State<SplashScreen>
     final token = prefs.getString('token');
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
 
-    debugPrint('Splash: prefs loaded. Token: ${token != null ? "exists" : "null"}, hasSeenOnboarding: $hasSeenOnboarding');
+    debugPrint(
+      'Splash: prefs loaded. Token: ${token != null ? "exists" : "null"}, hasSeenOnboarding: $hasSeenOnboarding',
+    );
 
     // Splash duration coordinated with animation - Reduced for speed
     await Future.delayed(const Duration(milliseconds: 1500));

@@ -273,8 +273,6 @@ class _MainNavigationState extends State<MainNavigation> {
       size.height - navTop + 20,
     );
 
-    final l10n = AppLocalizations.of(context)!;
-
     return Stack(
       fit: StackFit.expand,
       children: [

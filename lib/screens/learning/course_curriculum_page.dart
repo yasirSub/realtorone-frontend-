@@ -223,12 +223,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
               Image.network(
                 _fullThumbnailUrl(_course!.thumbnailUrl!) ?? '',
                 fit: BoxFit.cover,
-<<<<<<< Updated upstream
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-=======
-                // ignore: unnecessary_underscores
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
->>>>>>> Stashed changes
               ),
             // Soft overlay so title stays readable
             Container(
@@ -339,7 +334,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
             ),
             onPressed: () async {
               _saveCurrentProgress();
-              
+
               final oldVideo = _videoPlayerController;
               final oldChewie = _chewieController;
 
@@ -743,9 +738,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
           ),
         ),
         if (isExpanded && !isLocked)
-          ...module.lessons
-              .map((lesson) => _buildLessonItem(lesson, index))
-              ,
+          ...module.lessons.map((lesson) => _buildLessonItem(lesson, index)),
         const SizedBox(height: 16),
       ],
     ).animate().fadeIn(delay: (index * 100).ms).slideY(begin: 0.05);
@@ -997,7 +990,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
         ? trimmedPath
         : '/$trimmedPath';
 
-    // PRIORITIZE STREAM ROUTE FOR ASSETS: If it contains 'course-assets', 
+    // PRIORITIZE STREAM ROUTE FOR ASSETS: If it contains 'course-assets',
     // force the authenticated stream route to handle range requests correctly.
     if (normalizedPath.contains('course-assets/')) {
       final filename = Uri.decodeComponent(normalizedPath.split('/').last);
@@ -1015,7 +1008,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
     final finalPath = normalizedPath.startsWith('/storage/')
         ? normalizedPath
         : '/storage$normalizedPath';
-    
+
     // Ensure the final storage path is encoded correctly once
     return '$root${Uri.encodeFull(Uri.decodeFull(finalPath))}';
   }
@@ -1216,7 +1209,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
 
   Future<void> _playVideo(MaterialItem material) async {
     WakelockPlus.enable();
-    
+
     // Dispose previous before starting new
     _chewieController?.dispose();
     _videoPlayerController?.dispose();
@@ -1235,15 +1228,15 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
       } else {
         final videoUrl = _resolveMaterialUrl(material.url!);
         debugPrint('[Integrated Player] Target STREAM: $videoUrl');
-        
+
         final token = await ApiClient.getToken();
         final bool isStreamRoute = videoUrl.contains('/api/stream/');
-        
+
         // Use headers only for the specialized internal stream route to avoid Nginx conflicts
         _videoPlayerController = VideoPlayerController.networkUrl(
           Uri.parse(videoUrl),
-          httpHeaders: (token != null && isStreamRoute) 
-              ? {'Authorization': 'Bearer $token'} 
+          httpHeaders: (token != null && isStreamRoute)
+              ? {'Authorization': 'Bearer $token'}
               : {},
         );
       }

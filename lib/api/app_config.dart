@@ -45,12 +45,6 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// Android emulator: host machine’s localhost (not 127.0.0.1 on the device)
-  static const String _androidEmulatorApi = 'http://10.0.2.2:8000/api';
-
-  /// iOS Simulator, desktop, Chrome: Laravel on same machine
-  static const String _loopbackApi = 'http://127.0.0.1:8000/api';
-
   static String get apiBaseUrl {
     if (_dartDefineApiBase.isNotEmpty) {
       return _dartDefineApiBase;
