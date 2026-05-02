@@ -10,6 +10,7 @@ import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../legal/legal_document_webview_page.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -521,6 +522,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: l10n.settingsTermsTitle,
                   subtitle: l10n.settingsTermsSubtitle,
                   onTap: () => _openLegalInApp('terms'),
+                ),
+                _buildSettingsItem(
+                  icon: Icons.help_outline_rounded,
+                  title: 'Help & Support',
+                  subtitle: 'Contact us for assistance',
+                  onTap: () async {
+                    final url = Uri.parse('https://therealtorone.com/contact');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
                 ),
               ], isDark),
               const SizedBox(height: 32),

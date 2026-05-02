@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_brace_in_string_interps, unnecessary_to_list_in_spreads, unnecessary_underscores, curly_braces_in_flow_control_structures, unused_element, duplicate_ignore
+
 import 'package:flutter/material.dart';
 import '../../api/learning_api.dart';
 import '../../models/learning_model.dart';
@@ -221,7 +223,12 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
               Image.network(
                 _fullThumbnailUrl(_course!.thumbnailUrl!) ?? '',
                 fit: BoxFit.cover,
+<<<<<<< Updated upstream
                 errorBuilder: (_, _, _) => const SizedBox.shrink(),
+=======
+                // ignore: unnecessary_underscores
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+>>>>>>> Stashed changes
               ),
             // Soft overlay so title stays readable
             Container(

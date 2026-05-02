@@ -5,6 +5,8 @@
 /// To add a new category or prompt, simply append to [revenPromptCategories].
 library;
 
+// ignore_for_file: dangling_library_doc_comments
+
 class RevenQuickPrompt {
   final String emoji;
 

@@ -1,3 +1,5 @@
+// ignore_for_file: use_null_aware_elements
+
 import 'api_client.dart';
 import 'api_endpoints.dart';
 

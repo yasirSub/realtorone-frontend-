@@ -1,5 +1,9 @@
 name: realtorone
+<<<<<<< Updated upstream
 description: "RealtorOne CRM and learning platform for real estate professionals."
+=======
+description: "The ultimate growth platform for modern realtors. Master your personal brand, generate high-intent leads, and access premium training for real estate excellence."
+>>>>>>> Stashed changes
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
