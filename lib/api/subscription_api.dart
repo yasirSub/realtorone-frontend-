@@ -37,4 +37,19 @@ class SubscriptionApi {
       ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
+
+  /// Purchase a subscription by tier name (used for Apple/Google IAP verification)
+  static Future<Map<String, dynamic>> purchaseSubscriptionByTier({
+    required String tierName,
+    required int months,
+    required String paymentId,
+    String? receipt,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.purchaseSubscription, {
+      'tier_name': tierName,
+      'months': months,
+      'payment_id': paymentId,
+      if (receipt != null) 'receipt': receipt,
+    }, requiresAuth: true);
+  }
 }

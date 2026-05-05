@@ -20,6 +20,7 @@ import 'activity_waveform_download.dart';
 import '../deal_room/deal_room_widget.dart';
 import '../deal_room/revenue_tracker_widget.dart';
 import '../learning/learning_page.dart';
+import '../../utils/responsive_helper.dart';
 
 /// Targets Tasks tab/sub-tabs during the main app tour (see [MainNavigation]).
 class ActivitiesTourSync {
@@ -771,8 +772,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       },
       color: const Color(0xFF667eea),
       backgroundColor: Colors.white,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 160),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: ListView(
+        padding: ResponsiveHelper.contentPadding(context, top: 16, bottom: 160),
         children: [
           // ── CLIENTS / REVENUE toggle ──
           Container(
@@ -837,6 +841,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             RevenueTrackerWidget(refreshTrigger: _revenueRefreshTrigger),
           ],
         ],
+      ),
+        ),
       ),
     );
   }
@@ -909,8 +915,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         },
         color: const Color(0xFF667eea),
         backgroundColor: Colors.white,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 160),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: ListView(
+          padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 160),
           children: [
             // Backend-driven identity sections
             if (_isLoading && subconsciousTypes.isEmpty)
@@ -928,6 +937,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
             const SizedBox(height: 32),
           ],
+        ),
+          ),
         ),
       ),
     );

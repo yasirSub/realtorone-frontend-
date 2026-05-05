@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
+import '../../utils/responsive_helper.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -389,9 +390,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
+                  padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 140),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
+                      ResponsiveHelper.constrainWidth(
+                        child: Column(
+                          children: [
                       _buildStatsRow(isDark, l10n),
                       const SizedBox(height: 16),
                       if (_userData?['email_verified_at'] == null)
@@ -484,6 +488,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 40),
                       _buildFooter(l10n),
+                          ],
+                        ),
+                      ),
                     ]),
                   ),
                 ),

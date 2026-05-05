@@ -396,6 +396,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return Container(
       width: 340,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.65,
+      ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -426,10 +429,11 @@ class _MainNavigationState extends State<MainNavigation> {
                 width: 1.2,
               ),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Header with Progress & Close
                 Row(
                   children: [
@@ -621,8 +625,9 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {

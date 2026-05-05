@@ -7,6 +7,8 @@ import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
 import '../../widgets/elite_loader.dart';
+import '../../utils/responsive_helper.dart';
+import '../legal/legal_document_webview_page.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
   const SubscriptionPlansPage({super.key});
@@ -163,77 +165,74 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Future<void> _purchasePackage() async {
     if (_selectedPackageId == null) return;
 
-    // Use native In-App Purchases for both iOS and Android
-    // This is a "real" payment method and complies with App Store / Google Play guidelines.
+    // Find the selected package to get its tier name
+    final pkg = _packages.firstWhere(
+      (p) => (p['id'] as num?)?.toInt() == _selectedPackageId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (pkg.isEmpty) return;
+
+    final tierName = (pkg['name']?.toString() ?? 'Consultant')
+        .replaceAll(' - GOLD', '')
+        .replaceAll('-GOLD', '')
+        .replaceAll(' GOLD', '')
+        .replaceAll('GOLD', '')
+        .trim();
+
+    // Use native In-App Purchases for iOS and Android
+    // Apple Guideline 3.1.1: Digital content must use IAP on mobile
     final isMobile = Theme.of(context).platform == TargetPlatform.iOS || 
                      Theme.of(context).platform == TargetPlatform.android;
     
     if (isMobile) {
       setState(() => _isPurchasing = true);
-      IapService().onPurchaseResult = (success, message) {
+      try {
+        IapService().onPurchaseResult = (success, message) {
+          if (mounted) {
+            setState(() => _isPurchasing = false);
+            if (success) {
+              _showSuccessDialog();
+              _loadData();
+            } else if (message != null) {
+              // Check if user cancelled to avoid showing annoying errors
+              if (message.contains('cancelled') || message.contains('Canceled')) {
+                 return;
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(message), 
+                  backgroundColor: Colors.redAccent,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          }
+        };
+        await IapService().buyByTier(tierName, _selectedMonths, _selectedPackageId!);
+      } catch (e) {
         if (mounted) {
           setState(() => _isPurchasing = false);
-          if (success) {
-            _showSuccessDialog();
-            _loadData();
-          } else if (message != null) {
-            // Check if user cancelled to avoid showing annoying errors
-            if (message.contains('cancelled') || message.contains('Canceled')) {
-               return;
-            }
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message), 
-                backgroundColor: Colors.redAccent,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      };
-      await IapService().buyPackage(_selectedPackageId!, _selectedMonths);
-      return;
-    }
-
-    setState(() => _isPurchasing = true);
-
-    try {
-      // Simulated PayPal payment ID
-      final paymentId = 'PAYPAL_SIM_${DateTime.now().millisecondsSinceEpoch}';
-
-      final res = await SubscriptionApi.purchaseSubscription(
-        packageId: _selectedPackageId!,
-        months: _selectedMonths,
-        paymentId: paymentId,
-        couponId: _validatedCoupon != null
-            ? (_validatedCoupon!['id'] as num).toInt()
-            : null,
-      );
-
-      if (mounted) {
-        setState(() => _isPurchasing = false);
-        if (res['success'] == true) {
-          _showSuccessDialog();
-          _loadData(); // Refresh
-        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(res['message'] ?? 'Purchase failed'),
-              backgroundColor: Colors.red,
+              content: Text('Failed to initiate purchase: $e'),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isPurchasing = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connection error. Please try again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      return;
+    }
+
+    // Web platform: show a message directing to the app
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please use the mobile app to purchase subscriptions.'),
+          backgroundColor: Color(0xFF667eea),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -562,28 +561,37 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               if (_isPremium && _currentSub != null)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: _buildCurrentPlanBanner(isDark),
+                    padding: ResponsiveHelper.contentPadding(context, top: 20),
+                    child: ResponsiveHelper.constrainWidth(
+                      child: _buildCurrentPlanBanner(isDark),
+                    ),
                   ),
                 ),
 
               // Duration Selector
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                  child: _buildDurationSelector(isDark),
+                  padding: ResponsiveHelper.contentPadding(context, top: 20),
+                  child: ResponsiveHelper.constrainWidth(
+                    child: _buildDurationSelector(isDark),
+                  ),
                 ),
               ),
 
               // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: ResponsiveHelper.contentPadding(context, top: 16),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final pkg = _displayPackages[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _buildPackageCard(pkg, isDark, index),
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 700),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _buildPackageCard(pkg, isDark, index),
+                        ),
+                      ),
                     );
                   }, childCount: _displayPackages.length),
                 ),
@@ -593,10 +601,22 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               if (Theme.of(context).platform != TargetPlatform.iOS)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: _buildCouponSection(isDark),
+                    padding: ResponsiveHelper.contentPadding(context, top: 8),
+                    child: ResponsiveHelper.constrainWidth(
+                      child: _buildCouponSection(isDark),
+                    ),
                   ),
                 ),
+
+              // Legal footer with required subscription info
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: ResponsiveHelper.contentPadding(context, top: 40),
+                  child: ResponsiveHelper.constrainWidth(
+                    child: _buildLegalFooter(isDark),
+                  ),
+                ),
+              ),
 
               // Bottom spacer
               const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -1363,5 +1383,72 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ),
       ),
     ).animate().slideY(begin: 1, duration: 400.ms, curve: Curves.easeOutCubic);
+  }
+
+  Widget _buildLegalFooter(bool isDark) {
+    return Column(
+      children: [
+        const Text(
+          'Subscription Information',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Payments will be charged to your iTunes Account at confirmation of purchase. '
+            'Subscriptions automatically renew unless auto-renew is turned off at least 24-hours before the end of the current period. '
+            'Account will be charged for renewal within 24-hours prior to the end of the current period, and identify the cost of the renewal. '
+            'Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user\'s Account Settings after purchase.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
+              fontSize: 10,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildLegalLink('Terms of Use (EULA)', 'terms'),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              height: 12,
+              width: 1,
+              color: const Color(0xFF64748B).withOpacity(0.3),
+            ),
+            _buildLegalLink('Privacy Policy', 'privacy'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegalLink(String label, String slug) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LegalDocumentWebViewPage(slug: slug),
+          ),
+        );
+      },
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF667eea),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+        ),
+      ),
+    );
   }
 }

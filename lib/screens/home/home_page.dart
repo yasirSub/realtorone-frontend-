@@ -11,6 +11,7 @@ import '../../services/push_notification_service.dart';
 import 'notifications_history_page.dart';
 import '../../routes/app_routes.dart';
 import 'home_webinar_carousel.dart';
+import '../../utils/responsive_helper.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -436,28 +437,34 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
+                  padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 120),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      const HomeWebinarCarousel()
-                          .animate()
-                          .fadeIn(delay: 260.ms)
-                          .slideY(begin: 0.1),
-                      const SizedBox(height: 20),
-                      const GrowthReportWidget()
-                          .animate()
-                          .fadeIn(delay: 300.ms)
-                          .slideY(begin: 0.1),
-                      const SizedBox(height: 20),
-                      const HomeActivityLogWidget()
-                          .animate()
-                          .fadeIn(delay: 420.ms)
-                          .slideY(begin: 0.1),
-                      const SizedBox(height: 20),
-                      _overviewCard(
-                        l10n,
-                        isDark,
-                      ).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
+                      ResponsiveHelper.constrainWidth(
+                        child: Column(
+                          children: [
+                            const HomeWebinarCarousel()
+                                .animate()
+                                .fadeIn(delay: 260.ms)
+                                .slideY(begin: 0.1),
+                            const SizedBox(height: 20),
+                            const GrowthReportWidget()
+                                .animate()
+                                .fadeIn(delay: 300.ms)
+                                .slideY(begin: 0.1),
+                            const SizedBox(height: 20),
+                            const HomeActivityLogWidget()
+                                .animate()
+                                .fadeIn(delay: 420.ms)
+                                .slideY(begin: 0.1),
+                            const SizedBox(height: 20),
+                            _overviewCard(
+                              l10n,
+                              isDark,
+                            ).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
+                          ],
+                        ),
+                      ),
                     ]),
                   ),
                 ),

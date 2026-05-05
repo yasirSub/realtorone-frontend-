@@ -71,8 +71,6 @@
 	<string>Allow saving images you export from RealtorOne to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo Library access is required to update your Profile Picture.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier will be used to securely track your performance metrics and deliver personalized AI coaching nudges.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

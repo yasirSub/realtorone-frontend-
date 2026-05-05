@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/api_client.dart';
 import 'pdf_viewer_page.dart';
+import '../../utils/responsive_helper.dart';
 
 class LearningPage extends StatefulWidget {
   const LearningPage({super.key});
@@ -284,7 +285,7 @@ class _LearningPageState extends State<LearningPage>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
+      padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 140),
       itemCount: tiers.length,
       itemBuilder: (context, index) {
         final tier = tiers[index];
@@ -296,9 +297,10 @@ class _LearningPageState extends State<LearningPage>
 
         if (tierCourses.isEmpty) return const SizedBox.shrink();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        return ResponsiveHelper.constrainWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // TIER HEADER (The User wants Tiers as the separation)
             _buildTierSectionHeader(tier),
             const SizedBox(height: 12),
@@ -308,7 +310,7 @@ class _LearningPageState extends State<LearningPage>
             }),
             const SizedBox(height: 12),
           ],
-        );
+        ),);
       },
     );
   }
@@ -317,7 +319,7 @@ class _LearningPageState extends State<LearningPage>
     final List<String> tiers = ['Consultant', 'Rainmaker', 'Titan'];
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 140),
+      padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 140),
       itemCount: tiers.length,
       itemBuilder: (context, index) {
         final tier = tiers[index];
@@ -328,9 +330,10 @@ class _LearningPageState extends State<LearningPage>
 
         if (tierEbooks.isEmpty) return const SizedBox.shrink();
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        return ResponsiveHelper.constrainWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _buildTierSectionHeader(tier),
             const SizedBox(height: 12),
             ...tierEbooks.map((ebook) {
@@ -338,7 +341,7 @@ class _LearningPageState extends State<LearningPage>
             }),
             const SizedBox(height: 12),
           ],
-        );
+        ),);
       },
     );
   }

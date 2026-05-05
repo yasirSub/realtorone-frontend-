@@ -11,6 +11,7 @@ import '../../providers/theme_provider.dart';
 import '../legal/legal_document_webview_page.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../utils/responsive_helper.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -454,8 +455,11 @@ class _SettingsPageState extends State<SettingsPage> {
       body: Stack(
         children: [
           ListView(
-            padding: const EdgeInsets.all(20),
+            padding: ResponsiveHelper.contentPadding(context, top: 20, bottom: 40),
             children: [
+              ResponsiveHelper.constrainWidth(
+                child: Column(
+                  children: [
               _buildSection(l10n.settingsSectionAccountSecurity),
               _buildSettingsCard([
                 _buildSettingsItem(
@@ -582,15 +586,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 40),
-              Center(
-                child: Text(
-                  l10n.settingsVersion,
-                  style: TextStyle(
-                    color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
-                    fontSize: 10,
+                  Center(
+                    child: Text(
+                      l10n.settingsVersion,
+                      style: TextStyle(
+                        color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
+                        fontSize: 10,
+                      ),
+                    ),
                   ),
-                ),
+                ],
+              ),
               ),
             ],
           ),
