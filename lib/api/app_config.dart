@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  static const String liveApiBaseUrl = 'https://aanantbishthealing.com/api';
+  /// Live API root. Goes to the Laravel backend through Traefik on its own
+  /// subdomain — `aanantbishthealing.com` itself (apex / www / admin) now
+  /// serves the React website / admin SPA and does NOT expose `/api`.
+  static const String liveApiBaseUrl = 'https://api.aanantbishthealing.com/api';
 
   /// Production website origin for Privacy / Terms (HTTPS). Used in release for Play Console and in-app browser links.
   static const String liveWebOrigin = 'https://aanantbishthealing.com';
