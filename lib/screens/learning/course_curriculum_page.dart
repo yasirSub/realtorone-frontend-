@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../routes/app_routes.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/api_client.dart';
+import '../../api/app_config.dart';
 
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -972,7 +973,10 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
     if (path.contains('://')) return path;
 
     final trimmed = path.trim();
-    final base = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    // NOTE: do NOT use `baseUrl.replaceAll('/api', '')` — when the API base is
+    // `https://api.aanantbishthealing.com/api`, that strips BOTH /api substrings
+    // and produces `https:/.aanantbishthealing.com/...`, which fails DNS.
+    final base = AppConfig.apiOrigin;
 
     if (trimmed.startsWith('/')) {
       return '$base$trimmed';
@@ -985,7 +989,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
     final trimmedPath = path.trim();
     if (trimmedPath.contains('://')) return trimmedPath;
 
-    final root = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    final root = AppConfig.apiOrigin;
     final normalizedPath = trimmedPath.startsWith('/')
         ? trimmedPath
         : '/$trimmedPath';

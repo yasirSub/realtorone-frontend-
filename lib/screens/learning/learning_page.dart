@@ -10,6 +10,7 @@ import '../../widgets/elite_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/api_client.dart';
+import '../../api/app_config.dart';
 import 'pdf_viewer_page.dart';
 import '../../utils/responsive_helper.dart';
 
@@ -100,7 +101,10 @@ class _LearningPageState extends State<LearningPage>
       return trimmed;
     }
 
-    final host = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    // Use AppConfig.apiOrigin so we only strip the trailing `/api` from the
+    // base URL — `baseUrl.replaceAll('/api', '')` mangles the host because the
+    // production API lives at `https://api.aanantbishthealing.com/api`.
+    final host = AppConfig.apiOrigin;
     if (trimmed.startsWith('/')) {
       return '$host$trimmed';
     }
