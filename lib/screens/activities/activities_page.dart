@@ -9,6 +9,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
+import '../../api/app_config.dart';
 import '../../api/activities_api.dart';
 import '../../api/user_api.dart';
 import '../../models/activity_model.dart';
@@ -1256,10 +1257,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     final String? mcqQuestion = activityType['mcq_question'];
     final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
     final int? mcqCorrectOption = activityType['mcq_correct_option'] != null ? (activityType['mcq_correct_option'] as num).toInt() : null;
-    if (audioUrl.isNotEmpty && !audioUrl.startsWith('http')) {
-      final base = ApiEndpoints.baseUrl.replaceAll(RegExp(r'/api/?$'), '');
-      audioUrl = base + (audioUrl.startsWith('/') ? audioUrl : '/$audioUrl');
-    }
+    audioUrl = await _resolveActivityAudioUrl(audioUrl);
 
     if (!mounted) return;
 
@@ -1300,6 +1298,39 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         buildActionBtn: _buildActionBtn,
       ),
     );
+  }
+
+  /// Build a fully-resolved URL for activity audio.
+  ///
+  /// Handles three flavours of `audio_url` that show up in the DB:
+  ///   * legacy `/uploads/<file>` rows (typed manually pre-R2) → rewritten to `/api/stream/<file>`
+  ///   * relative `/api/stream/<file>` → prefixed with the API origin
+  ///   * absolute `https://...` → passed through unchanged
+  ///
+  /// Then, for any URL that targets `/api/stream/`, appends `?token=` so the
+  /// backend's `getAuthUser()` accepts it — `audioplayers`'s `UrlSource` does
+  /// not send custom headers, so query-string auth is the only way to play it.
+  Future<String> _resolveActivityAudioUrl(String raw) async {
+    var url = raw.trim();
+    if (url.isEmpty) return url;
+
+    if (url.startsWith('/uploads/')) {
+      url = '/api/stream/' + url.substring('/uploads/'.length);
+    }
+
+    if (!url.startsWith('http')) {
+      final base = AppConfig.apiOrigin;
+      url = base + (url.startsWith('/') ? url : '/$url');
+    }
+
+    if (url.contains('/api/stream/') && !RegExp(r'[?&]token=').hasMatch(url)) {
+      final token = await ApiClient.getToken();
+      if (token != null && token.isNotEmpty) {
+        final sep = url.contains('?') ? '&' : '?';
+        url = '$url${sep}token=${Uri.encodeQueryComponent(token)}';
+      }
+    }
+    return url;
   }
 
   Widget _buildPopupInfoCard({
@@ -1655,7 +1686,13 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
         path: path,
         noOfSamples: 56,
       );
-      await extractor.stopWaveformExtraction();
+      // The simform plugin auto-releases the codec after extractWaveformData()
+      // returns successfully, so calling stopWaveformExtraction() afterwards
+      // throws `IllegalStateException: codec is released already`. It's harmless
+      // — we just swallow it instead of letting it pollute the logs.
+      try {
+        await extractor.stopWaveformExtraction();
+      } catch (_) {/* codec already released by the plugin */}
 
       if (token != _waveformLoadToken || _isDisposed || !mounted) return;
       var maxV = 1e-9;
