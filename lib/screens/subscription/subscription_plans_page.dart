@@ -1401,10 +1401,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            'Payments will be charged to your iTunes Account at confirmation of purchase. '
-            'Subscriptions automatically renew unless auto-renew is turned off at least 24-hours before the end of the current period. '
-            'Account will be charged for renewal within 24-hours prior to the end of the current period, and identify the cost of the renewal. '
-            'Subscriptions may be managed by the user and auto-renewal may be turned off by going to the user\'s Account Settings after purchase.',
+            '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
+            '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
+            '• Price: As displayed above for the selected tier and duration\n\n'
+            'Payment will be charged to your iTunes Account at confirmation of purchase. '
+            'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
+            'Account will be charged for renewal within 24-hours prior to the end of the current period. '
+            'Subscriptions may be managed and auto-renewal may be turned off by going to your Account Settings after purchase.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isDark ? Colors.white30 : const Color(0xFF94A3B8),

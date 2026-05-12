@@ -49,7 +49,7 @@ class SubscriptionApi {
       'tier_name': tierName,
       'months': months,
       'payment_id': paymentId,
-      if (receipt != null) 'receipt': receipt,
+      'receipt': ?receipt,
     }, requiresAuth: true);
   }
 }
