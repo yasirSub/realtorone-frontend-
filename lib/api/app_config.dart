@@ -20,14 +20,14 @@ class AppConfig {
 
   static String get privacyPolicyUrl {
     if (_legalPrivacyOverride.isNotEmpty) return _legalPrivacyOverride;
-    if (kReleaseMode) return '$liveWebOrigin/privacy';
-    return '${_legalDevOrigin()}/privacy';
+    // ALWAYS use live origin for testing right now.
+    return '$liveWebOrigin/privacy';
   }
 
   static String get termsOfServiceUrl {
     if (_legalTermsOverride.isNotEmpty) return _legalTermsOverride;
-    if (kReleaseMode) return '$liveWebOrigin/terms';
-    return '${_legalDevOrigin()}/terms';
+    // ALWAYS use live origin for testing right now.
+    return '$liveWebOrigin/terms';
   }
 
   /// Local Vite dev server (`npm run dev` in realtorone-website). Override with LEGAL_*_URL to use Laravel on :8000 instead.
