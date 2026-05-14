@@ -294,7 +294,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
           child: Text(
-            'This requests permanent deletion of your realtor data, leads, and performance history. Continue?',
+            'This will permanently delete your account and all associated data, including your leads, tasks, performance history, and AI interaction logs. This process is irreversible and follows our 30-day data purging policy. Continue?',
             style: TextStyle(
               fontSize: 14,
               height: 1.4,
