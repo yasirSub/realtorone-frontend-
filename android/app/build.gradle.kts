@@ -40,6 +40,12 @@ android {
         versionName = flutter.versionName
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     buildTypes {
         release {
             if (keystorePropertiesFile.exists()) {
