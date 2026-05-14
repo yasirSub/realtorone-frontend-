@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -65,27 +66,17 @@ class ApiClient {
     if (useCache) {
       final cachedData = await _getCachedData(cacheKey);
       if (cachedData != null) {
-        // We return the cached data immediately, but the caller should usually
-        // handle a second update if they want fresh data.
-        // For simplicity in this implementation, we'll fetch fresh in background
-        // if we want, but usually, the pattern is to return cache THEN fetch.
-        // To keep it simple for now, we'll return cache if available.
         return cachedData;
       }
     }
 
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
-      debugPrint('----------------------------------------------');
-      debugPrint(
-        '[API CONNECT] URL: ${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-      );
-      debugPrint('----------------------------------------------');
+      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
+      
       final response = await http
           .get(
-            Uri.parse(
-              '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-            ),
+            Uri.parse(url),
             headers: headers,
           )
           .timeout(const Duration(seconds: 30));
@@ -99,11 +90,9 @@ class ApiClient {
 
       return data;
     } catch (e) {
-      // If network fails, try cache as fallback even if useCache was false
-      // as a safety measure for performance
+      // Fallback to cache if network fails
       final cachedData = await _getCachedData(cacheKey);
       if (cachedData != null) return cachedData;
-
       return {'status': 'error', 'message': e.toString()};
     }
   }
@@ -137,7 +126,6 @@ class ApiClient {
       final String? cachedStr = prefs.getString(key);
       if (cachedStr != null) {
         final Map<String, dynamic> decoded = jsonDecode(cachedStr);
-        // Optional: Add TTL (Time To Live) check here if needed
         return decoded['data'] as Map<String, dynamic>;
       }
     } catch (e) {
@@ -213,14 +201,10 @@ class ApiClient {
   }) async {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
-      debugPrint('----------------------------------------------');
-      debugPrint('[API CONNECT] URL: ${ApiEndpoints.baseUrl}$endpoint');
-      debugPrint('----------------------------------------------');
+      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
       final response = await http
           .post(
-            Uri.parse(
-              '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-            ),
+            Uri.parse(url),
             headers: headers,
             body: jsonEncode(data),
           )
@@ -239,10 +223,9 @@ class ApiClient {
   }) async {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
+      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
       final response = await http.put(
-        Uri.parse(
-          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-        ),
+        Uri.parse(url),
         headers: headers,
         body: jsonEncode(data),
       );
@@ -260,10 +243,9 @@ class ApiClient {
   }) async {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
+      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
       final response = await http.patch(
-        Uri.parse(
-          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-        ),
+        Uri.parse(url),
         headers: headers,
         body: jsonEncode(data),
       );
@@ -280,10 +262,9 @@ class ApiClient {
   }) async {
     try {
       final headers = await _buildHeaders(includeAuth: requiresAuth);
+      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
       final response = await http.delete(
-        Uri.parse(
-          '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint',
-        ),
+        Uri.parse(url),
         headers: headers,
       );
       return _handleResponse(response);
@@ -294,8 +275,6 @@ class ApiClient {
 
   // Handle API response
   static Map<String, dynamic> _handleResponse(http.Response response) {
-    debugPrint('[API RESPONSE] Code: ${response.statusCode}');
-    debugPrint('[API RESPONSE] Body: ${response.body}');
     try {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
