@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:audio_waveforms/audio_waveforms.dart' show WaveformExtractionController;
+import 'package:audio_waveforms/audio_waveforms.dart'
+    show WaveformExtractionController;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -87,7 +88,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     });
     _tourSyncListener = _applyTourSyncFromNotifier;
     widget.tourSyncNotifier?.addListener(_tourSyncListener!);
-    
+
     // NEW: Apply initial sync if already present (e.g. from direct navigation)
     if (widget.tourSyncNotifier?.value != null) {
       _applyTourSyncFromNotifier();
@@ -155,8 +156,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       if (_tabController.index != sync.tabIndex) {
         _tabController.animateTo(sync.tabIndex);
       }
-      if (sync.revenueSubTab != null &&
-          _revenueSubTab != sync.revenueSubTab) {
+      if (sync.revenueSubTab != null && _revenueSubTab != sync.revenueSubTab) {
         setState(() => _revenueSubTab = sync.revenueSubTab!);
       }
     });
@@ -386,7 +386,9 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                           Text(
                             'What is your current situation?',
                             style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.5,
@@ -419,7 +421,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                 const SizedBox(height: 12),
                 _buildSituationOption(
                   label: 'I have some leads but no deals yet',
-                  subtitle: 'Prioritize follow-ups and deal conversion actions.',
+                  subtitle:
+                      'Prioritize follow-ups and deal conversion actions.',
                   icon: Icons.track_changes_rounded,
                   color: const Color(0xFFF59E0B),
                   onTap: () => Navigator.of(context).pop(),
@@ -461,71 +464,81 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     bool isPrimary = false,
   }) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: isDark 
-              ? (isPrimary ? color.withOpacity(0.08) : const Color(0xFF1E293B).withOpacity(0.5))
-              : (isPrimary ? color.withOpacity(0.05) : const Color(0xFFF8FAFC)),
+          onTap: onTap,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(
-            color: isPrimary 
-                ? color.withOpacity(0.4) 
-                : (isDark ? Colors.white.withOpacity(0.08) : const Color(0xFFE2E8F0)),
-            width: isPrimary ? 2 : 1.5,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? (isPrimary
+                        ? color.withOpacity(0.08)
+                        : const Color(0xFF1E293B).withOpacity(0.5))
+                  : (isPrimary
+                        ? color.withOpacity(0.05)
+                        : const Color(0xFFF8FAFC)),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isPrimary
+                    ? color.withOpacity(0.4)
+                    : (isDark
+                          ? Colors.white.withOpacity(0.08)
+                          : const Color(0xFFE2E8F0)),
+                width: isPrimary ? 2 : 1.5,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, size: 24, color: color),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: isDark ? Colors.white24 : Colors.black12,
+                ),
+              ],
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, size: 24, color: color),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.arrow_forward_ios_rounded, 
-              size: 16, 
-              color: isDark ? Colors.white24 : Colors.black12,
-            ),
-          ],
-        ),
-      ),
-    )
-    .animate(delay: (index * 100).ms)
-    .fadeIn(duration: 400.ms)
-    .slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
+        )
+        .animate(delay: (index * 100).ms)
+        .fadeIn(duration: 400.ms)
+        .slideX(begin: 0.1, end: 0, curve: Curves.easeOutCubic);
   }
 
   @override
@@ -653,14 +666,8 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   letterSpacing: 1.5,
                 ),
                 tabs: [
-                  Tab(
-                    key: widget.tourSubconsciousTabKey,
-                    text: 'BELIEF',
-                  ),
-                  Tab(
-                    key: widget.tourConsciousTabKey,
-                    text: 'FOCUS',
-                  ),
+                  Tab(key: widget.tourSubconsciousTabKey, text: 'BELIEF'),
+                  Tab(key: widget.tourConsciousTabKey, text: 'FOCUS'),
                 ],
               ),
             ),
@@ -777,72 +784,78 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700),
           child: ListView(
-        padding: ResponsiveHelper.contentPadding(context, top: 16, bottom: 160),
-        children: [
-          // ── CLIENTS / REVENUE toggle ──
-          Container(
-            key: widget.tourDealRoomClientsPillKey,
-            margin: const EdgeInsets.symmetric(horizontal: 0),
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : const Color(0xFFE2E8F0),
-              ),
-              boxShadow: [
-                BoxShadow(
+            padding: ResponsiveHelper.contentPadding(
+              context,
+              top: 16,
+              bottom: 160,
+            ),
+            children: [
+              // ── CLIENTS / REVENUE toggle ──
+              Container(
+                key: widget.tourDealRoomClientsPillKey,
+                margin: const EdgeInsets.symmetric(horizontal: 0),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.black.withValues(alpha: 0.3)
-                      : Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _revenueTabButton(
-                    icon: Icons.people_alt_rounded,
-                    label: 'CLIENTS',
-                    active: _revenueSubTab == 0,
-                    onTap: () => setState(() => _revenueSubTab = 0),
-                    isDark: isDark,
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.05)
+                        : const Color(0xFFE2E8F0),
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark
+                          ? Colors.black.withValues(alpha: 0.3)
+                          : Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: _revenueTabButton(
-                    icon: Icons.attach_money_rounded,
-                    label: 'REVENUE',
-                    active: _revenueSubTab == 1,
-                    onTap: () => setState(() {
-                      _revenueSubTab = 1;
-                      _revenueRefreshTrigger++;
-                    }),
-                    isDark: isDark,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _revenueTabButton(
+                        icon: Icons.people_alt_rounded,
+                        label: 'CLIENTS',
+                        active: _revenueSubTab == 0,
+                        onTap: () => setState(() => _revenueSubTab = 0),
+                        isDark: isDark,
+                      ),
+                    ),
+                    Expanded(
+                      child: _revenueTabButton(
+                        icon: Icons.attach_money_rounded,
+                        label: 'REVENUE',
+                        active: _revenueSubTab == 1,
+                        onTap: () => setState(() {
+                          _revenueSubTab = 1;
+                          _revenueRefreshTrigger++;
+                        }),
+                        isDark: isDark,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
 
-          // ── Content based on sub-tab ──
-          if (_revenueSubTab == 0) ...[
-            DealRoomWidget(
-              initialSelectedStage: _initialCrmStage,
-              onClientActionLogged: () {
-                if (mounted) setState(() => _revenueRefreshTrigger++);
-              },
-            ),
-          ] else ...[
-            RevenueTrackerWidget(refreshTrigger: _revenueRefreshTrigger),
-          ],
-        ],
-      ),
+              // ── Content based on sub-tab ──
+              if (_revenueSubTab == 0) ...[
+                DealRoomWidget(
+                  initialSelectedStage: _initialCrmStage,
+                  onClientActionLogged: () {
+                    if (mounted) setState(() => _revenueRefreshTrigger++);
+                  },
+                ),
+              ] else ...[
+                RevenueTrackerWidget(refreshTrigger: _revenueRefreshTrigger),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -920,25 +933,31 @@ class _ActivitiesPageState extends State<ActivitiesPage>
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 700),
             child: ListView(
-          padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 160),
-          children: [
-            // Backend-driven identity sections
-            if (_isLoading && subconsciousTypes.isEmpty)
-              const SkillSkeleton(itemCount: 3)
-            else if (subconsciousTypes.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Text('No identity conditioning operations available.'),
-                ),
-              )
-            else ...[
-              ..._buildBackendDrivenSections(subconsciousTypes),
-            ],
+              padding: ResponsiveHelper.contentPadding(
+                context,
+                top: 24,
+                bottom: 160,
+              ),
+              children: [
+                // Backend-driven identity sections
+                if (_isLoading && subconsciousTypes.isEmpty)
+                  const SkillSkeleton(itemCount: 3)
+                else if (subconsciousTypes.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Text(
+                        'No identity conditioning operations available.',
+                      ),
+                    ),
+                  )
+                else ...[
+                  ..._buildBackendDrivenSections(subconsciousTypes),
+                ],
 
-            const SizedBox(height: 32),
-          ],
-        ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -1114,11 +1133,14 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'DAY ${activityType['today_day_number'] ?? 1}${ (activityType['day_title'] != null && activityType['day_title'].toString().isNotEmpty && !activityType['day_title'].toString().toUpperCase().startsWith('DAY')) ? " • ${activityType['day_title']}" : (activityType['day_title'] != null && activityType['day_title'].toString().toUpperCase().startsWith('DAY') ? " • ${activityType['day_title'].toString().substring(activityType['day_title'].toString().indexOf(' ')).trim()}" : "") }'.toUpperCase(),
+                        'DAY ${activityType['today_day_number'] ?? 1}${(activityType['day_title'] != null && activityType['day_title'].toString().isNotEmpty && !activityType['day_title'].toString().toUpperCase().startsWith('DAY')) ? " • ${activityType['day_title']}" : (activityType['day_title'] != null && activityType['day_title'].toString().toUpperCase().startsWith('DAY') ? " • ${activityType['day_title'].toString().substring(activityType['day_title'].toString().indexOf(' ')).trim()}" : "")}'
+                            .toUpperCase(),
                         style: TextStyle(
                           color: isCompleted
                               ? const Color(0xFF10B981)
-                              : (isInteracted ? const Color(0xFFEF4444) : color),
+                              : (isInteracted
+                                    ? const Color(0xFFEF4444)
+                                    : color),
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.8,
@@ -1242,21 +1264,28 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         (activityType['daily_audio_url'] ?? activityType['audio_url'] ?? '')
             .toString()
             .trim();
-    final int requiredListenPercent = ((activityType['daily_required_listen_percent'] ??
-                activityType['required_listen_percent'] ??
-                0) as num?)
+    final int requiredListenPercent =
+        ((activityType['daily_required_listen_percent'] ??
+                    activityType['required_listen_percent'] ??
+                    0)
+                as num?)
             ?.toInt() ??
         0;
     final bool requireUserResponse =
         (activityType['daily_require_user_response'] ?? false) == true;
     final String dayTitle = activityType['day_title'] ?? 'DAY $todayDay TASK';
     final String taskTitle = activityType['task_title'] ?? 'TASK DESCRIPTION';
-    final String scriptTitle = activityType['script_title'] ?? 'QUESTION / PROMPT';
+    final String scriptTitle =
+        activityType['script_title'] ?? 'QUESTION / PROMPT';
     final bool isMcq = activityType['is_mcq'] == true;
     final bool aiEnabled = activityType['ai_enabled'] != false;
     final String? mcqQuestion = activityType['mcq_question'];
-    final List<String> mcqOptions = List<String>.from(activityType['mcq_options'] ?? []);
-    final int? mcqCorrectOption = activityType['mcq_correct_option'] != null ? (activityType['mcq_correct_option'] as num).toInt() : null;
+    final List<String> mcqOptions = List<String>.from(
+      activityType['mcq_options'] ?? [],
+    );
+    final int? mcqCorrectOption = activityType['mcq_correct_option'] != null
+        ? (activityType['mcq_correct_option'] as num).toInt()
+        : null;
     audioUrl = await _resolveActivityAudioUrl(audioUrl);
 
     if (!mounted) return;
@@ -1315,7 +1344,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     if (url.isEmpty) return url;
 
     if (url.startsWith('/uploads/')) {
-      url = '/api/stream/' + url.substring('/uploads/'.length);
+      url = '/api/stream/${url.substring('/uploads/'.length)}';
     }
 
     if (!url.startsWith('http')) {
@@ -1533,19 +1562,23 @@ class _WaveformSeekBar extends StatelessWidget {
   final double progress;
   final bool isDark;
   final void Function(double)? onSeek;
+
   /// Normalized 0–1 heights from real audio (one per bar); null uses synthetic shape.
   final List<double>? barHeights;
 
   static const int _fallbackBarCount = 48;
-  static final List<double> _syntheticHeights =
-      List<double>.generate(_fallbackBarCount, (i) {
-    final t = i / (_fallbackBarCount - 1);
-    final wave = 0.4 +
-        0.35 * (1 - (t - 0.2).abs() * 2.5).clamp(0.0, 1.0) +
-        0.35 * (1 - (t - 0.5).abs() * 2.5).clamp(0.0, 1.0) +
-        0.35 * (1 - (t - 0.8).abs() * 2.5).clamp(0.0, 1.0);
-    return (0.25 + wave * 0.75).clamp(0.25, 1.0);
-  });
+  static final List<double> _syntheticHeights = List<double>.generate(
+    _fallbackBarCount,
+    (i) {
+      final t = i / (_fallbackBarCount - 1);
+      final wave =
+          0.4 +
+          0.35 * (1 - (t - 0.2).abs() * 2.5).clamp(0.0, 1.0) +
+          0.35 * (1 - (t - 0.5).abs() * 2.5).clamp(0.0, 1.0) +
+          0.35 * (1 - (t - 0.8).abs() * 2.5).clamp(0.0, 1.0);
+      return (0.25 + wave * 0.75).clamp(0.25, 1.0);
+    },
+  );
 
   List<double> get _heights {
     final h = barHeights;
@@ -1556,8 +1589,9 @@ class _WaveformSeekBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const barColor = Color(0xFF667eea);
-    final inactiveColor =
-        isDark ? Colors.white.withValues(alpha: 0.2) : const Color(0xFFCBD5E1);
+    final inactiveColor = isDark
+        ? Colors.white.withValues(alpha: 0.2)
+        : const Color(0xFFCBD5E1);
     const barSpacing = 2.0;
     const minBarHeight = 3.0;
     const maxBarHeight = 14.0;
@@ -1567,8 +1601,7 @@ class _WaveformSeekBar extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final barWidth =
-            (width - barSpacing * (barCount - 1)) / barCount;
+        final barWidth = (width - barSpacing * (barCount - 1)) / barCount;
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -1601,7 +1634,8 @@ class _WaveformSeekBar extends StatelessWidget {
                   if (i > 0) SizedBox(width: barSpacing),
                   Container(
                     width: barWidth,
-                    height: minBarHeight +
+                    height:
+                        minBarHeight +
                         heights[i].clamp(0.0, 1.0) *
                             (maxBarHeight - minBarHeight),
                     decoration: BoxDecoration(
@@ -1646,6 +1680,7 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
       false; // Only show timer/progress after user taps play
   double _playbackRate = 1.0;
   Timer? _progressPollTimer;
+
   /// RMS peaks from native decode ([audio_waveforms]); null until loaded or on failure.
   List<double>? _waveformHeights;
   int _waveformLoadToken = 0;
@@ -1677,7 +1712,10 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
   Future<void> _extractWaveform(int token) async {
     try {
       final path = await downloadActivityAudioForWaveform(widget.audioUrl);
-      if (path == null || token != _waveformLoadToken || _isDisposed || !mounted) {
+      if (path == null ||
+          token != _waveformLoadToken ||
+          _isDisposed ||
+          !mounted) {
         return;
       }
 
@@ -1692,7 +1730,9 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
       // — we just swallow it instead of letting it pollute the logs.
       try {
         await extractor.stopWaveformExtraction();
-      } catch (_) {/* codec already released by the plugin */}
+      } catch (_) {
+        /* codec already released by the plugin */
+      }
 
       if (token != _waveformLoadToken || _isDisposed || !mounted) return;
       var maxV = 1e-9;
@@ -1763,8 +1803,9 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
         _emitProgressPercentIfNeeded();
       }
     });
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _startWaveformExtraction());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _startWaveformExtraction(),
+    );
   }
 
   @override
@@ -1884,38 +1925,38 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
                       onTap: _togglePlay,
                       behavior: HitTestBehavior.opaque,
                       child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _playerState == PlayerState.playing
-                              ? 'Playing'
-                              : 'Day audio',
-                          style: TextStyle(
-                            color: widget.isDark
-                                ? Colors.white
-                                : const Color(0xFF0F172A),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _playerState == PlayerState.playing
+                                ? 'Playing'
+                                : 'Day audio',
+                            style: TextStyle(
+                              color: widget.isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              height: 1.15,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 1),
-                        Text(
-                          _hasStartedPlayback
-                              ? 'Tap to pause'
-                              : 'Tap to listen',
-                          style: TextStyle(
-                            color: widget.isDark
-                                ? Colors.white60
-                                : const Color(0xFF64748B),
-                            fontSize: 11,
-                            height: 1.2,
+                          const SizedBox(height: 1),
+                          Text(
+                            _hasStartedPlayback
+                                ? 'Tap to pause'
+                                : 'Tap to listen',
+                            style: TextStyle(
+                              color: widget.isDark
+                                  ? Colors.white60
+                                  : const Color(0xFF64748B),
+                              fontSize: 11,
+                              height: 1.2,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                   ),
                   GestureDetector(
                     onTap: _toggle2x,
@@ -1928,8 +1969,8 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
                         color: _playbackRate == 2.0
                             ? const Color(0xFF667eea).withValues(alpha: 0.3)
                             : (widget.isDark
-                                ? Colors.white12
-                                : const Color(0xFFE2E8F0)),
+                                  ? Colors.white12
+                                  : const Color(0xFFE2E8F0)),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -1940,8 +1981,8 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
                           color: _playbackRate == 2.0
                               ? const Color(0xFF667eea)
                               : (widget.isDark
-                                  ? Colors.white60
-                                  : const Color(0xFF64748B)),
+                                    ? Colors.white60
+                                    : const Color(0xFF64748B)),
                         ),
                       ),
                     ),
@@ -1974,7 +2015,9 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
                               ),
                             ),
                             Text(
-                              totalSec > 0 ? _formatDuration(_duration) : '--:--',
+                              totalSec > 0
+                                  ? _formatDuration(_duration)
+                                  : '--:--',
                               style: TextStyle(
                                 color: widget.isDark
                                     ? Colors.white54
@@ -2096,7 +2139,8 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
         ? 0
         : userText.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
     final meetsResponseRule = !widget.requireUserResponse || wordCount >= 3;
-    final meetsAudioRule = widget.audioUrl.isEmpty ||
+    final meetsAudioRule =
+        widget.audioUrl.isEmpty ||
         widget.requiredListenPercent <= 0 ||
         _maxListenedPercent >= widget.requiredListenPercent;
     final meetsMcqRule = !widget.isMcq || _selectedMcqIndex != null;
@@ -2160,7 +2204,8 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'DAY ${widget.todayDay}${ (widget.dayTitle.isNotEmpty && !widget.dayTitle.toUpperCase().startsWith('DAY')) ? " • ${widget.dayTitle}" : (widget.dayTitle.toUpperCase().startsWith('DAY') && widget.dayTitle.contains(' ') ? " • ${widget.dayTitle.substring(widget.dayTitle.indexOf(' ')).trim()}" : "") }'.toUpperCase(),
+                            'DAY ${widget.todayDay}${(widget.dayTitle.isNotEmpty && !widget.dayTitle.toUpperCase().startsWith('DAY')) ? " • ${widget.dayTitle}" : (widget.dayTitle.toUpperCase().startsWith('DAY') && widget.dayTitle.contains(' ') ? " • ${widget.dayTitle.substring(widget.dayTitle.indexOf(' ')).trim()}" : "")}'
+                                .toUpperCase(),
                             style: const TextStyle(
                               color: Color(0xFF667eea),
                               fontSize: 11,
@@ -2245,7 +2290,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF667eea).withValues(alpha: 0.3),
+                                  color: const Color(
+                                    0xFF667eea,
+                                  ).withValues(alpha: 0.3),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
@@ -2291,8 +2338,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                             : const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: (_maxListenedPercent >=
-                                      widget.requiredListenPercent)
+                          color:
+                              (_maxListenedPercent >=
+                                  widget.requiredListenPercent)
                               ? const Color(0xFF10B981).withValues(alpha: 0.35)
                               : const Color(0xFFF59E0B).withValues(alpha: 0.35),
                         ),
@@ -2300,12 +2348,13 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                       child: Text(
                         'Audio progress: $_maxListenedPercent% / required ${widget.requiredListenPercent}%',
                         style: TextStyle(
-                          color: (_maxListenedPercent >=
-                                      widget.requiredListenPercent)
+                          color:
+                              (_maxListenedPercent >=
+                                  widget.requiredListenPercent)
                               ? const Color(0xFF10B981)
                               : (isDark
-                                  ? const Color(0xFFFCD34D)
-                                  : const Color(0xFFB45309)),
+                                    ? const Color(0xFFFCD34D)
+                                    : const Color(0xFFB45309)),
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2342,20 +2391,27 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                      color: isDark
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? Colors.white10
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (widget.mcqQuestion != null && widget.mcqQuestion!.isNotEmpty) ...[
+                        if (widget.mcqQuestion != null &&
+                            widget.mcqQuestion!.isNotEmpty) ...[
                           Text(
                             widget.mcqQuestion!,
                             style: TextStyle(
-                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF1E293B),
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                             ),
@@ -2369,19 +2425,31 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: InkWell(
-                              onTap: () => setState(() => _selectedMcqIndex = idx),
+                              onTap: () =>
+                                  setState(() => _selectedMcqIndex = idx),
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? const Color(0xFF667eea).withValues(alpha: 0.1)
-                                      : (isDark ? Colors.white.withValues(alpha: 0.03) : Colors.white),
+                                      ? const Color(
+                                          0xFF667eea,
+                                        ).withValues(alpha: 0.1)
+                                      : (isDark
+                                            ? Colors.white.withValues(
+                                                alpha: 0.03,
+                                              )
+                                            : Colors.white),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
                                         ? const Color(0xFF667eea)
-                                        : (isDark ? Colors.white12 : const Color(0xFFCBD5E1)),
+                                        : (isDark
+                                              ? Colors.white12
+                                              : const Color(0xFFCBD5E1)),
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -2393,10 +2461,14 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: isSelected ? const Color(0xFF667eea) : Colors.grey,
+                                          color: isSelected
+                                              ? const Color(0xFF667eea)
+                                              : Colors.grey,
                                           width: isSelected ? 5 : 1.5,
                                         ),
-                                        color: isSelected ? Colors.white : Colors.transparent,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.transparent,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -2405,10 +2477,16 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                                         text,
                                         style: TextStyle(
                                           color: isSelected
-                                              ? (isDark ? Colors.white : const Color(0xFF1E293B))
-                                              : (isDark ? Colors.white70 : const Color(0xFF475569)),
+                                              ? (isDark
+                                                    ? Colors.white
+                                                    : const Color(0xFF1E293B))
+                                              : (isDark
+                                                    ? Colors.white70
+                                                    : const Color(0xFF475569)),
                                           fontSize: 14,
-                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -2437,12 +2515,19 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     widget.audioUrl.isEmpty) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24,
+                      horizontal: 14,
+                    ),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.03)
+                          : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? Colors.white10
+                            : const Color(0xFFE2E8F0),
                         width: 1,
                       ),
                     ),
@@ -2452,13 +2537,17 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                         Icon(
                           Icons.task_alt_rounded,
                           size: 32,
-                          color: isDark ? Colors.white12 : const Color(0xFFCBD5E1),
+                          color: isDark
+                              ? Colors.white12
+                              : const Color(0xFFCBD5E1),
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'DAILY ROUTINE ACTIVE',
                           style: TextStyle(
-                            color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                            color: isDark
+                                ? Colors.white38
+                                : const Color(0xFF94A3B8),
                             fontSize: 10,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 1.5,
@@ -2468,7 +2557,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                         Text(
                           'Routine not specified for today.',
                           style: TextStyle(
-                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            color: isDark
+                                ? Colors.white54
+                                : const Color(0xFF64748B),
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2487,7 +2578,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     decoration: InputDecoration(
                       hintText: 'Write at least 3 words to submit...',
                       hintStyle: TextStyle(
-                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? Colors.white38
+                            : const Color(0xFF94A3B8),
                         fontSize: 14,
                       ),
                       filled: true,
@@ -2547,8 +2640,11 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                         () {
                           String finalResponse = _textController.text;
                           if (widget.isMcq && _selectedMcqIndex != null) {
-                            final mcqAns = widget.mcqOptions[_selectedMcqIndex!];
-                            final String mcqHeader = widget.mcqQuestion != null ? "MCQ: ${widget.mcqQuestion}\nANSWER: $mcqAns" : "MCQ: $mcqAns";
+                            final mcqAns =
+                                widget.mcqOptions[_selectedMcqIndex!];
+                            final String mcqHeader = widget.mcqQuestion != null
+                                ? "MCQ: ${widget.mcqQuestion}\nANSWER: $mcqAns"
+                                : "MCQ: $mcqAns";
                             if (finalResponse.isEmpty) {
                               finalResponse = mcqHeader;
                             } else {
@@ -2572,7 +2668,7 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
 
   void _showAiAdvisor(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -2603,7 +2699,11 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                     color: const Color(0xFF667eea).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF667eea), size: 24),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Color(0xFF667eea),
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -2624,7 +2724,9 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF1E293B),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1E293B),
                         ),
                       ),
                     ],
@@ -2638,9 +2740,13 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.03) : const Color(0xFFF8FAFC),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.03)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isDark ? Colors.white10 : const Color(0xFFE2E8F0)),
+                  border: Border.all(
+                    color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
+                  ),
                 ),
                 child: _AiAdvisorDialog(
                   taskTitle: widget.taskTitle,
@@ -2658,10 +2764,18 @@ class _ActivityTaskModalContentState extends State<_ActivityTaskModalContent> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF667eea),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 0,
                 ),
-                child: const Text('GOT IT, THANKS!', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                child: const Text(
+                  'GOT IT, THANKS!',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
               ),
             ),
           ],
@@ -2761,7 +2875,11 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline_rounded, color: Colors.red.withValues(alpha: 0.7), size: 48),
+            Icon(
+              Icons.error_outline_rounded,
+              color: Colors.red.withValues(alpha: 0.7),
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               _error!,
@@ -2781,7 +2899,13 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
                 });
                 _fetchAdvice();
               },
-              child: const Text('RETRY', style: TextStyle(color: Color(0xFF667eea), fontWeight: FontWeight.bold)),
+              child: const Text(
+                'RETRY',
+                style: TextStyle(
+                  color: Color(0xFF667eea),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -2802,7 +2926,9 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
                   style: TextStyle(
                     fontSize: 15,
                     height: 1.6,
-                    color: isDark ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF334155),
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.9)
+                        : const Color(0xFF334155),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -2813,11 +2939,17 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF667eea).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF667eea).withValues(alpha: 0.1)),
+                  border: Border.all(
+                    color: const Color(0xFF667eea).withValues(alpha: 0.1),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.tips_and_updates_rounded, color: Color(0xFF667eea), size: 20),
+                    const Icon(
+                      Icons.tips_and_updates_rounded,
+                      color: Color(0xFF667eea),
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -2825,7 +2957,9 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
                         style: TextStyle(
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
-                          color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                          color: isDark
+                              ? Colors.white54
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ),
@@ -2842,14 +2976,18 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                Clipboard.setData(ClipboardData(text: _reply.replaceAll('**', '')));
+                Clipboard.setData(
+                  ClipboardData(text: _reply.replaceAll('**', '')),
+                );
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: const Text('Advice copied to clipboard!'),
                     backgroundColor: const Color(0xFF667eea),
                     duration: const Duration(seconds: 2),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 );
               },
@@ -2857,7 +2995,9 @@ class _AiAdvisorDialogState extends State<_AiAdvisorDialog> {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.03),
+                  color: isDark
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(

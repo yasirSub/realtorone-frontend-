@@ -30,16 +30,7 @@ class AppConfig {
     return '$liveWebOrigin/terms';
   }
 
-  /// Local Vite dev server (`npm run dev` in realtorone-website). Override with LEGAL_*_URL to use Laravel on :8000 instead.
-  static String _legalDevOrigin() {
-    if (kIsWeb) return 'http://127.0.0.1:5173';
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:5173';
-      default:
-        return 'http://127.0.0.1:5173';
-    }
-  }
+
 
   /// Full API root including `/api`, e.g. `http://192.168.1.10:8000/api`
   /// Physical device on Wi‑Fi: `flutter run --dart-define=API_BASE_URL=http://YOUR_PC_LAN_IP:8000/api`

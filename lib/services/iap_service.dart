@@ -291,7 +291,10 @@ class IapService {
   }
 
   Future<void> restorePurchases() async {
-    if (!isAvailable) return;
+    if (!isAvailable) {
+      onPurchaseResult?.call(false, 'Store not available on this device.');
+      return;
+    }
     try {
       await _inAppPurchase.restorePurchases();
     } catch (e) {
