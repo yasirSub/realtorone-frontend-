@@ -39,7 +39,7 @@ class IapService {
     final ids = <String>{};
     for (final tier in _tierProductPrefix.values) {
       for (final duration in _durationSuffix.values) {
-        ids.add('${tier}_$duration');
+        ids.add('com.realtorone.app.${tier}_$duration');
       }
     }
     return ids;
@@ -81,7 +81,7 @@ class IapService {
         .trim();
     final prefix = _tierProductPrefix[normalizedTier] ?? normalizedTier;
     final suffix = _durationSuffix[months] ?? '${months}_months';
-    return '${prefix}_$suffix';
+    return 'com.realtorone.app.${prefix}_$suffix';
   }
 
   /// Legacy method: builds product ID from package ID (for backward compatibility)
@@ -273,12 +273,15 @@ class IapService {
     }
   }
 
-  /// Parses a product ID like "titan_1_month" into tier name and months.
+  /// Parses a product ID like "com.realtorone.app.titan_1_month" into tier name and months.
   Map<String, dynamic>? _parseTierProduct(String productId) {
+    // Strip package prefix if present
+    final cleanId = productId.replaceFirst('com.realtorone.app.', '');
+    
     for (final entry in _tierProductPrefix.entries) {
-      if (productId.startsWith(entry.value)) {
+      if (cleanId.startsWith(entry.value)) {
         for (final durEntry in _durationSuffix.entries) {
-          if (productId == '${entry.value}_${durEntry.value}') {
+          if (cleanId == '${entry.value}_${durEntry.value}') {
             return {
               'tier': entry.key[0].toUpperCase() + entry.key.substring(1), // Capitalize
               'months': durEntry.key,
