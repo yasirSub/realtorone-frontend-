@@ -343,11 +343,11 @@ class _ResultsTrackerPageState extends State<ResultsTrackerPage>
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: _monthlyGraph.map<Widget>((m) {
                       final maxVal = _monthlyGraph.fold(1, (prev, item) {
-                        final leads = (item['leads'] ?? 0) as int;
+                        final leads = int.tryParse(item['leads']?.toString() ?? '') ?? 0;
                         return leads > prev ? leads : prev;
                       });
-                      final leads = (m['leads'] ?? 0) as int;
-                      final deals = (m['deals'] ?? 0) as int;
+                      final leads = int.tryParse(m['leads']?.toString() ?? '') ?? 0;
+                      final deals = int.tryParse(m['deals']?.toString() ?? '') ?? 0;
                       final leadsH = maxVal > 0 ? (leads / maxVal) * 140 : 0.0;
                       final dealsH = maxVal > 0 ? (deals / maxVal) * 140 : 0.0;
 

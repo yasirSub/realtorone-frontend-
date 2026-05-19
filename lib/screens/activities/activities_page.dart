@@ -999,14 +999,14 @@ class _ActivitiesPageState extends State<ActivitiesPage>
 
     final sortedTypes = [...types]
       ..sort((a, b) {
-        final aSectionOrder = (a['section_order'] as num?)?.toInt() ?? 999;
-        final bSectionOrder = (b['section_order'] as num?)?.toInt() ?? 999;
+        final aSectionOrder = int.tryParse(a['section_order']?.toString() ?? '') ?? 999;
+        final bSectionOrder = int.tryParse(b['section_order']?.toString() ?? '') ?? 999;
         if (aSectionOrder != bSectionOrder) {
           return aSectionOrder.compareTo(bSectionOrder);
         }
 
-        final aItemOrder = (a['item_order'] as num?)?.toInt() ?? 999;
-        final bItemOrder = (b['item_order'] as num?)?.toInt() ?? 999;
+        final aItemOrder = int.tryParse(a['item_order']?.toString() ?? '') ?? 999;
+        final bItemOrder = int.tryParse(b['item_order']?.toString() ?? '') ?? 999;
         if (aItemOrder != bItemOrder) {
           return aItemOrder.compareTo(bItemOrder);
         }
@@ -1025,7 +1025,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       grouped[title]!.add(type);
       sectionOrder.putIfAbsent(
         title,
-        () => (type['section_order'] as num?)?.toInt() ?? 999,
+        () => int.tryParse(type['section_order']?.toString() ?? '') ?? 999,
       );
     }
 
@@ -1246,7 +1246,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   Future<void> _showActivityTaskPopup(Map<String, dynamic> activityType) async {
     final String name = activityType['name'] ?? 'Activity';
     final int todayDay =
-        (activityType['today_day_number'] as num?)?.toInt() ?? 1;
+        int.tryParse(activityType['today_day_number']?.toString() ?? '') ?? 1;
     final String taskDescription =
         (activityType['task_description'] ?? activityType['description'] ?? '')
             .toString()
@@ -1264,12 +1264,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         (activityType['daily_audio_url'] ?? activityType['audio_url'] ?? '')
             .toString()
             .trim();
-    final int requiredListenPercent =
-        ((activityType['daily_required_listen_percent'] ??
+    final int requiredListenPercent = int.tryParse(
+            (activityType['daily_required_listen_percent'] ??
                     activityType['required_listen_percent'] ??
-                    0)
-                as num?)
-            ?.toInt() ??
+                    '')
+                .toString()) ??
         0;
     final bool requireUserResponse =
         (activityType['daily_require_user_response'] ?? false) == true;
@@ -1284,7 +1283,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
       activityType['mcq_options'] ?? [],
     );
     final int? mcqCorrectOption = activityType['mcq_correct_option'] != null
-        ? (activityType['mcq_correct_option'] as num).toInt()
+        ? int.tryParse(activityType['mcq_correct_option'].toString())
         : null;
     audioUrl = await _resolveActivityAudioUrl(audioUrl);
 

@@ -70,7 +70,7 @@ class _RewardsPageState extends State<RewardsPage> {
 
         final todayPts = today.fold<int>(
           0,
-          (sum, e) => sum + ((e['points'] as num?)?.toInt() ?? 0),
+          (sum, e) => sum + (int.tryParse(e['points']?.toString() ?? '') ?? 0),
         );
 
         setState(() {
@@ -274,7 +274,7 @@ class _RewardsPageState extends State<RewardsPage> {
               mainAxisSize: MainAxisSize.min,
               children: _todayEntries.take(3).map((entry) {
                 final title = entry['title']?.toString() ?? 'Activity';
-                final pts = (entry['points'] as num?)?.toInt() ?? 0;
+                final pts = int.tryParse(entry['points']?.toString() ?? '') ?? 0;
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Row(
@@ -373,7 +373,7 @@ class _RewardsPageState extends State<RewardsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: _olderEntries.take(20).map((entry) {
                 final title = entry['title']?.toString() ?? 'Activity';
-                final pts = (entry['points'] as num?)?.toInt() ?? 0;
+                final pts = int.tryParse(entry['points']?.toString() ?? '') ?? 0;
                 final dateStr = entry['date']?.toString() ?? '';
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 6),

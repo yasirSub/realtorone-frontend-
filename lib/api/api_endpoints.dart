@@ -16,7 +16,13 @@ class ApiEndpoints {
   static const String resetPassword = '/password/reset';
 
   // Email verification
+  static const String sendEmailOtp = '/email/send-otp';
+  static const String verifyEmailOtp = '/email/verify-otp';
   static const String verifyEmail = '/email/verify';
+
+  // Phone verification
+  static const String sendPhoneOtp = '/phone/send-otp';
+  static const String verifyPhoneOtp = '/phone/verify-otp';
 
   // User endpoints
   static const String userProfile = '/user/profile';

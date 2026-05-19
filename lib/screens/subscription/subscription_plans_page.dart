@@ -112,7 +112,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
             // If user is already premium, pre-select their current package
             // so "Manage billing" (1/6/12 months) is one tap.
-            final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
+            final currentPkgId = int.tryParse(_currentSub?['package_id']?.toString() ?? '');
             _selectedPackageId = _isPremium ? currentPkgId : null;
             _adjustSelectedDuration(_selectedPackageId);
           }
@@ -130,7 +130,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     // Find the selected package to get its tier name
     final pkg = _packages.firstWhere(
-      (p) => (p['id'] as num?)?.toInt() == _selectedPackageId,
+      (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
       orElse: () => <String, dynamic>{},
     );
     if (pkg.isEmpty) return;
@@ -306,7 +306,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     dynamic selectedPkg;
     for (final p in _packages) {
-      final id = (p['id'] as num?)?.toInt();
+      final id = int.tryParse(p['id']?.toString() ?? '');
       if (id != null && id == _selectedPackageId) {
         selectedPkg = p;
         break;
@@ -355,13 +355,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     double discountPercent = 0.0;
     if (_selectedMonths == 3) {
       discountPercent =
-          (pkg['bundle_discount_3_month'] as num?)?.toDouble() ?? 10.0;
+          double.tryParse(pkg['bundle_discount_3_month']?.toString() ?? '') ?? 10.0;
     } else if (_selectedMonths == 6) {
       discountPercent =
-          (pkg['bundle_discount_6_month'] as num?)?.toDouble() ?? 20.0;
+          double.tryParse(pkg['bundle_discount_6_month']?.toString() ?? '') ?? 20.0;
     } else if (_selectedMonths == 12) {
       discountPercent =
-          (pkg['bundle_discount_12_month'] as num?)?.toDouble() ?? 30.0;
+          double.tryParse(pkg['bundle_discount_12_month']?.toString() ?? '') ?? 30.0;
     }
     final durationDiscountFactor = 1.0 - (discountPercent / 100.0);
 
@@ -733,12 +733,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   void _adjustSelectedDuration(int? packageId) {
     if (packageId == null) return;
     final pkg = _packages.firstWhere(
-      (p) => (p['id'] as num?)?.toInt() == packageId,
+      (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == packageId,
       orElse: () => null,
     );
     if (pkg != null && pkg['active_durations'] != null) {
       final available = List<int>.from(
-        (pkg['active_durations'] as List).map((x) => (x as num).toInt())
+        (pkg['active_durations'] as List).map((x) => int.tryParse(x.toString()) ?? 0)
       );
       if (available.isNotEmpty && !available.contains(_selectedMonths)) {
         _selectedMonths = available.first;
@@ -749,9 +749,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Widget _buildDurationSelector(bool isDark) {
     // Find active package to determine available durations
     final activePkg = _packages.firstWhere(
-      (p) => (p['id'] as num?)?.toInt() == _selectedPackageId,
+      (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
       orElse: () => _packages.firstWhere(
-        (p) => (p['price_monthly'] as num?)?.toDouble() != 0,
+        (p) => (double.tryParse(p['price_monthly']?.toString() ?? '') ?? 0.0) != 0,
         orElse: () => null,
       ),
     );
@@ -759,7 +759,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     List<int> availableDurations = [1, 3, 6]; // Default fallback
     if (activePkg != null && activePkg['active_durations'] != null) {
       availableDurations = List<int>.from(
-        (activePkg['active_durations'] as List).map((x) => (x as num).toInt())
+        (activePkg['active_durations'] as List).map((x) => int.tryParse(x.toString()) ?? 0)
       );
       availableDurations.sort();
     }
@@ -861,7 +861,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         .replaceAll(' GOLD', '')
         .replaceAll('GOLD', '')
         .trim();
-    final id = (pkg['id'] as num?)?.toInt() ?? 0;
+    final id = int.tryParse(pkg['id']?.toString() ?? '') ?? 0;
     final priceMonthly =
         double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0;
     final features = (pkg['features'] as List?)?.cast<String>() ?? [];
@@ -1194,7 +1194,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   Widget _buildPurchaseBar(bool isDark) {
     final pkg = _packages.firstWhere(
-      (p) => (p['id'] as num?)?.toInt() == _selectedPackageId,
+      (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
       orElse: () => <String, dynamic>{},
     );
     if (pkg.isEmpty) return const SizedBox();
@@ -1209,8 +1209,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ? '6 months'
         : '1 yearly';
 
-    final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
-    final selectedPkgId = (pkg['id'] as num?)?.toInt();
+    final currentPkgId = int.tryParse(_currentSub?['package_id']?.toString() ?? '');
+    final selectedPkgId = int.tryParse(pkg['id']?.toString() ?? '');
     final isRenewing =
         _isPremium && currentPkgId != null && selectedPkgId == currentPkgId;
 
