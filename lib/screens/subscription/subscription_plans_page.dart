@@ -364,10 +364,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     }
     final durationDiscountFactor = 1.0 - (discountPercent / 100.0);
 
-    // Calculate monthly price rounded to nearest integer first
-    final monthlyPrice = (baseMonthly * durationDiscountFactor).round();
-    // Calculate total based on rounded monthly price
-    double price = (monthlyPrice * _selectedMonths).toDouble();
+    // Calculate monthly price with 2 decimal places
+    final monthlyPrice = double.parse((baseMonthly * durationDiscountFactor).toStringAsFixed(2));
+    // Calculate total based on 2 decimal monthly price
+    double price = double.parse((monthlyPrice * _selectedMonths).toStringAsFixed(2));
     return price;
   }
 
@@ -1010,7 +1010,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       )
                     else ...[
                       Text(
-                        'AED ${_calculatePrice(pkg).toStringAsFixed(0)}',
+                        'AED ${_calculatePrice(pkg).toStringAsFixed(2)}',
                         style: TextStyle(
                           color: isTitan
                               ? const Color(0xFFF59E0B)
