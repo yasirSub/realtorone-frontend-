@@ -364,7 +364,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     }
     final durationDiscountFactor = 1.0 - (discountPercent / 100.0);
 
-    double price = baseMonthly * _selectedMonths * durationDiscountFactor;
+    // Calculate monthly price rounded to nearest integer first
+    final monthlyPrice = (baseMonthly * durationDiscountFactor).round();
+    // Calculate total based on rounded monthly price
+    double price = (monthlyPrice * _selectedMonths).toDouble();
     return price;
   }
 
