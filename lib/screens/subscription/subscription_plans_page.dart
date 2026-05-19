@@ -114,6 +114,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             // so "Manage billing" (1/6/12 months) is one tap.
             final currentPkgId = (_currentSub?['package_id'] as num?)?.toInt();
             _selectedPackageId = _isPremium ? currentPkgId : null;
+            _adjustSelectedDuration(_selectedPackageId);
           }
           _isLoading = false;
         });
@@ -729,7 +730,55 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     ).animate().fadeIn().slideY(begin: 0.1);
   }
 
+  void _adjustSelectedDuration(int? packageId) {
+    if (packageId == null) return;
+    final pkg = _packages.firstWhere(
+      (p) => (p['id'] as num?)?.toInt() == packageId,
+      orElse: () => null,
+    );
+    if (pkg != null && pkg['active_durations'] != null) {
+      final available = List<int>.from(
+        (pkg['active_durations'] as List).map((x) => (x as num).toInt())
+      );
+      if (available.isNotEmpty && !available.contains(_selectedMonths)) {
+        _selectedMonths = available.first;
+      }
+    }
+  }
+
   Widget _buildDurationSelector(bool isDark) {
+    // Find active package to determine available durations
+    final activePkg = _packages.firstWhere(
+      (p) => (p['id'] as num?)?.toInt() == _selectedPackageId,
+      orElse: () => _packages.firstWhere(
+        (p) => (p['price_monthly'] as num?)?.toDouble() != 0,
+        orElse: () => null,
+      ),
+    );
+
+    List<int> availableDurations = [1, 3, 6]; // Default fallback
+    if (activePkg != null && activePkg['active_durations'] != null) {
+      availableDurations = List<int>.from(
+        (activePkg['active_durations'] as List).map((x) => (x as num).toInt())
+      );
+      availableDurations.sort();
+    }
+
+    if (availableDurations.isEmpty) {
+      availableDurations = [1];
+    }
+
+    // Just in case, if the current selection is invalid, select the first one
+    if (!availableDurations.contains(_selectedMonths)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !availableDurations.contains(_selectedMonths)) {
+          setState(() {
+            _selectedMonths = availableDurations.first;
+          });
+        }
+      });
+    }
+
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -737,12 +786,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        // Required by UI spec:
-        // - 1 month
-        // - 3 months
-        // - 6th monthly (6 months)
-        // - 1 yearly (12 months)
-        children: [1, 3, 6, 12].map((m) {
+        children: availableDurations.map((m) {
           final isSelected = _selectedMonths == m;
           final label = m == 1
               ? '1 Month'
@@ -875,7 +919,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       // Keep "Free" disabled.
       onTap: isFree
           ? null
-          : () => setState(() => _selectedPackageId = isSelected ? null : id),
+          : () {
+              setState(() {
+                _selectedPackageId = isSelected ? null : id;
+                _adjustSelectedDuration(isSelected ? null : id);
+              });
+            },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
@@ -1027,6 +1076,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                         // Billing suffix changes with selected duration
                         _selectedMonths == 1
                             ? '/month'
+                            : _selectedMonths == 3
+                            ? '/3 months'
                             : _selectedMonths == 6
                             ? '/6 months'
                             : '/year',
