@@ -39,7 +39,11 @@ class IapService {
     final ids = <String>{};
     for (final tier in _tierProductPrefix.values) {
       for (final duration in _durationSuffix.values) {
-        ids.add('com.realtorone.app.${tier}_$duration');
+        if (!kIsWeb && Platform.isIOS) {
+          ids.add('${tier}_$duration');
+        } else {
+          ids.add('com.realtorone.app.${tier}_$duration');
+        }
       }
     }
     return ids;
@@ -81,7 +85,11 @@ class IapService {
         .trim();
     final prefix = _tierProductPrefix[normalizedTier] ?? normalizedTier;
     final suffix = _durationSuffix[months] ?? '${months}_months';
-    return 'com.realtorone.app.${prefix}_$suffix';
+    if (!kIsWeb && Platform.isIOS) {
+      return '${prefix}_$suffix';
+    } else {
+      return 'com.realtorone.app.${prefix}_$suffix';
+    }
   }
 
   /// Legacy method: builds product ID from package ID (for backward compatibility)
