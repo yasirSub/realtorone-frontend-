@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../../services/google_auth_service.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
 import '../../l10n/app_localizations.dart';
@@ -314,7 +314,7 @@ class _SettingsPageState extends State<SettingsPage> {
       
       // 2. Sign out from Google to ensure account picker shows next time
       try {
-        await GoogleSignIn().signOut();
+        await GoogleAuthService.instance.signOut();
       } catch (_) {}
 
       // 3. Clear all local preferences

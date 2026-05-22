@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/api_client.dart';
 import '../../api/auth_api.dart';
+import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -25,13 +24,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
-  static const String _googleWebClientId = String.fromEnvironment(
-    'GOOGLE_WEB_CLIENT_ID',
-    defaultValue: '790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com',
-  );
-  late final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _googleWebClientId.isEmpty ? null : _googleWebClientId,
-  );
 
   @override
   void dispose() {
@@ -108,34 +100,12 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      debugPrint('[GOOGLE LOGIN] Started');
-      await _googleSignIn.signOut();
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        debugPrint('[GOOGLE LOGIN] User cancelled account picker');
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-      debugPrint('[GOOGLE LOGIN] Selected account: ${account.email}');
-
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-      debugPrint(
-        '[GOOGLE LOGIN] idToken present: ${idToken != null && idToken.isNotEmpty}',
-      );
-      if (idToken == null || idToken.isEmpty) {
-        throw Exception(
-          _googleWebClientId.isEmpty
-              ? 'Google id token missing. Pass --dart-define=GOOGLE_WEB_CLIENT_ID=<web-client-id>.apps.googleusercontent.com'
-              : 'Google id token missing. Check Firebase OAuth config and SHA fingerprints.',
-        );
-      }
-
+      final google = await GoogleAuthService.instance.signIn();
       final response = await AuthApi.loginWithGoogle(
-        idToken: idToken,
-        email: account.email,
-        name: account.displayName,
-        photoUrl: account.photoUrl,
+        idToken: google.idToken,
+        email: google.account.email,
+        name: google.account.displayName,
+        photoUrl: google.account.photoUrl,
       );
       debugPrint('[GOOGLE LOGIN] Backend response: $response');
 
@@ -169,14 +139,16 @@ class _LoginPageState extends State<LoginPage> {
         });
         debugPrint('[GOOGLE LOGIN] Failed at backend: $_errorMessage');
       }
+    } on GoogleSignInCancelledException {
+      if (mounted) setState(() => _isLoading = false);
+      return;
     } on PlatformException catch (e) {
       debugPrint(
         '[GOOGLE LOGIN] PlatformException code=${e.code} message=${e.message}',
       );
       if (mounted) {
         setState(() {
-          _errorMessage =
-              'Google login failed (${e.code}). ${e.message ?? ''}'.trim();
+          _errorMessage = GoogleAuthService.instance.platformErrorMessage(e);
         });
       }
     } catch (e) {
@@ -415,11 +387,14 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Image.asset(
-                        'assets/images/logo.png',
-                        width: 92,
-                        height: 92,
-                        fit: BoxFit.contain,
+                      GestureDetector(
+                        onDoubleTap: _showDebugLogin,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 92,
+                          height: 92,
+                          fit: BoxFit.contain,
+                        ),
                       ).animate().fadeIn(duration: 800.ms).scale(delay: 200.ms),
                       const SizedBox(height: 32),
                       const Text(
@@ -630,22 +605,6 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ],
                         ).animate().fadeIn(delay: 1000.ms),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: _showDebugLogin,
-                            icon: const Icon(Icons.bug_report_outlined, size: 16),
-                            label: const Text(
-                              'DEBUG ACCESS HUB',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ),
-                        ).animate().fadeIn(delay: 1200.ms),
                       ],
                     ),
                   ),

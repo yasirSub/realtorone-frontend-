@@ -18,19 +18,19 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // com.realtorone.app — from android/app/google-services.json
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg',
-    appId: '1:790178174861:android:359f15b03cd3e16b7ccfc4',
+    appId: '1:790178174861:android:ea2bcd806e5996417ccfc4',
     messagingSenderId: '790178174861',
     projectId: 'realtor-one',
     storageBucket: 'realtor-one.firebasestorage.app',
   );
 
-  // Matches ios/Runner/GoogleService-Info.plist. After registering the iOS app in Firebase
-  // (or running `flutterfire configure` on a Mac), replace GOOGLE_APP_ID / apiKey if they differ.
+  // Matches ios/Runner/GoogleService-Info.plist
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCElQRXMWT-JfhJ8jJMWFZbIzDrKkpvvUg',
-    appId: '1:790178174861:ios:000000000000000000000000',
+    apiKey: 'AIzaSyA5u5m67g1Y2U0OQTz7n1mIdxgpPWiDsy0',
+    appId: '1:790178174861:ios:fd52983e364439237ccfc4',
     messagingSenderId: '790178174861',
     projectId: 'realtor-one',
     storageBucket: 'realtor-one.firebasestorage.app',

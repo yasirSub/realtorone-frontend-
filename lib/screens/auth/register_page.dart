@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/auth_api.dart';
 import '../../api/api_client.dart';
+import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -27,13 +26,6 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
-  static const String _googleWebClientId = String.fromEnvironment(
-    'GOOGLE_WEB_CLIENT_ID',
-    defaultValue: '790178174861-af1d20utnlt0etqb17dpbkr0tcbahmfu.apps.googleusercontent.com',
-  );
-  late final GoogleSignIn _googleSignIn = GoogleSignIn(
-    serverClientId: _googleWebClientId.isEmpty ? null : _googleWebClientId,
-  );
 
   @override
   void dispose() {
@@ -111,34 +103,12 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      debugPrint('[GOOGLE SIGNUP] Started');
-      await _googleSignIn.signOut();
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        debugPrint('[GOOGLE SIGNUP] User cancelled account picker');
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-      debugPrint('[GOOGLE SIGNUP] Selected account: ${account.email}');
-
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-      debugPrint(
-        '[GOOGLE SIGNUP] idToken present: ${idToken != null && idToken.isNotEmpty}',
-      );
-      if (idToken == null || idToken.isEmpty) {
-        throw Exception(
-          _googleWebClientId.isEmpty
-              ? 'Google id token missing. Pass --dart-define=GOOGLE_WEB_CLIENT_ID=<web-client-id>.apps.googleusercontent.com'
-              : 'Google id token missing. Check Firebase OAuth config and SHA fingerprints.',
-        );
-      }
-
+      final google = await GoogleAuthService.instance.signIn();
       final response = await AuthApi.loginWithGoogle(
-        idToken: idToken,
-        email: account.email,
-        name: account.displayName,
-        photoUrl: account.photoUrl,
+        idToken: google.idToken,
+        email: google.account.email,
+        name: google.account.displayName,
+        photoUrl: google.account.photoUrl,
       );
       debugPrint('[GOOGLE SIGNUP] Backend response: $response');
 
@@ -172,14 +142,16 @@ class _RegisterPageState extends State<RegisterPage> {
         });
         debugPrint('[GOOGLE SIGNUP] Failed at backend: $_errorMessage');
       }
+    } on GoogleSignInCancelledException {
+      if (mounted) setState(() => _isLoading = false);
+      return;
     } on PlatformException catch (e) {
       debugPrint(
         '[GOOGLE SIGNUP] PlatformException code=${e.code} message=${e.message}',
       );
       if (mounted) {
         setState(() {
-          _errorMessage =
-              'Google signup failed (${e.code}). ${e.message ?? ''}'.trim();
+          _errorMessage = GoogleAuthService.instance.platformErrorMessage(e);
         });
       }
     } catch (e) {
