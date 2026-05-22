@@ -12,9 +12,14 @@ import 'notifications_history_page.dart';
 import '../../routes/app_routes.dart';
 import 'home_webinar_carousel.dart';
 import '../../utils/responsive_helper.dart';
+import '../../theme/realtorone_brand.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.onOpenActivitiesTab});
+
+  /// Switches bottom nav to Activities and opens BELIEF (0) or FOCUS (1).
+  final void Function(int activitiesTabIndex, {int? revenueSubTab})?
+      onOpenActivitiesTab;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -200,12 +205,120 @@ class _HomePageState extends State<HomePage> {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () =>
-                  Navigator.pushNamed(context, AppRoutes.activities),
+              onPressed: widget.onOpenActivitiesTab != null
+                  ? () => widget.onOpenActivitiesTab!(0)
+                  : () => Navigator.pushNamed(context, AppRoutes.activities),
               child: Text(l10n.homeOpenTasks),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPerformanceSection(AppLocalizations l10n, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const GrowthReportWidget(),
+        if (widget.onOpenActivitiesTab != null) ...[
+          const SizedBox(height: 12),
+          _buildFocusShortcut(l10n, isDark),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildFocusShortcut(AppLocalizations l10n, bool isDark) {
+    final open = widget.onOpenActivitiesTab!;
+    const accent = RealtorOneBrand.accentTeal;
+    final surface = isDark ? RealtorOneBrand.surfaceDark : Colors.white;
+    final border = isDark ? const Color(0xFF334155) : Colors.white;
+    final titleColor = isDark ? Colors.white : const Color(0xFF1E293B);
+    final subtitleColor =
+        isDark ? Colors.white60 : const Color(0xFF64748B);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => open(1, revenueSubTab: 0),
+        borderRadius: BorderRadius.circular(28),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: surface,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: border, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: isDark ? 0.06 : 0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.hub_rounded,
+                    color: accent,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.homeOpenPipeline,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: titleColor,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        l10n.homeOpenFocusHint,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: subtitleColor,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: 18,
+                    color: accent.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -448,12 +561,16 @@ class _HomePageState extends State<HomePage> {
                                 .fadeIn(delay: 260.ms)
                                 .slideY(begin: 0.1),
                             const SizedBox(height: 20),
-                            const GrowthReportWidget()
+                            _buildPerformanceSection(l10n, isDark)
                                 .animate()
                                 .fadeIn(delay: 300.ms)
                                 .slideY(begin: 0.1),
                             const SizedBox(height: 20),
-                            const HomeActivityLogWidget()
+                            HomeActivityLogWidget(
+                              onOpenActivities: widget.onOpenActivitiesTab != null
+                                  ? () => widget.onOpenActivitiesTab!(0)
+                                  : null,
+                            )
                                 .animate()
                                 .fadeIn(delay: 420.ms)
                                 .slideY(begin: 0.1),

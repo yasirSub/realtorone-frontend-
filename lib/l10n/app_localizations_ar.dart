@@ -142,7 +142,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get homeOpenTasks => 'فتح المهام';
 
   @override
-  String get homeOpenPipeline => 'فتح خط الأنابيب';
+  String get homeOpenPipeline => 'فتح التركيز';
+
+  @override
+  String get homeOpenFocusHint => 'غرفة الصفقات والعملاء الساخنون';
 
   @override
   String get homeNotificationsTooltip => 'الإشعارات';

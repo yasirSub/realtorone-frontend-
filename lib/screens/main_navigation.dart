@@ -103,7 +103,7 @@ class _MainNavigationState extends State<MainNavigation> {
     _tourActive = ValueNotifier<bool>(false);
     _currentIndex = widget.initialIndex;
     _pages = [
-      const HomePage(),
+      HomePage(onOpenActivitiesTab: _openActivitiesTab),
       ActivitiesPage(
         tourSyncNotifier: _activitiesTourSync,
         tourActive: _tourActive,
@@ -128,6 +128,19 @@ class _MainNavigationState extends State<MainNavigation> {
     _activitiesTourSync.dispose();
     _tourActive.dispose();
     super.dispose();
+  }
+
+  void _openActivitiesTab(int tabIndex, {int? revenueSubTab}) {
+    setState(() => _currentIndex = 1);
+    // Clear then re-set so repeated taps still switch tabs (ValueNotifier dedupes same value).
+    _activitiesTourSync.value = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _activitiesTourSync.value = ActivitiesTourSync(
+        tabIndex: tabIndex,
+        revenueSubTab: revenueSubTab,
+      );
+    });
   }
 
   void _applyTourStep(int index) {

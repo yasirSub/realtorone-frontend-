@@ -6,7 +6,9 @@ import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 
 class HomeActivityLogWidget extends StatefulWidget {
-  const HomeActivityLogWidget({super.key});
+  const HomeActivityLogWidget({super.key, this.onOpenActivities});
+
+  final VoidCallback? onOpenActivities;
 
   @override
   State<HomeActivityLogWidget> createState() => _HomeActivityLogWidgetState();
@@ -130,8 +132,8 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                 ],
               ),
               TextButton(
-                onPressed: () =>
-                    Navigator.pushNamed(context, AppRoutes.activities),
+                onPressed: widget.onOpenActivities ??
+                    () => Navigator.pushNamed(context, AppRoutes.activities),
                 child: Text(l10n.activityLogOpen),
               ),
             ],

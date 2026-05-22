@@ -359,8 +359,14 @@ abstract class AppLocalizations {
   /// No description provided for @homeOpenPipeline.
   ///
   /// In en, this message translates to:
-  /// **'Open Pipeline'**
+  /// **'Open FOCUS'**
   String get homeOpenPipeline;
+
+  /// No description provided for @homeOpenFocusHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Deal room & hot leads'**
+  String get homeOpenFocusHint;
 
   /// No description provided for @homeNotificationsTooltip.
   ///

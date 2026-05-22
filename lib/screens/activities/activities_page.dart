@@ -67,6 +67,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayActivities = [];
   List<Map<String, dynamic>> _activityTypes = [];
+  double _beliefPointsPerTask = 11.1;
   // Track which activity types the user has interacted with today
   final Set<String> _interactedKeys = {};
   // Track which activity types are completed (for instant UI feedback)
@@ -238,6 +239,11 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             }
           }
           if (typesResponse['success'] == true) {
+            final scoring = typesResponse['belief_scoring'];
+            if (scoring is Map) {
+              _beliefPointsPerTask =
+                  double.tryParse('${scoring['points_per_task']}') ?? 11.1;
+            }
             _activityTypes = List<Map<String, dynamic>>.from(
               typesResponse['data'] ?? [],
             );
@@ -1454,6 +1460,24 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     }
   }
 
+  String _formatAwardedPoints(dynamic raw) {
+    final value = raw is num
+        ? raw.toDouble()
+        : double.tryParse('$raw') ?? _beliefPointsPerTask;
+    if ((value - value.round()).abs() < 0.05) {
+      return '${value.round()}';
+    }
+    return value.toStringAsFixed(1);
+  }
+
+  dynamic _displayPointsForType(Map<String, dynamic> activityType) {
+    final category = activityType['category'];
+    if (category == 'subconscious') {
+      return activityType['belief_points'] ?? _beliefPointsPerTask;
+    }
+    return activityType['points'] ?? 0;
+  }
+
   Future<void> _logActivityType(
     Map<String, dynamic> activityType, {
     bool completed = false,
@@ -1504,6 +1528,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         'ACTIVITY_LOG_DEBUG: [3] Create response received: success=${response['success']}',
       );
 
+      dynamic pointsAwarded;
       if (response['success'] == true && completed) {
         final activityId = response['data']?['id'];
         debugPrint(
@@ -1513,6 +1538,9 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         debugPrint(
           'ACTIVITY_LOG_DEBUG: [5] Completion response: success=${completeRes['success']}',
         );
+        if (completeRes['success'] == true) {
+          pointsAwarded = completeRes['points_awarded'];
+        }
       }
 
       if (response['success'] == true) {
@@ -1539,7 +1567,7 @@ class _ActivitiesPageState extends State<ActivitiesPage>
         }
         _showCompletionFeedback(
           completed
-              ? '$name completed! +${activityType['points']} points'
+              ? '$name completed! +${_formatAwardedPoints(pointsAwarded ?? _displayPointsForType(activityType))} pts'
               : '$name logged successfully!',
         );
       }

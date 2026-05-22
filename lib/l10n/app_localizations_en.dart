@@ -143,7 +143,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeOpenTasks => 'Open Tasks';
 
   @override
-  String get homeOpenPipeline => 'Open Pipeline';
+  String get homeOpenPipeline => 'Open FOCUS';
+
+  @override
+  String get homeOpenFocusHint => 'Deal room & hot leads';
 
   @override
   String get homeNotificationsTooltip => 'Notifications';
