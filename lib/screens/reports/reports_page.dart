@@ -11,7 +11,8 @@ class ReportsPage extends StatefulWidget {
   State<ReportsPage> createState() => _ReportsPageState();
 }
 
-class _ReportsPageState extends State<ReportsPage> {
+class _ReportsPageState extends State<ReportsPage>
+    with SingleTickerProviderStateMixin {
   String _period = 'week';
   bool _isLoading = true;
   List<String> _labels = [];
@@ -20,27 +21,40 @@ class _ReportsPageState extends State<ReportsPage> {
   int _executionRate = 0;
   int _beliefScore = 0;
   int _focusScore = 0;
+  int _beliefTasksDone = 0;
+  int _beliefTasksTotal = 0;
+  double _beliefPointsPerTask = 11.1;
+  double _beliefErContribution = 0;
+  double _beliefGpContribution = 0;
+  double _focusErContribution = 0;
+  double _focusGpContribution = 0;
+  int _focusClientCount = 0;
 
-  // Real-world tactical icons for metrics
-  final Map<String, IconData> _activityIcons = {
+  List<Map<String, dynamic>> _beliefBreakdown = [];
+  List<Map<String, dynamic>> _focusBreakdown = [];
+  List<Map<String, dynamic>> _focusPipeline = [];
+
+  final Map<String, IconData> _focusActivityIcons = {
     'Calls': Icons.phone_in_talk_rounded,
     'Meetings': Icons.groups_rounded,
     'Follow-ups': Icons.repeat_rounded,
     'Site Visits': Icons.location_on_rounded,
   };
 
-  Map<String, int> _activityBreakdown = {
-    'Calls': 0,
-    'Meetings': 0,
-    'Follow-ups': 0,
-    'Site Visits': 0,
-  };
+  late TabController _pillarTabController;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _pillarTabController = TabController(length: 2, vsync: this);
     _fetchData();
+  }
+
+  @override
+  void dispose() {
+    _pillarTabController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchData() async {
@@ -55,8 +69,6 @@ class _ReportsPageState extends State<ReportsPage> {
       if (response['success'] == true) {
         final labels = response['labels'];
         final data = response['data'];
-        final breakdown = response['activity_breakdown'];
-
         setState(() {
           _labels = labels is List ? List<String>.from(labels.map((e) => e.toString())) : [];
           _data = data is List ? List<int>.from(data.map((e) => int.tryParse('$e') ?? 0)) : [];
@@ -67,11 +79,25 @@ class _ReportsPageState extends State<ReportsPage> {
           _executionRate = int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
           _beliefScore = int.tryParse('${response['belief_score'] ?? 0}') ?? 0;
           _focusScore = int.tryParse('${response['focus_score'] ?? 0}') ?? 0;
-          if (breakdown is Map) {
-            _activityBreakdown = breakdown.map(
-              (key, value) => MapEntry(key.toString(), int.tryParse('$value') ?? 0),
-            );
-          }
+          _beliefTasksDone = int.tryParse('${response['belief_tasks_done'] ?? 0}') ?? 0;
+          _beliefTasksTotal = int.tryParse('${response['belief_tasks_total'] ?? 0}') ?? 0;
+          _beliefPointsPerTask =
+              double.tryParse('${response['belief_points_per_task'] ?? 11.1}') ?? 11.1;
+          _beliefErContribution =
+              double.tryParse('${response['belief_er_contribution'] ?? 0}') ?? 0;
+          _beliefGpContribution =
+              double.tryParse('${response['belief_gp_contribution'] ?? 0}') ?? 0;
+          _focusErContribution =
+              double.tryParse('${response['focus_er_contribution'] ?? 0}') ?? 0;
+          _focusGpContribution =
+              double.tryParse('${response['focus_gp_contribution'] ?? 0}') ?? 0;
+          _focusClientCount = int.tryParse(
+                '${(response['focus_pillar'] as Map?)?['client_count'] ?? 0}',
+              ) ??
+              0;
+          _beliefBreakdown = _parseListMap(response['belief_breakdown']);
+          _focusBreakdown = _parseListMap(response['focus_breakdown']);
+          _focusPipeline = _parseListMap(response['focus_pipeline']);
           _errorMessage = null;
         });
       } else {
@@ -95,6 +121,14 @@ class _ReportsPageState extends State<ReportsPage> {
     if (_period == period) return;
     setState(() => _period = period);
     _fetchData();
+  }
+
+  List<Map<String, dynamic>> _parseListMap(dynamic raw) {
+    if (raw is! List) return [];
+    return raw
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   @override
@@ -269,7 +303,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     const SizedBox(height: 32),
 
                     Text(
-                      'Activity Breakdown',
+                      'Pillar Breakdown',
                       style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF1E293B),
                         fontSize: 16,
@@ -277,10 +311,58 @@ class _ReportsPageState extends State<ReportsPage> {
                         letterSpacing: -0.5,
                       ),
                     ).animate().fadeIn(delay: 400.ms),
+                    const SizedBox(height: 12),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: TabBar(
+                        controller: _pillarTabController,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: Colors.transparent,
+                        labelColor: Colors.white,
+                        unselectedLabelColor:
+                            isDark ? Colors.white54 : const Color(0xFF64748B),
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          letterSpacing: 1,
+                        ),
+                        indicator: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: _pillarTabController.index == 0
+                                ? [
+                                    const Color(0xFFD946EF),
+                                    const Color(0xFFA855F7),
+                                  ]
+                                : [
+                                    const Color(0xFF7E22CE),
+                                    const Color(0xFF6366F1),
+                                  ],
+                          ),
+                        ),
+                        onTap: (_) => setState(() {}),
+                        tabs: const [
+                          Tab(text: 'BELIEF'),
+                          Tab(text: 'FOCUS'),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 16),
-
-                    _buildBreakdownList(
-                      isDark,
+                    AnimatedBuilder(
+                      animation: _pillarTabController,
+                      builder: (context, _) {
+                        return _pillarTabController.index == 0
+                            ? _buildBeliefBreakdown(isDark)
+                            : _buildFocusBreakdown(isDark);
+                      },
                     ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1),
 
                     const SizedBox(height: 40),
@@ -419,79 +501,306 @@ class _ReportsPageState extends State<ReportsPage> {
     );
   }
 
-  Widget _buildBreakdownList(bool isDark) {
-    return Column(
-      children: _activityBreakdown.entries.map((entry) {
-        final icon = _activityIcons[entry.key] ?? Icons.insights_rounded;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? const Color(0xFF334155) : Colors.white,
-              width: 2,
+  Widget _buildPillarScoreHeader({
+    required bool isDark,
+    required String title,
+    required int scorePercent,
+    required Color color,
+    required List<Widget> stats,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
           ),
-          child: Row(
+          const SizedBox(height: 8),
+          Text(
+            '$scorePercent%',
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+              fontSize: 36,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: stats),
+        ],
+      ),
+    );
+  }
+
+  Widget _statChip(String label, String value, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        '$label: $value',
+        style: TextStyle(
+          color: isDark ? Colors.white70 : const Color(0xFF475569),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBeliefBreakdown(bool isDark) {
+    const color = Color(0xFFD946EF);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPillarScoreHeader(
+          isDark: isDark,
+          title: 'BELIEF PILLAR',
+          scorePercent: _beliefScore,
+          color: color,
+          stats: [
+            _statChip(
+              'Today',
+              '$_beliefTasksDone/$_beliefTasksTotal tasks',
+              color,
+              isDark,
+            ),
+            _statChip(
+              'Pts / task',
+              _beliefPointsPerTask.toStringAsFixed(1),
+              color,
+              isDark,
+            ),
+            _statChip('→ ER', '${_beliefErContribution.toStringAsFixed(1)}', color, isDark),
+            _statChip('→ GP', '+${_beliefGpContribution.toStringAsFixed(1)}', color, isDark),
+          ],
+        ),
+        if (_beliefBreakdown.isEmpty)
+          _emptyPillarMessage(isDark, 'No belief tasks configured on website.')
+        else
+          ..._beliefBreakdown.map((item) {
+            final name = '${item['name'] ?? 'Task'}';
+            final count = int.tryParse('${item['count'] ?? 0}') ?? 0;
+            final pts =
+                double.tryParse('${item['points_per_task'] ?? _beliefPointsPerTask}') ??
+                _beliefPointsPerTask;
+            final section = '${item['section_title'] ?? ''}'.trim();
+
+            return _breakdownRow(
+              isDark: isDark,
+              color: color,
+              icon: Icons.self_improvement_rounded,
+              title: name,
+              subtitle: section.isNotEmpty ? section : 'Mindset activity',
+              count: count,
+              countLabel: 'LOGS',
+              pointsLabel: '${pts.toStringAsFixed(1)} pts',
+              showOptimization: true,
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildFocusBreakdown(bool isDark) {
+    const color = Color(0xFFA855F7);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPillarScoreHeader(
+          isDark: isDark,
+          title: 'FOCUS PILLAR',
+          scorePercent: _focusScore,
+          color: color,
+          stats: [
+            _statChip('Clients', '$_focusClientCount active', color, isDark),
+            _statChip('→ ER', '${_focusErContribution.toStringAsFixed(1)}', color, isDark),
+            _statChip('→ GP', '+${_focusGpContribution.toStringAsFixed(1)}', color, isDark),
+          ],
+        ),
+        Text(
+          'Activity breakdown',
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_focusBreakdown.isEmpty)
+          _emptyPillarMessage(isDark, 'No focus activity logged this period.')
+        else
+          ..._focusBreakdown.map((item) {
+            final key = '${item['key'] ?? ''}';
+            final label = '${item['label'] ?? key}';
+            final count = int.tryParse('${item['count'] ?? 0}') ?? 0;
+            final pts = int.tryParse('${item['points_per_client'] ?? 0}') ?? 0;
+            final icon = _focusActivityIcons[key] ?? Icons.track_changes_rounded;
+
+            return _breakdownRow(
+              isDark: isDark,
+              color: color,
+              icon: icon,
+              title: label,
+              subtitle: 'Pipeline stage · $pts pts per client',
+              count: count,
+              countLabel: 'LOGS',
+              pointsLabel: '$pts pts',
+              showOptimization: true,
+            );
+          }),
+        const SizedBox(height: 20),
+        Text(
+          'Clients by pipeline stage',
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (_focusPipeline.isEmpty)
+          _emptyPillarMessage(isDark, 'No clients in Deal Room pipeline.')
+        else
+          ..._focusPipeline.map((item) {
+            final label = '${item['label'] ?? 'Stage'}';
+            final clients = int.tryParse('${item['client_count'] ?? 0}') ?? 0;
+            final pts = int.tryParse('${item['points_per_client'] ?? 0}') ?? 0;
+
+            return _breakdownRow(
+              isDark: isDark,
+              color: color,
+              icon: Icons.people_outline_rounded,
+              title: label,
+              subtitle: 'Active in pipeline',
+              count: clients,
+              countLabel: 'CLIENTS',
+              pointsLabel: '$pts pts',
+              showOptimization: false,
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _emptyPillarMessage(bool isDark, String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _breakdownRow({
+    required bool isDark,
+    required Color color,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required int count,
+    required String countLabel,
+    required String pointsLabel,
+    required bool showOptimization,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : Colors.white,
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF667eea).withValues(alpha: 0.08),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: const Color(0xFF667eea), size: 20),
+                child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.key.toUpperCase(),
-                    style: TextStyle(
-                      color: isDark ? Colors.white : const Color(0xFF1E293B),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title.toUpperCase(),
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    entry.value > 0 ? 'Completed this period' : 'No activity yet',
-                    style: TextStyle(
-                      color: entry.value > 0
-                          ? const Color(0xFF4ECDC4).withValues(alpha: 0.8)
-                          : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    '${entry.value}',
+                    '$count',
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF1E293B),
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
                     ),
                   ),
                   Text(
-                    'UNITS',
+                    countLabel,
                     style: TextStyle(
                       color: isDark ? Colors.white38 : const Color(0xFF64748B),
                       fontSize: 9,
@@ -502,8 +811,40 @@ class _ReportsPageState extends State<ReportsPage> {
               ),
             ],
           ),
-        );
-      }).toList(),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  pointsLabel,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              if (showOptimization) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Optimization Active',
+                  style: TextStyle(
+                    color: const Color(0xFF1D9E75),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
