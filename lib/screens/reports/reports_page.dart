@@ -28,12 +28,13 @@ class _ReportsPageState extends State<ReportsPage> {
     'Site Visits': Icons.location_on_rounded,
   };
 
-  final _activityBreakdown = {
-    'Calls': 45,
-    'Meetings': 12,
-    'Follow-ups': 28,
-    'Site Visits': 8,
+  Map<String, int> _activityBreakdown = {
+    'Calls': 0,
+    'Meetings': 0,
+    'Follow-ups': 0,
+    'Site Visits': 0,
   };
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -42,27 +43,53 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
     try {
       final response = await UserApi.getGrowthReport(_period);
-      if (mounted && response['success'] == true) {
+      if (!mounted) return;
+
+      if (response['success'] == true) {
+        final labels = response['labels'];
+        final data = response['data'];
+        final execution = response['execution_data'] ?? response['points_data'];
+        final breakdown = response['activity_breakdown'];
+
         setState(() {
-          _labels = List<String>.from(response['labels']);
-          _data = List<int>.from(response['data']);
-          // Derive a smoother, more "premium" looking trend for execution
-          // We'll make it slightly lagging or leading the growth to look natural
-          _executionData = response['execution_data'] != null
-              ? List<int>.from(response['execution_data'])
-              : _data.asMap().entries.map((e) {
-                  double noise = (e.key % 3 - 1) * 0.5; // Subtle variation
-                  return (e.value * 0.85 + noise + 1).toInt();
-                }).toList();
-          _growthScore = response['growth_score'];
-          _executionRate = response['execution_rate'];
+          _labels = labels is List ? List<String>.from(labels.map((e) => e.toString())) : [];
+          _data = data is List ? List<int>.from(data.map((e) => int.tryParse('$e') ?? 0)) : [];
+          if (execution is List && execution.isNotEmpty) {
+            _executionData = List<int>.from(execution.map((e) => int.tryParse('$e') ?? 0));
+          } else {
+            _executionData = _data
+                .asMap()
+                .entries
+                .map((e) => (e.value * 0.85).round())
+                .toList();
+          }
+          _growthScore = int.tryParse('${response['growth_score'] ?? 0}') ?? 0;
+          _executionRate = int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
+          if (breakdown is Map) {
+            _activityBreakdown = breakdown.map(
+              (key, value) => MapEntry(key.toString(), int.tryParse('$value') ?? 0),
+            );
+          }
+          _errorMessage = null;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response['message']?.toString() ?? 'Could not load performance report.';
         });
       }
     } catch (e) {
       debugPrint('Error fetching report: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Could not load performance report. Pull to refresh.';
+        });
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -115,6 +142,26 @@ class _ReportsPageState extends State<ReportsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_errorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFF87171)),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: Color(0xFFB91C1C),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                     _buildPeriodTabs(isDark).animate().fadeIn(delay: 100.ms),
                     const SizedBox(height: 24),
 
@@ -404,9 +451,11 @@ class _ReportsPageState extends State<ReportsPage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Optimization Active',
+                    entry.value > 0 ? 'Completed this period' : 'No activity yet',
                     style: TextStyle(
-                      color: const Color(0xFF4ECDC4).withValues(alpha: 0.8),
+                      color: entry.value > 0
+                          ? const Color(0xFF4ECDC4).withValues(alpha: 0.8)
+                          : (isDark ? Colors.white38 : const Color(0xFF94A3B8)),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -441,6 +490,13 @@ class _ReportsPageState extends State<ReportsPage> {
         );
       }).toList(),
     );
+  }
+
+  double _chartMaxY() {
+    final all = [..._data, ..._executionData];
+    if (all.isEmpty) return 5;
+    final peak = all.reduce((a, b) => a > b ? a : b);
+    return (peak <= 0 ? 5 : peak + 2).toDouble();
   }
 
   LineChartData _buildChartData(bool isDark) {
@@ -539,8 +595,7 @@ class _ReportsPageState extends State<ReportsPage> {
       minX: 0,
       maxX: (_labels.isEmpty ? 0 : _labels.length - 1).toDouble(),
       minY: 0,
-      maxY: (_data.isEmpty ? 5 : _data.reduce((a, b) => a > b ? a : b) + 2)
-          .toDouble(),
+      maxY: _chartMaxY(),
       lineBarsData: [
         // Growth Line
         LineChartBarData(

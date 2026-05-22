@@ -160,7 +160,7 @@ class UserApi {
     return await ApiClient.get(
       '${ApiEndpoints.growthReport}?period=$period',
       requiresAuth: true,
-      useCache: true,
+      useCache: false,
     );
   }
 
