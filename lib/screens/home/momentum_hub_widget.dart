@@ -13,9 +13,11 @@ class MomentumHubWidget extends StatefulWidget {
 class _MomentumHubWidgetState extends State<MomentumHubWidget> {
   bool _isLoading = true;
   int _momentumScore = 0;
-  int _subconsciousScore = 0;
-  int _consciousScore = 0;
-  int _resultsScore = 0;
+  int _beliefScore = 0;
+  int _beliefTasksDone = 0;
+  int _beliefTasksTotal = 0;
+  int _focusScore = 0;
+  int _executionRate = 0;
 
   @override
   void initState() {
@@ -36,9 +38,11 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget> {
           if (response['success'] == true) {
             final data = response['data'] as Map<String, dynamic>;
             _momentumScore = data['momentum_score'] ?? 0;
-            _subconsciousScore = data['subconscious'] ?? 0;
-            _consciousScore = data['conscious'] ?? 0;
-            _resultsScore = data['results'] ?? 0;
+            _beliefScore = data['belief_score'] ?? data['subconscious'] ?? 0;
+            _beliefTasksDone = data['belief_tasks_done'] ?? 0;
+            _beliefTasksTotal = data['belief_tasks_total'] ?? 0;
+            _focusScore = data['focus_score'] ?? data['conscious'] ?? 0;
+            _executionRate = data['execution_rate'] ?? data['results'] ?? 0;
           }
           _isLoading = false;
         });
@@ -163,22 +167,22 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget> {
             children: [
               _buildPillarChip(
                 'BELIEF',
-                _subconsciousScore,
-                40,
+                _beliefScore,
                 const Color(0xFFD946EF),
+                subtitle: _beliefTasksTotal > 0
+                    ? '$_beliefTasksDone/$_beliefTasksTotal'
+                    : null,
               ),
               const SizedBox(width: 10),
               _buildPillarChip(
                 'FOCUS',
-                _consciousScore,
-                45,
+                _focusScore,
                 const Color(0xFFA855F7),
               ),
               const SizedBox(width: 10),
               _buildPillarChip(
-                'RESULTS',
-                _resultsScore,
-                15,
+                'EXEC',
+                _executionRate,
                 const Color(0xFF10B981),
               ),
             ],
@@ -188,7 +192,13 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget> {
     );
   }
 
-  Widget _buildPillarChip(String label, int score, int max, Color color) {
+  Widget _buildPillarChip(
+    String label,
+    int percent,
+    Color color, {
+    String? subtitle,
+  }) {
+    final clamped = percent.clamp(0, 100);
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -209,33 +219,30 @@ class _MomentumHubWidgetState extends State<MomentumHubWidget> {
               ),
             ),
             const SizedBox(height: 6),
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '$score',
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  TextSpan(
-                    text: '/$max',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.25),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+            Text(
+              '$clamped%',
+              style: TextStyle(
+                color: color,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
               ),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.35),
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(
-                value: max > 0 ? (score / max).clamp(0.0, 1.0) : 0,
+                value: clamped / 100,
                 minHeight: 4,
                 backgroundColor: Colors.white10,
                 valueColor: AlwaysStoppedAnimation(color),

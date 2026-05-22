@@ -17,6 +17,8 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
   bool _isLoading = true;
   int _growthScore = 0;
   int _executionRate = 0;
+  int _growthDeltaPercent = 0;
+  List<double> _chartErValues = [];
 
   @override
   void initState() {
@@ -29,9 +31,25 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
     try {
       final response = await UserApi.getGrowthReport('week');
       if (mounted && response['success'] == true) {
+        final executionData = response['execution_data'];
+        final chartValues = <double>[];
+        if (executionData is List) {
+          for (final item in executionData) {
+            final parsed = double.tryParse('$item') ?? 0;
+            chartValues.add(parsed > 1 ? parsed / 100 : parsed);
+          }
+        }
+
         setState(() {
-          _growthScore = response['growth_score'];
-          _executionRate = response['execution_rate'];
+          _growthScore = int.tryParse(
+                '${response['growth_potential'] ?? response['growth_score'] ?? 0}',
+              ) ??
+              0;
+          _executionRate =
+              int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
+          _growthDeltaPercent =
+              int.tryParse('${response['growth_delta_percent'] ?? 0}') ?? 0;
+          _chartErValues = chartValues;
         });
       }
     } catch (e) {
@@ -39,6 +57,29 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _deltaLabel() {
+    final sign = _growthDeltaPercent >= 0 ? '+' : '';
+    return '$sign$_growthDeltaPercent%';
+  }
+
+  List<FlSpot> _chartSpots(Color color) {
+    if (_chartErValues.isEmpty) {
+      return const [
+        FlSpot(0, 0.2),
+        FlSpot(1, 0.35),
+        FlSpot(2, 0.3),
+        FlSpot(3, 0.5),
+        FlSpot(4, 0.45),
+        FlSpot(5, 0.6),
+        FlSpot(6, 0.55),
+      ];
+    }
+    return List.generate(
+      _chartErValues.length,
+      (i) => FlSpot(i.toDouble(), _chartErValues[i].clamp(0.0, 1.0)),
+    );
   }
 
   @override
@@ -84,6 +125,8 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
     bool isGrowth,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final delta = isGrowth ? _deltaLabel() : null;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -115,14 +158,15 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
                 ),
                 child: Icon(icon, color: color, size: 16),
               ),
-              Text(
-                '+12%',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+              if (delta != null)
+                Text(
+                  delta,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -153,25 +197,11 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
                 gridData: const FlGridData(show: false),
                 titlesData: const FlTitlesData(show: false),
                 borderData: FlBorderData(show: false),
+                minY: 0,
+                maxY: 1,
                 lineBarsData: [
                   LineChartBarData(
-                    spots: isGrowth
-                        ? const [
-                            FlSpot(0, 1),
-                            FlSpot(1, 1.5),
-                            FlSpot(2, 1.2),
-                            FlSpot(3, 2),
-                            FlSpot(4, 1.8),
-                            FlSpot(5, 2.5),
-                          ]
-                        : const [
-                            FlSpot(0, 2),
-                            FlSpot(1, 1.8),
-                            FlSpot(2, 2.2),
-                            FlSpot(3, 1.5),
-                            FlSpot(4, 2.1),
-                            FlSpot(5, 1.9),
-                          ],
+                    spots: _chartSpots(color),
                     isCurved: true,
                     color: color,
                     barWidth: 2,

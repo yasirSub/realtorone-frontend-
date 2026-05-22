@@ -16,9 +16,10 @@ class _ReportsPageState extends State<ReportsPage> {
   bool _isLoading = true;
   List<String> _labels = [];
   List<int> _data = [];
-  List<int> _executionData = [];
   int _growthScore = 0;
   int _executionRate = 0;
+  int _beliefScore = 0;
+  int _focusScore = 0;
 
   // Real-world tactical icons for metrics
   final Map<String, IconData> _activityIcons = {
@@ -54,23 +55,18 @@ class _ReportsPageState extends State<ReportsPage> {
       if (response['success'] == true) {
         final labels = response['labels'];
         final data = response['data'];
-        final execution = response['execution_data'] ?? response['points_data'];
         final breakdown = response['activity_breakdown'];
 
         setState(() {
           _labels = labels is List ? List<String>.from(labels.map((e) => e.toString())) : [];
           _data = data is List ? List<int>.from(data.map((e) => int.tryParse('$e') ?? 0)) : [];
-          if (execution is List && execution.isNotEmpty) {
-            _executionData = List<int>.from(execution.map((e) => int.tryParse('$e') ?? 0));
-          } else {
-            _executionData = _data
-                .asMap()
-                .entries
-                .map((e) => (e.value * 0.85).round())
-                .toList();
-          }
-          _growthScore = int.tryParse('${response['growth_score'] ?? 0}') ?? 0;
+          _growthScore = int.tryParse(
+                '${response['growth_potential'] ?? response['growth_score'] ?? 0}',
+              ) ??
+              0;
           _executionRate = int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
+          _beliefScore = int.tryParse('${response['belief_score'] ?? 0}') ?? 0;
+          _focusScore = int.tryParse('${response['focus_score'] ?? 0}') ?? 0;
           if (breakdown is Map) {
             _activityBreakdown = breakdown.map(
               (key, value) => MapEntry(key.toString(), int.tryParse('$value') ?? 0),
@@ -170,7 +166,7 @@ class _ReportsPageState extends State<ReportsPage> {
                       children: [
                         Expanded(
                           child: _buildSummaryCard(
-                            'Growth Score',
+                            'Growth Potential',
                             '$_growthScore',
                             Icons.trending_up,
                             const Color(0xFF667eea),
@@ -189,6 +185,31 @@ class _ReportsPageState extends State<ReportsPage> {
                         ),
                       ],
                     ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.1),
+
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryCard(
+                            'Belief',
+                            '$_beliefScore%',
+                            Icons.self_improvement_rounded,
+                            const Color(0xFFD946EF),
+                            isDark,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildSummaryCard(
+                            'Focus',
+                            '$_focusScore%',
+                            Icons.filter_center_focus_rounded,
+                            const Color(0xFFA855F7),
+                            isDark,
+                          ),
+                        ),
+                      ],
+                    ).animate().fadeIn(delay: 250.ms).slideY(begin: 0.1),
 
                     const SizedBox(height: 32),
 
@@ -228,14 +249,8 @@ class _ReportsPageState extends State<ReportsPage> {
                               Row(
                                 children: [
                                   _buildLegendItem(
-                                    'Growth',
-                                    const Color(0xFF667eea),
-                                    isDark,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  _buildLegendItem(
-                                    'Execution',
-                                    const Color(0xFF4ECDC4),
+                                    'Execution Rate',
+                                    const Color(0xFF1D9E75),
                                     isDark,
                                   ),
                                 ],
@@ -493,10 +508,9 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   double _chartMaxY() {
-    final all = [..._data, ..._executionData];
-    if (all.isEmpty) return 5;
-    final peak = all.reduce((a, b) => a > b ? a : b);
-    return (peak <= 0 ? 5 : peak + 2).toDouble();
+    if (_data.isEmpty) return 100;
+    final peak = _data.reduce((a, b) => a > b ? a : b);
+    return peak <= 0 ? 100 : 100;
   }
 
   LineChartData _buildChartData(bool isDark) {
@@ -559,9 +573,9 @@ class _ReportsPageState extends State<ReportsPage> {
             interval: 1,
             reservedSize: 30,
             getTitlesWidget: (value, meta) {
-              if (value % 1 == 0) {
+              if (value % 25 == 0) {
                 return Text(
-                  value.toInt().toString(),
+                  '${value.toInt()}%',
                   style: TextStyle(
                     color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
                     fontWeight: FontWeight.bold,
@@ -582,7 +596,7 @@ class _ReportsPageState extends State<ReportsPage> {
             return touchedSpots.map((barSpot) {
               final flSpot = barSpot;
               return LineTooltipItem(
-                '${flSpot.y.toInt()}',
+                '${flSpot.y.toInt()}%',
                 TextStyle(
                   color: barSpot.bar.color,
                   fontWeight: FontWeight.bold,
@@ -597,7 +611,6 @@ class _ReportsPageState extends State<ReportsPage> {
       minY: 0,
       maxY: _chartMaxY(),
       lineBarsData: [
-        // Growth Line
         LineChartBarData(
           spots: _data.asMap().entries.map((e) {
             return FlSpot(e.key.toDouble(), e.value.toDouble());
@@ -605,54 +618,22 @@ class _ReportsPageState extends State<ReportsPage> {
           isCurved: true,
           curveSmoothness: 0.35,
           preventCurveOverShooting: true,
-          color: const Color(0xFF667eea),
-          barWidth: 4,
-          isStrokeCapRound: true,
-          dotData: const FlDotData(show: false),
-          belowBarData: BarAreaData(
-            show: true,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFF667eea).withValues(alpha: 0.15),
-                const Color(0xFF667eea).withValues(alpha: 0.0),
-              ],
-            ),
-          ),
-        ),
-        // Execution Line (Improved: Solid, subtle neon glow, higher opacity)
-        LineChartBarData(
-          spots: _executionData.asMap().entries.map((e) {
-            return FlSpot(e.key.toDouble(), e.value.toDouble());
-          }).toList(),
-          isCurved: true,
-          curveSmoothness: 0.35,
-          preventCurveOverShooting: true,
-          color: const Color(0xFF4ECDC4),
+          color: const Color(0xFF1D9E75),
           barWidth: 3,
           isStrokeCapRound: true,
           dotData: FlDotData(
             show: true,
             getDotPainter: (spot, percent, barData, index) =>
                 FlDotCirclePainter(
-                  radius: 2,
-                  color: Colors.white,
+                  radius: 3,
+                  color: const Color(0xFF1D9E75),
                   strokeWidth: 2,
-                  strokeColor: const Color(0xFF4ECDC4),
+                  strokeColor: Colors.white,
                 ),
-            checkToShowDot: (spot, barData) => spot.x.toInt() % 2 == 0,
           ),
           belowBarData: BarAreaData(
             show: true,
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                const Color(0xFF4ECDC4).withValues(alpha: 0.1),
-                const Color(0xFF4ECDC4).withValues(alpha: 0.0),
-              ],
-            ),
+            color: const Color(0xFF1D9E75).withValues(alpha: 0.15),
           ),
         ),
       ],
