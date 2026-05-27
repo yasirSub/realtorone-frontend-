@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../api/api_client.dart';
 import '../api/subscription_api.dart';
 
 class IapService {
@@ -14,12 +15,13 @@ class IapService {
 
   bool isAvailable = false;
   List<ProductDetails> products = [];
-  
-  // Callbacks for the UI to show success/failure
+
+  /// Callbacks for the UI to show success/failure
   Function(bool success, String? message)? onPurchaseResult;
 
+  String? _lastBackendError;
+
   /// Maps backend tier names to Apple/Google product ID prefixes.
-  /// These MUST match exactly what you create in App Store Connect / Google Play Console.
   static const Map<String, String> _tierProductPrefix = {
     'consultant': 'consultant',
     'rainmaker': 'rainmaker',
@@ -39,11 +41,7 @@ class IapService {
     final ids = <String>{};
     for (final tier in _tierProductPrefix.values) {
       for (final duration in _durationSuffix.values) {
-        if (!kIsWeb && Platform.isIOS) {
-          ids.add('${tier}_$duration');
-        } else {
-          ids.add('com.realtorone.app.${tier}_$duration');
-        }
+        ids.add('com.realtorone.app.${tier}_$duration');
       }
     }
     return ids;
@@ -51,16 +49,18 @@ class IapService {
 
   void initialize() {
     if (kIsWeb) return;
-    
+
     final purchaseUpdated = _inAppPurchase.purchaseStream;
-    _subscription = purchaseUpdated.listen((purchaseDetailsList) {
-      _listenToPurchaseUpdated(purchaseDetailsList);
-    }, onDone: () {
-      _subscription.cancel();
-    }, onError: (error) {
-      debugPrint('IAP stream error: $error');
-    });
-    
+    _subscription = purchaseUpdated.listen(
+      _listenToPurchaseUpdated,
+      onDone: () {
+        _subscription.cancel();
+      },
+      onError: (error) {
+        debugPrint('IAP stream error: $error');
+      },
+    );
+
     _initStoreInfo();
   }
 
@@ -70,12 +70,9 @@ class IapService {
       debugPrint('IAP not available on this device/platform.');
       return;
     }
-    // Pre-fetch all products so they're ready when the user taps "Buy"
     await fetchProducts(allProductIds);
   }
 
-  /// Builds the Apple/Google product ID from tier name and months.
-  /// Example: "Titan" + 1 month → "titan_1_month"
   String getProductId(String tierName, int months) {
     final normalizedTier = tierName
         .toLowerCase()
@@ -85,14 +82,9 @@ class IapService {
         .trim();
     final prefix = _tierProductPrefix[normalizedTier] ?? normalizedTier;
     final suffix = _durationSuffix[months] ?? '${months}_months';
-    if (!kIsWeb && Platform.isIOS) {
-      return '${prefix}_$suffix';
-    } else {
-      return 'com.realtorone.app.${prefix}_$suffix';
-    }
+    return 'com.realtorone.app.${prefix}_$suffix';
   }
 
-  /// Legacy method: builds product ID from package ID (for backward compatibility)
   String getProductIdFromPackageId(int packageId, int months) {
     return 'com.realtorone.tier_${packageId}_${months}m';
   }
@@ -111,10 +103,6 @@ class IapService {
     return products;
   }
 
-  /// Purchase a subscription by tier name and duration.
-  /// [tierName] - e.g. "Titan", "Rainmaker", "Consultant"
-  /// [months] - 1, 3, 6, or 12
-  /// [packageId] - backend package ID for verification
   Future<void> buyByTier(String tierName, int months, int packageId) async {
     if (!isAvailable) {
       onPurchaseResult?.call(false, 'Store not available on this device.');
@@ -123,15 +111,13 @@ class IapService {
 
     final productId = getProductId(tierName, months);
     debugPrint('Attempting to buy product: $productId');
-    
-    // Check if we already fetched it
+
     ProductDetails? product = products.cast<ProductDetails?>().firstWhere(
       (p) => p?.id == productId,
       orElse: () => null,
     );
 
     if (product == null) {
-      // Try to fetch it on demand
       final fetched = await fetchProducts({productId});
       if (fetched.isNotEmpty) {
         product = fetched.first;
@@ -140,7 +126,7 @@ class IapService {
 
     if (product == null) {
       onPurchaseResult?.call(
-        false, 
+        false,
         'This plan is currently unavailable in the App Store. Please try again later.',
       );
       debugPrint('Product not found in store: $productId');
@@ -149,14 +135,12 @@ class IapService {
 
     final purchaseParam = PurchaseParam(productDetails: product);
     try {
-      // Subscriptions use buyNonConsumable
       await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
     } catch (e) {
       onPurchaseResult?.call(false, 'Failed to initiate purchase: $e');
     }
   }
 
-  /// Legacy method: buy by packageId (kept for backward compatibility)
   Future<void> buyPackage(int packageId, int months) async {
     if (!isAvailable) {
       onPurchaseResult?.call(false, 'Store not available');
@@ -164,15 +148,13 @@ class IapService {
     }
 
     final productId = getProductIdFromPackageId(packageId, months);
-    
-    // Check if we already fetched it
+
     ProductDetails? product = products.cast<ProductDetails?>().firstWhere(
       (p) => p?.id == productId,
       orElse: () => null,
     );
 
     if (product == null) {
-      // Try to fetch it on demand
       final fetched = await fetchProducts({productId});
       if (fetched.isNotEmpty) {
         product = fetched.first;
@@ -180,8 +162,10 @@ class IapService {
     }
 
     if (product == null) {
-      onPurchaseResult?.call(false, 'This plan is currently unavailable in the App Store. Please try again later.');
-      debugPrint('Product not found: $productId');
+      onPurchaseResult?.call(
+        false,
+        'This plan is currently unavailable in the App Store. Please try again later.',
+      );
       return;
     }
 
@@ -193,105 +177,171 @@ class IapService {
     }
   }
 
-  Future<void> _listenToPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) async {
-    for (var purchaseDetails in purchaseDetailsList) {
-      if (purchaseDetails.status == PurchaseStatus.pending) {
-        // UI can show a loader
-        debugPrint('Purchase pending...');
-      } else {
-        if (purchaseDetails.status == PurchaseStatus.error) {
-          debugPrint('Purchase error: ${purchaseDetails.error}');
-          onPurchaseResult?.call(false, purchaseDetails.error?.message ?? 'Purchase failed');
-        } else if (purchaseDetails.status == PurchaseStatus.purchased ||
-                   purchaseDetails.status == PurchaseStatus.restored) {
-          
-          debugPrint('Purchase successful! ID: ${purchaseDetails.purchaseID}');
-          
-          // Verify with backend
-          await _verifyPurchaseWithBackend(purchaseDetails);
-        }
+  Future<void> _listenToPurchaseUpdated(
+    List<PurchaseDetails> purchaseDetailsList,
+  ) async {
+    for (final purchaseDetails in purchaseDetailsList) {
+      switch (purchaseDetails.status) {
+        case PurchaseStatus.pending:
+          debugPrint('Purchase pending: ${purchaseDetails.productID}');
+          break;
 
-        // Complete the purchase
-        if (purchaseDetails.pendingCompletePurchase) {
-          await _inAppPurchase.completePurchase(purchaseDetails);
-        }
+        case PurchaseStatus.error:
+          debugPrint('Purchase error: ${purchaseDetails.error}');
+          if (purchaseDetails.pendingCompletePurchase) {
+            await _inAppPurchase.completePurchase(purchaseDetails);
+          }
+          onPurchaseResult?.call(
+            false,
+            purchaseDetails.error?.message ?? 'Purchase failed',
+          );
+          break;
+
+        case PurchaseStatus.canceled:
+          debugPrint('Purchase canceled: ${purchaseDetails.productID}');
+          if (purchaseDetails.pendingCompletePurchase) {
+            await _inAppPurchase.completePurchase(purchaseDetails);
+          }
+          onPurchaseResult?.call(false, 'Purchase cancelled');
+          break;
+
+        case PurchaseStatus.purchased:
+        case PurchaseStatus.restored:
+          debugPrint(
+            'Purchase ${purchaseDetails.status.name}: '
+            '${purchaseDetails.productID} id=${purchaseDetails.purchaseID}',
+          );
+
+          final activated = await _verifyPurchaseWithBackend(purchaseDetails);
+
+          if (activated) {
+            await ApiClient.clearCache();
+            if (purchaseDetails.pendingCompletePurchase) {
+              await _inAppPurchase.completePurchase(purchaseDetails);
+            }
+            onPurchaseResult?.call(true, null);
+          } else {
+            // Do NOT complete — StoreKit will redeliver until entitlement is granted.
+            onPurchaseResult?.call(
+              false,
+              _lastBackendError ??
+                  'Subscription could not be activated. Check your connection and tap Restore Purchases.',
+            );
+          }
+          break;
       }
     }
   }
 
-  Future<void> _verifyPurchaseWithBackend(PurchaseDetails purchase) async {
-    // Parse product ID to extract tier and months
-    // Format: {tier}_{duration} e.g. "titan_1_month", "rainmaker_3_months"
+  Future<bool> _verifyPurchaseWithBackend(PurchaseDetails purchase) async {
+    _lastBackendError = null;
+
+    final token = await ApiClient.getToken();
+    if (token == null) {
+      _lastBackendError =
+          'Please sign in to your RealtorOne account before purchasing.';
+      return false;
+    }
+
+    final paymentId = _resolvePaymentId(purchase);
+    if (paymentId.isEmpty) {
+      _lastBackendError = 'Invalid purchase transaction from the App Store.';
+      return false;
+    }
+
     final productId = purchase.productID;
-    
-    // Try new format first: tier_N_month(s)
-    int? packageId;
-    int months = 1;
-    
-    // Map tier name back to a backend package ID
-    // We'll let the backend figure out the package from the tier name
     final tierMonthsMap = _parseTierProduct(productId);
+
     if (tierMonthsMap != null) {
-      months = tierMonthsMap['months'] as int;
-      // Send tier name to backend, let it resolve the package
       try {
         final res = await SubscriptionApi.purchaseSubscriptionByTier(
           tierName: tierMonthsMap['tier'] as String,
-          months: months,
-          paymentId: purchase.purchaseID ?? 'APPLE_${DateTime.now().millisecondsSinceEpoch}',
-          receipt: Platform.isIOS 
-              ? purchase.verificationData.serverVerificationData 
+          months: tierMonthsMap['months'] as int,
+          paymentId: paymentId,
+          receipt: Platform.isIOS
+              ? purchase.verificationData.serverVerificationData
               : null,
+          productId: productId,
+          platform: Platform.isIOS ? 'ios' : 'android',
         );
+
         if (res['success'] == true) {
-          onPurchaseResult?.call(true, null);
-        } else {
-          onPurchaseResult?.call(false, res['message'] ?? 'Backend validation failed');
+          debugPrint('Subscription activated on server for $productId');
+          return true;
         }
-        return;
+
+        if (res['status'] == 'error') {
+          _lastBackendError = res['message']?.toString() ??
+              'Could not reach the server. Check your connection.';
+          return false;
+        }
+
+        _lastBackendError =
+            res['message']?.toString() ?? 'Server rejected subscription activation';
+        debugPrint('Backend activation failed: $_lastBackendError');
+        return false;
       } catch (e) {
-        debugPrint('Tier-based purchase verification failed: $e');
+        _lastBackendError = 'Network error while activating subscription: $e';
+        debugPrint(_lastBackendError);
+        return false;
       }
     }
-    
-    // Fallback: try legacy format com.realtorone.tier_{packageId}_{months}m
+
+    // Legacy product ID format
     final parts = productId.split('_');
     if (parts.length >= 3) {
       try {
-        packageId = int.parse(parts[1]);
+        final packageId = int.parse(parts[1]);
         final monthsStr = parts[2].replaceAll('m', '');
-        months = int.parse(monthsStr);
+        final months = int.parse(monthsStr);
 
         final res = await SubscriptionApi.purchaseSubscription(
           packageId: packageId,
           months: months,
-          paymentId: purchase.purchaseID ?? 'APPLE_${DateTime.now().millisecondsSinceEpoch}',
+          paymentId: paymentId,
+          productId: productId,
+          platform: Platform.isIOS ? 'ios' : 'android',
         );
 
         if (res['success'] == true) {
-          onPurchaseResult?.call(true, null);
-        } else {
-          onPurchaseResult?.call(false, res['message'] ?? 'Backend validation failed');
+          return true;
         }
+        _lastBackendError =
+            res['message']?.toString() ?? 'Server rejected subscription activation';
+        return false;
       } catch (e) {
-        onPurchaseResult?.call(false, 'Failed to verify purchase with backend: $e');
+        _lastBackendError = 'Failed to verify purchase with backend: $e';
+        return false;
       }
-    } else {
-      onPurchaseResult?.call(false, 'Unknown product ID format: ${purchase.productID}');
     }
+
+    _lastBackendError = 'Unknown product ID: $productId';
+    return false;
   }
 
-  /// Parses a product ID like "com.realtorone.app.titan_1_month" into tier name and months.
+  String _resolvePaymentId(PurchaseDetails purchase) {
+    final purchaseId = purchase.purchaseID?.trim();
+    if (purchaseId != null && purchaseId.isNotEmpty) {
+      return purchaseId;
+    }
+
+    final local = purchase.verificationData.localVerificationData.trim();
+    if (local.isNotEmpty) {
+      return 'APPLE_LOCAL_${local.hashCode.abs()}';
+    }
+
+    return 'APPLE_${purchase.productID}_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
   Map<String, dynamic>? _parseTierProduct(String productId) {
-    // Strip package prefix if present
     final cleanId = productId.replaceFirst('com.realtorone.app.', '');
-    
+
     for (final entry in _tierProductPrefix.entries) {
       if (cleanId.startsWith(entry.value)) {
         for (final durEntry in _durationSuffix.entries) {
           if (cleanId == '${entry.value}_${durEntry.value}') {
             return {
-              'tier': entry.key[0].toUpperCase() + entry.key.substring(1), // Capitalize
+              'tier': entry.key[0].toUpperCase() + entry.key.substring(1),
               'months': durEntry.key,
             };
           }

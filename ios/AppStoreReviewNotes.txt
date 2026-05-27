@@ -1,0 +1,25 @@
+APP REVIEW — RealtorOne (iOS) — Build 1.0.6 (23)
+
+ISSUE ADDRESSED (Guideline 2.1b):
+We fixed In-App Purchase handling so subscriptions are applied to the user account before the StoreKit transaction is completed. Server activation is idempotent per transaction ID and the app refreshes premium status immediately after purchase.
+
+HOW TO TEST SUBSCRIPTIONS
+1. Open the app and sign in with the demo account below (email + password — do not use Sign in with Apple for this test).
+2. Go to Profile → Membership / Subscription Plans (or the upgrade prompt from Learning).
+3. Select Rainmaker or Titan, choose 1 month (iOS), tap Subscribe / purchase.
+4. Complete the sandbox purchase when prompted.
+5. After success, the plan screen should show the active premium tier and expiry date.
+6. Optional: force-quit and reopen — premium should remain. Use RESTORE on the subscription screen if needed.
+
+DEMO ACCOUNT (pre-created, non-premium by default — purchase unlocks premium)
+Email: sophia.kim@example.com
+Password: password123
+
+NOTES
+- Paid Apps Agreement is accepted in App Store Connect.
+- Subscriptions are auto-renewable; managed in device Settings → Apple Account → Subscriptions.
+- Privacy Policy: https://aanantbishthealing.com/privacy
+- Terms: https://aanantbishthealing.com/terms
+
+REVIEWER REPLY (paste into App Store Connect resolution center):
+We resolved the subscription activation bug. The app now activates the user’s membership on our server before finalizing the StoreKit transaction, with idempotent server handling and immediate UI refresh. We verified end-to-end in sandbox on device. Demo login: sophia.kim@example.com / password123 → Subscription Plans → purchase Rainmaker 1 month → premium unlocks and persists after relaunch.

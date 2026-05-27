@@ -1,0 +1,313 @@
+{
+  "identifier" : "REALTORONE_STOREKIT",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Group Notification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Member Subscription"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "REALTORONE_GROUP",
+      "localizations" : [
+
+      ],
+      "name" : "RealtorOne Subscriptions",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CONSULTANT_1M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Consultant Monthly",
+              "displayName" : "Consultant Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.consultant_1_month",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Consultant Monthly",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CONSULTANT_3M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Consultant 3 Months",
+              "displayName" : "Consultant 3 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.consultant_3_months",
+          "recurringSubscriptionPeriod" : "P3M",
+          "referenceName" : "Consultant 3 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "89.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CONSULTANT_6M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Consultant 6 Months",
+              "displayName" : "Consultant 6 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.consultant_6_months",
+          "recurringSubscriptionPeriod" : "P6M",
+          "referenceName" : "Consultant 6 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "149.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "CONSULTANT_12M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Consultant Annual",
+              "displayName" : "Consultant Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.consultant_12_months",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Consultant Annual",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "39.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "RAINMAKER_1M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Rainmaker Monthly",
+              "displayName" : "Rainmaker Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.rainmaker_1_month",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Rainmaker Monthly",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "99.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "RAINMAKER_3M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Rainmaker 3 Months",
+              "displayName" : "Rainmaker 3 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.rainmaker_3_months",
+          "recurringSubscriptionPeriod" : "P3M",
+          "referenceName" : "Rainmaker 3 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "179.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "RAINMAKER_6M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Rainmaker 6 Months",
+              "displayName" : "Rainmaker 6 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.rainmaker_6_months",
+          "recurringSubscriptionPeriod" : "P6M",
+          "referenceName" : "Rainmaker 6 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "299.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "RAINMAKER_12M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Rainmaker Annual",
+              "displayName" : "Rainmaker Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.rainmaker_12_months",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Rainmaker Annual",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "79.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "TITAN_1M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Titan Monthly",
+              "displayName" : "Titan Monthly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.titan_1_month",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Titan Monthly",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "199.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "TITAN_3M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Titan 3 Months",
+              "displayName" : "Titan 3 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.titan_3_months",
+          "recurringSubscriptionPeriod" : "P3M",
+          "referenceName" : "Titan 3 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "379.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "TITAN_6M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Titan 6 Months",
+              "displayName" : "Titan 6 Months",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.titan_6_months",
+          "recurringSubscriptionPeriod" : "P6M",
+          "referenceName" : "Titan 6 Months",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "699.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "TITAN_12M",
+          "introductoryOffers" : [ ],
+          "localizations" : [
+            {
+              "description" : "Titan Annual",
+              "displayName" : "Titan Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.realtorone.app.titan_12_months",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Titan Annual",
+          "subscriptionGroupID" : "REALTORONE_GROUP",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

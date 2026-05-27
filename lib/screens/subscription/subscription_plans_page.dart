@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
@@ -94,10 +95,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       final results = await Future.wait([
         SubscriptionApi.getPackages(),
         SubscriptionApi.getMySubscription(),
+        IapService().fetchProducts(IapService.allProductIds),
       ]);
 
-      final packagesRes = results[0];
-      final subRes = results[1];
+      final packagesRes = results[0] as Map<String, dynamic>;
+      final subRes = results[1] as Map<String, dynamic>;
 
       if (mounted) {
         setState(() {
@@ -128,6 +130,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Future<void> _purchasePackage() async {
     if (_selectedPackageId == null) return;
 
+    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
+    if (isComingSoon) return;
+
     // Find the selected package to get its tier name
     final pkg = _packages.firstWhere(
       (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
@@ -151,12 +156,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     if (isMobile) {
       setState(() => _isPurchasing = true);
       try {
-        IapService().onPurchaseResult = (success, message) {
+        IapService().onPurchaseResult = (success, message) async {
           if (mounted) {
             setState(() => _isPurchasing = false);
             if (success) {
-              _showSuccessDialog();
-              _loadData();
+              await ApiClient.clearCache();
+              await _loadData();
+              if (mounted) {
+                _showSuccessDialog();
+              }
             } else if (message != null) {
               // Check if user cancelled to avoid showing annoying errors
               if (message.contains('cancelled') ||
@@ -372,6 +380,25 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return price;
   }
 
+  String _getStorePrice(Map<String, dynamic> pkg) {
+    final name = pkg['name']?.toString() ?? '';
+    final isFree = (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
+    if (isFree) return 'FREE';
+
+    final productId = IapService().getProductId(name, _selectedMonths);
+    final iapProduct = IapService().products.cast<ProductDetails?>().firstWhere(
+      (p) => p?.id == productId,
+      orElse: () => null,
+    );
+
+    if (iapProduct != null) {
+      return iapProduct.price;
+    }
+
+    // Fallback if not loaded yet or not found in store
+    return 'AED ${_calculatePrice(pkg).toStringAsFixed(2)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -409,12 +436,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                         setState(() => _isPurchasing = true);
                         try {
                           // Set up the listener so we can see the result/error
-                          IapService().onPurchaseResult = (success, message) {
+                          IapService().onPurchaseResult = (success, message) async {
                             if (mounted) {
                               setState(() => _isPurchasing = false);
                               if (success) {
-                                _showSuccessDialog();
-                                _loadData();
+                                await ApiClient.clearCache();
+                                await _loadData();
+                                if (mounted) {
+                                  _showSuccessDialog();
+                                }
                               } else if (message != null) {
                                 // Provide a more helpful message for common store issues
                                 String displayMessage = message;
@@ -873,6 +903,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     // Determine if Titan or Rainmaker for special styling
     final isTitan = name.toLowerCase().contains('titan');
     final isRainmaker = name.toLowerCase().contains('rainmaker');
+    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
 
     // Get gradients and glow colors (support both old and new names)
     final gradients =
@@ -1059,7 +1090,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       )
                     else ...[
                       Text(
-                        'AED ${_calculatePrice(pkg).toStringAsFixed(2)}',
+                        isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
                         style: TextStyle(
                           color: isTitan
                               ? const Color(0xFFF59E0B)
@@ -1068,25 +1099,26 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                               : (isDark
                                     ? Colors.white
                                     : const Color(0xFF1E293B)),
-                          fontSize: 22,
+                          fontSize: isComingSoon ? 14 : 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      Text(
-                        // Billing suffix changes with selected duration
-                        _selectedMonths == 1
-                            ? '/month'
-                            : _selectedMonths == 3
-                            ? '/3 months'
-                            : _selectedMonths == 6
-                            ? '/6 months'
-                            : '/year',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
+                      if (!isComingSoon)
+                        Text(
+                          // Billing suffix changes with selected duration
+                          _selectedMonths == 1
+                              ? '/month'
+                              : _selectedMonths == 3
+                              ? '/3 months'
+                              : _selectedMonths == 6
+                              ? '/6 months'
+                              : '/year',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
                     ],
                   ],
                 ),
@@ -1224,8 +1256,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final currentTierRank = tierRanks[_currentTier] ?? 0;
     final selectedTierRank = tierRanks[name] ?? 0;
 
+    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
+
     String buttonLabel = 'SUBSCRIBE NOW';
-    if (isRenewing) {
+    if (isComingSoon) {
+      buttonLabel = 'COMING SOON';
+    } else if (isRenewing) {
       buttonLabel = 'RENEW NOW';
     } else if (!_isPremium) {
       buttonLabel = 'GET STARTED';
@@ -1275,12 +1311,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'AED ${totalPrice.toStringAsFixed(2)}',
+                        isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
                         style: TextStyle(
                           color: isDark
                               ? Colors.white
                               : const Color(0xFF1E293B),
-                          fontSize: 24,
+                          fontSize: isComingSoon ? 18 : 24,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -1288,7 +1324,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: _isPurchasing ? null : _purchasePackage,
+                  onPressed: isComingSoon ? null : (_isPurchasing ? null : _purchasePackage),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: glowColor,
                     padding: const EdgeInsets.symmetric(

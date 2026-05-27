@@ -29,11 +29,15 @@ class SubscriptionApi {
     required int months,
     required String paymentId,
     int? couponId,
+    String? productId,
+    String? platform,
   }) async {
     return await ApiClient.post(ApiEndpoints.purchaseSubscription, {
       'package_id': packageId,
       'months': months,
       'payment_id': paymentId,
+      if (productId != null) 'product_id': productId,
+      if (platform != null) 'platform': platform,
       ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
@@ -44,12 +48,16 @@ class SubscriptionApi {
     required int months,
     required String paymentId,
     String? receipt,
+    String? productId,
+    String? platform,
   }) async {
     return await ApiClient.post(ApiEndpoints.purchaseSubscription, {
       'tier_name': tierName,
       'months': months,
       'payment_id': paymentId,
-      'receipt': receipt,
+      if (receipt != null && receipt.isNotEmpty) 'receipt': receipt,
+      if (productId != null) 'product_id': productId,
+      if (platform != null) 'platform': platform,
     }, requiresAuth: true);
   }
 }
