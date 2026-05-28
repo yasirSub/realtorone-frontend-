@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,6 +23,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   bool _showCompletenessLabel = true;
+  String _verificationDialCode = '+971';
+
+  static const List<Map<String, String>> _countryPhoneOptions = [
+    {'label': 'AE (+971)', 'code': '+971'},
+    {'label': 'IN (+91)', 'code': '+91'},
+    {'label': 'US (+1)', 'code': '+1'},
+    {'label': 'UK (+44)', 'code': '+44'},
+    {'label': 'SA (+966)', 'code': '+966'},
+    {'label': 'QA (+974)', 'code': '+974'},
+    {'label': 'KW (+965)', 'code': '+965'},
+    {'label': 'BH (+973)', 'code': '+973'},
+    {'label': 'OM (+968)', 'code': '+968'},
+  ];
 
   @override
   void initState() {
@@ -879,87 +893,143 @@ class _ProfilePageState extends State<ProfilePage> {
     final email = _userData?['email'];
     if (email == null || email.isEmpty) return;
 
-    final existingPhone = _userData?['mobile']?.toString() ?? '';
-    final phoneController = TextEditingController(text: existingPhone);
+    final existingPhone = (_userData?['mobile']?.toString() ?? '').trim();
+    final initialPhone = _extractPhoneLocalDigits(existingPhone);
+    final phoneController = TextEditingController(text: initialPhone);
+    _verificationDialCode = _detectDialCode(existingPhone);
 
-    // If phone number is empty, we must ask them to enter it first
-    if (existingPhone.isEmpty) {
-      final newPhone = await RealtorOneDialogScaffold.show<String>(
-        context: context,
-        builder: (dCtx) {
-          final isDark = Theme.of(dCtx).brightness == Brightness.dark;
-          return RealtorOneDialogScaffold(
-            title: 'Enter Phone Number',
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dCtx),
-                child: Text(
-                  'CANCEL',
-                  style: TextStyle(
-                    color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final phone = phoneController.text.trim();
-                  if (phone.isNotEmpty) {
-                    Navigator.pop(dCtx, phone);
-                  }
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF667eea),
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('SUBMIT'),
-              ),
-            ],
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Please enter your phone number to receive a verification OTP.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.phone,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                  decoration: InputDecoration(
-                    labelText: 'PHONE NUMBER',
-                    labelStyle: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
+    final newPhone = await RealtorOneDialogScaffold.show<String>(
+      context: context,
+      builder: (dCtx) {
+        final isDark = Theme.of(dCtx).brightness == Brightness.dark;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return RealtorOneDialogScaffold(
+              title: 'Enter Phone Number',
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: isDark ? Colors.white60 : const Color(0xFF64748B),
                       fontWeight: FontWeight.bold,
                     ),
-                    filled: true,
-                    fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
                   ),
                 ),
+                FilledButton(
+                  onPressed: () {
+                    final digits = _digitsOnly(phoneController.text);
+                    if (digits.length < 7 || digits.length > 15) {
+                      _showSnackBar(
+                        'Enter a valid phone number with country code',
+                        Colors.red,
+                      );
+                      return;
+                    }
+                    Navigator.pop(dCtx, '$_verificationDialCode$digits');
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF667eea),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('SUBMIT'),
+                ),
               ],
-            ),
-          );
-        },
-      );
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Select country code and enter your phone number to receive OTP.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 128,
+                        child: DropdownButtonFormField<String>(
+                          value: _verificationDialCode,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                          items: _countryPhoneOptions
+                              .map(
+                                (item) => DropdownMenuItem<String>(
+                                  value: item['code'],
+                                  child: Text(
+                                    item['label']!,
+                                    style: TextStyle(
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => _verificationDialCode = value);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'PHONE NUMBER',
+                            labelStyle: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            filled: true,
+                            fillColor: isDark
+                                ? const Color(0xFF1E293B)
+                                : const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
 
-      if (newPhone == null || newPhone.isEmpty) return;
-      setState(() {
-        if (_userData != null) {
-          _userData!['mobile'] = newPhone;
-        }
-      });
-    }
+    if (newPhone == null || newPhone.isEmpty) return;
+    setState(() {
+      if (_userData != null) {
+        _userData!['mobile'] = newPhone;
+      }
+    });
 
-    final phone = _userData?['mobile']?.toString() ?? '';
+    final phone = newPhone;
 
     setState(() => _isLoading = true);
     try {
@@ -977,6 +1047,28 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  String _digitsOnly(String raw) => raw.replaceAll(RegExp(r'\D'), '');
+
+  String _detectDialCode(String rawPhone) {
+    final value = rawPhone.trim();
+    if (value.isEmpty) return _verificationDialCode;
+    final matched = _countryPhoneOptions.firstWhere(
+      (item) => value.startsWith(item['code']!),
+      orElse: () => {'label': 'AE (+971)', 'code': '+971'},
+    );
+    return matched['code']!;
+  }
+
+  String _extractPhoneLocalDigits(String rawPhone) {
+    final value = rawPhone.trim();
+    if (value.isEmpty) return '';
+    final code = _detectDialCode(value);
+    if (value.startsWith(code)) {
+      return _digitsOnly(value.substring(code.length));
+    }
+    return _digitsOnly(value);
+  }
+
   void _showSnackBar(String message, Color backgroundColor) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -992,107 +1084,164 @@ class _ProfilePageState extends State<ProfilePage> {
     required bool isEmail,
     String? phone,
   }) {
-    final otpController = TextEditingController();
+    final controllers = List.generate(6, (_) => TextEditingController());
+    final focusNodes = List.generate(6, (_) => FocusNode());
     RealtorOneDialogScaffold.show<void>(
       context: context,
       barrierDismissible: false,
       builder: (dCtx) {
-        final isDark = Theme.of(dCtx).brightness == Brightness.dark;
-        return RealtorOneDialogScaffold(
-          title: isEmail ? 'Verify Email' : 'Verify Phone Number',
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dCtx),
-              child: Text(
-                'CANCEL',
-                style: TextStyle(
-                  color: isDark ? Colors.white60 : const Color(0xFF64748B),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final otp = otpController.text.trim();
-                if (otp.length != 6) {
-                  _showSnackBar('Please enter a 6-digit OTP code', Colors.red);
-                  return;
-                }
-
-                Navigator.pop(dCtx); // Close dialog first
-                setState(() => _isLoading = true);
-
-                try {
-                  final response = isEmail
-                      ? await UserApi.verifyEmailOtp(email, otp)
-                      : await UserApi.verifyPhoneOtp(email, otp);
-
-                  if (response['status'] == 'ok' || response['success'] == true) {
-                    _showSnackBar(
-                      isEmail ? 'Email verified successfully!' : 'Phone number verified successfully!',
-                      Colors.green,
-                    );
-                    _loadUserData();
-                  } else {
-                    setState(() => _isLoading = false);
-                    _showSnackBar(response['message'] ?? 'Invalid code', Colors.red);
-                  }
-                } catch (e) {
-                  setState(() => _isLoading = false);
-                  _showSnackBar('Connection error. Please try again.', Colors.red);
-                }
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF667eea),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('VERIFY'),
-            ),
-          ],
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                isEmail
-                    ? 'Enter the 6-digit verification code sent to your email:\n$email'
-                    : 'Enter the 6-digit verification code sent to your phone:\n$phone',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: otpController,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                maxLength: 6,
-                style: TextStyle(
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 8,
-                ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final otp = controllers.map((c) => c.text).join();
+            return RealtorOneDialogScaffold(
+              title: isEmail ? 'Verify Email' : 'Verify Phone Number',
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  child: const Text(
+                    'CANCEL',
+                    style: TextStyle(
+                      color: Color(0xFF64748B),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+                FilledButton(
+                  onPressed: otp.length < 6
+                      ? null
+                      : () async {
+                          Navigator.pop(dCtx); // Close dialog first
+                          setState(() => _isLoading = true);
+
+                          try {
+                            final response = isEmail
+                                ? await UserApi.verifyEmailOtp(email, otp)
+                                : await UserApi.verifyPhoneOtp(email, otp);
+
+                            if (response['status'] == 'ok' ||
+                                response['success'] == true) {
+                              _showSnackBar(
+                                isEmail
+                                    ? 'Email verified successfully!'
+                                    : 'Phone number verified successfully!',
+                                Colors.green,
+                              );
+                              _loadUserData();
+                            } else {
+                              setState(() => _isLoading = false);
+                              _showSnackBar(
+                                response['message'] ?? 'Invalid code',
+                                Colors.red,
+                              );
+                            }
+                          } catch (e) {
+                            setState(() => _isLoading = false);
+                            _showSnackBar(
+                              'Connection error. Please try again.',
+                              Colors.red,
+                            );
+                          }
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF667eea),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFD1D5DB),
+                    disabledForegroundColor: const Color(0xFF9CA3AF),
+                  ),
+                  child: const Text('VERIFY'),
+                ),
+              ],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    isEmail
+                        ? 'Enter the 6-digit verification code sent to your email:\n$email'
+                        : 'Enter the 6-digit verification code sent to your phone:\n$phone',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF475569),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) {
+                      return SizedBox(
+                        width: 42,
+                        height: 52,
+                        child: TextFormField(
+                          controller: controllers[index],
+                          focusNode: focusNodes[index],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          maxLength: 1,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            contentPadding: EdgeInsets.zero,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Color(0xFF667eea),
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          onChanged: (value) {
+                            final clean = value.replaceAll(RegExp(r'\D'), '');
+                            if (clean.isNotEmpty) {
+                              controllers[index].text = clean[0];
+                              if (index < 5) {
+                                focusNodes[index + 1].requestFocus();
+                              } else {
+                                focusNodes[index].unfocus();
+                              }
+                            } else if (index > 0) {
+                              focusNodes[index - 1].requestFocus();
+                            }
+                            setDialogState(() {});
+                          },
+                        ),
+                      );
+                    }),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
-    );
+    ).whenComplete(() {
+      for (final c in controllers) {
+        c.dispose();
+      }
+      for (final n in focusNodes) {
+        n.dispose();
+      }
+    });
   }
 
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
-    final showEmailVerify = _userData?['email_verified_at'] == null;
-    final showPhoneVerify = _userData?['mobile_verified_at'] == null;
-
-    if (!showEmailVerify && !showPhoneVerify) return const SizedBox.shrink();
+    final emailVerified = _userData?['email_verified_at'] != null;
+    final phoneVerified = _userData?['mobile_verified_at'] != null;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1134,30 +1283,26 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 16),
-          if (showEmailVerify) ...[
-            _buildVerificationRow(
-              icon: Icons.email_rounded,
-              title: 'Email Verification',
-              subtitle: _userData?['email'] ?? 'Not set',
-              isVerified: false,
-              onVerify: () => _startEmailVerification(),
-            ),
-            if (showPhoneVerify) const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Divider(color: Color(0xFF334155), height: 1),
-            ),
-          ],
-          if (showPhoneVerify) ...[
-            _buildVerificationRow(
-              icon: Icons.phone_android_rounded,
-              title: 'Phone Verification',
-              subtitle: _userData?['mobile']?.toString().isNotEmpty == true 
-                  ? _userData!['mobile'] 
-                  : 'Add phone number to verify',
-              isVerified: false,
-              onVerify: () => _startPhoneVerification(),
-            ),
-          ],
+          _buildVerificationRow(
+            icon: Icons.email_rounded,
+            title: 'Email Verification',
+            subtitle: _userData?['email'] ?? 'Not set',
+            isVerified: emailVerified,
+            onVerify: () => _startEmailVerification(),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(color: Color(0xFF334155), height: 1),
+          ),
+          _buildVerificationRow(
+            icon: Icons.phone_android_rounded,
+            title: 'Phone Verification',
+            subtitle: _userData?['mobile']?.toString().isNotEmpty == true
+                ? _userData!['mobile']
+                : 'Add phone number to verify',
+            isVerified: phoneVerified,
+            onVerify: () => _startPhoneVerification(),
+          ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.1);
@@ -1203,28 +1348,60 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
         ),
-        ElevatedButton(
-          onPressed: onVerify,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF667eea),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            elevation: 0,
-          ),
-          child: const Text(
-            'VERIFY',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 11,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
+        isVerified
+            ? Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.check_circle_rounded,
+                      size: 14,
+                      color: Color(0xFF10B981),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'VERIFIED',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : ElevatedButton(
+                onPressed: onVerify,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF667eea),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'VERIFY',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
       ],
     );
   }
