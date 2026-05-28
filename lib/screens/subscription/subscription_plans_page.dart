@@ -32,6 +32,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   int _selectedMonths = 1;
   bool _isPurchasing = false;
 
+  bool get _isIos => Theme.of(context).platform == TargetPlatform.iOS;
+
   // Tier config
   static const _tierIcons = {
     'Consultant': Icons.star_border_rounded,
@@ -130,9 +132,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Future<void> _purchasePackage() async {
     if (_selectedPackageId == null) return;
 
-    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
-    if (isComingSoon) return;
-
     // Find the selected package to get its tier name
     final pkg = _packages.firstWhere(
       (p) => (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
@@ -140,12 +139,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
     if (pkg.isEmpty) return;
 
-    final tierName = (pkg['name']?.toString() ?? 'Consultant')
-        .replaceAll(' - GOLD', '')
-        .replaceAll('-GOLD', '')
-        .replaceAll(' GOLD', '')
-        .replaceAll('GOLD', '')
-        .trim();
+    final tierName = _normalizeTierName(pkg['name']?.toString() ?? 'Consultant');
 
     // Use native In-App Purchases for iOS and Android
     // Apple Guideline 3.1.1: Digital content must use IAP on mobile
@@ -220,6 +214,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ),
       );
     }
+  }
+
+  bool _isPackageComingSoon(Map<String, dynamic> pkg) {
+    if (!_isIos) return false;
+    final tierName = _normalizeTierName(pkg['name']?.toString() ?? 'Consultant');
+    return !IapService().hasAnyProductForTierDuration(tierName, _selectedMonths);
   }
 
   void _showSuccessDialog() {
@@ -899,12 +899,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final isSelected = _selectedPackageId == id;
     final isCurrentTier = name == _currentTier;
     final isFree = priceMonthly == 0;
+    final isComingSoon = _isPackageComingSoon(pkg);
 
     // Determine if Titan or Rainmaker for special styling
     final isTitan = name.toLowerCase().contains('titan');
     final isRainmaker = name.toLowerCase().contains('rainmaker');
-    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
-
     // Get gradients and glow colors (support both old and new names)
     final gradients =
         _tierGradients[name] ??
@@ -1119,6 +1118,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      if (isComingSoon && isSelected)
+                        Text(
+                          'Not active in App Store Connect yet',
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                     ],
                   ],
                 ),
@@ -1232,7 +1240,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     if (pkg.isEmpty) return const SizedBox();
 
     final name = pkg['name']?.toString() ?? 'Plan';
-    final totalPrice = _calculatePrice(pkg);
     final durationText = _selectedMonths == 1
         ? '1 month'
         : _selectedMonths == 3
@@ -1256,7 +1263,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final currentTierRank = tierRanks[_currentTier] ?? 0;
     final selectedTierRank = tierRanks[name] ?? 0;
 
-    final bool isComingSoon = Theme.of(context).platform == TargetPlatform.iOS && _selectedMonths != 1;
+    final isComingSoon = _isPackageComingSoon(pkg);
 
     String buttonLabel = 'SUBSCRIBE NOW';
     if (isComingSoon) {
@@ -1324,7 +1331,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: isComingSoon ? null : (_isPurchasing ? null : _purchasePackage),
+                  onPressed: (isComingSoon || _isPurchasing) ? null : _purchasePackage,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: glowColor,
                     padding: const EdgeInsets.symmetric(

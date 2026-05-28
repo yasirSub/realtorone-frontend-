@@ -15,6 +15,7 @@ class IapService {
 
   bool isAvailable = false;
   List<ProductDetails> products = [];
+  final Set<String> _lastNotFoundIds = <String>{};
 
   /// Callbacks for the UI to show success/failure
   Function(bool success, String? message)? onPurchaseResult;
@@ -41,7 +42,13 @@ class IapService {
     final ids = <String>{};
     for (final tier in _tierProductPrefix.values) {
       for (final duration in _durationSuffix.values) {
-        ids.add('com.realtorone.app.${tier}_$duration');
+        final shortId = '${tier}_$duration';
+        ids.add('com.realtorone.app.$shortId');
+        // Some App Store Connect setups use short product IDs (without bundle prefix).
+        // Keep this fallback for iOS only; Android flow remains unchanged.
+        if (Platform.isIOS) {
+          ids.add(shortId);
+        }
       }
     }
     return ids;
@@ -85,6 +92,23 @@ class IapService {
     return 'com.realtorone.app.${prefix}_$suffix';
   }
 
+  Set<String> getProductIdCandidates(String tierName, int months) {
+    final normalizedTier = tierName
+        .toLowerCase()
+        .replaceAll(' - gold', '')
+        .replaceAll('-gold', '')
+        .replaceAll(' gold', '')
+        .trim();
+    final prefix = _tierProductPrefix[normalizedTier] ?? normalizedTier;
+    final suffix = _durationSuffix[months] ?? '${months}_months';
+    final shortId = '${prefix}_$suffix';
+
+    return {
+      'com.realtorone.app.$shortId',
+      if (Platform.isIOS) shortId,
+    };
+  }
+
   String getProductIdFromPackageId(int packageId, int months) {
     return 'com.realtorone.tier_${packageId}_${months}m';
   }
@@ -97,11 +121,26 @@ class IapService {
     }
     if (response.notFoundIDs.isNotEmpty) {
       debugPrint('Products not found in store: ${response.notFoundIDs}');
+      _lastNotFoundIds.addAll(response.notFoundIDs);
     }
     products = response.productDetails;
+    for (final p in products) {
+      _lastNotFoundIds.remove(p.id);
+    }
     debugPrint('Fetched ${products.length} products from store');
     return products;
   }
+
+  bool hasProduct(String productId) {
+    return products.any((p) => p.id == productId);
+  }
+
+  bool hasAnyProductForTierDuration(String tierName, int months) {
+    final candidates = getProductIdCandidates(tierName, months);
+    return products.any((p) => candidates.contains(p.id));
+  }
+
+  Set<String> get lastNotFoundIds => Set.unmodifiable(_lastNotFoundIds);
 
   Future<void> buyByTier(String tierName, int months, int packageId) async {
     if (!isAvailable) {
@@ -109,27 +148,31 @@ class IapService {
       return;
     }
 
-    final productId = getProductId(tierName, months);
-    debugPrint('Attempting to buy product: $productId');
+    final candidateIds = getProductIdCandidates(tierName, months);
+    debugPrint('Attempting to buy product from candidates: $candidateIds');
 
     ProductDetails? product = products.cast<ProductDetails?>().firstWhere(
-      (p) => p?.id == productId,
+      (p) => p != null && candidateIds.contains(p.id),
       orElse: () => null,
     );
 
     if (product == null) {
-      final fetched = await fetchProducts({productId});
+      final fetched = await fetchProducts(candidateIds);
       if (fetched.isNotEmpty) {
-        product = fetched.first;
+        product = fetched.cast<ProductDetails?>().firstWhere(
+          (p) => p != null && candidateIds.contains(p.id),
+          orElse: () => null,
+        );
       }
     }
 
     if (product == null) {
+      final storeName = Platform.isIOS ? 'App Store' : 'Play Store';
       onPurchaseResult?.call(
         false,
-        'This plan is currently unavailable in the App Store. Please try again later.',
+        'This plan is currently unavailable in $storeName. Products: ${candidateIds.join(", ")}',
       );
-      debugPrint('Product not found in store: $productId');
+      debugPrint('Product not found in store: $candidateIds');
       return;
     }
 
@@ -162,9 +205,10 @@ class IapService {
     }
 
     if (product == null) {
+      final storeName = Platform.isIOS ? 'App Store' : 'Play Store';
       onPurchaseResult?.call(
         false,
-        'This plan is currently unavailable in the App Store. Please try again later.',
+        'This plan is currently unavailable in $storeName. Product: $productId',
       );
       return;
     }
