@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../api/auth_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -97,6 +98,33 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _openMailApp() async {
+    final email = _emailController.text.trim().toLowerCase();
+    final isGmailUser = email.endsWith('@gmail.com');
+
+    if (isGmailUser) {
+      final gmailUri = Uri.parse('googlegmail://');
+      if (await canLaunchUrl(gmailUri)) {
+        await launchUrl(gmailUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+    }
+
+    final mailtoUri = Uri(
+      scheme: 'mailto',
+      path: _emailController.text.trim(),
+    );
+    if (await canLaunchUrl(mailtoUri)) {
+      await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('No email app found on this device.')),
+    );
   }
 
   @override
@@ -223,9 +251,37 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Text(_isPhoneMode ? 'GO TO LOGIN' : 'ENTER RESET CODE'),
           ),
         ),
+        if (!_isPhoneMode) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 52,
+            child: OutlinedButton.icon(
+              onPressed: _openMailApp,
+              icon: const Icon(Icons.mail_outline_rounded),
+              label: Text(
+                _emailController.text.trim().toLowerCase().endsWith('@gmail.com')
+                    ? 'OPEN GMAIL'
+                    : 'OPEN MAIL APP',
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF667eea),
+                side: const BorderSide(color: Color(0xFF667eea)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         TextButton(
-          onPressed: () => setState(() => _isSent = false),
+          onPressed: () async {
+            if (_isPhoneMode) {
+              setState(() => _isSent = false);
+              return;
+            }
+            await _handleForgotPassword();
+          },
           child: Text(
             _isPhoneMode ? 'Try Again' : 'Resend Email',
             style: const TextStyle(color: Color(0xFF667eea)),

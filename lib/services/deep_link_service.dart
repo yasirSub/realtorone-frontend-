@@ -33,16 +33,27 @@ class DeepLinkService {
   static void _handleUri(Uri uri, GlobalKey<NavigatorState> navigatorKey) {
     // Example: https://aanantbishthealing.com/reset-password?token=XYZ&email=ABC
     // Example: https://api.aanantbishthealing.com/verify-otp?email=ABC
+    // Example: realtorone://reset-password?token=XYZ&email=ABC
 
+    final scheme = uri.scheme.toLowerCase();
     final host = uri.host.toLowerCase();
-    if (host != 'aanantbishthealing.com' && host != 'api.aanantbishthealing.com') {
+    final isHttpsDomainLink =
+        host == 'aanantbishthealing.com' || host == 'api.aanantbishthealing.com';
+    final isCustomSchemeLink = scheme == 'realtorone';
+
+    if (!isHttpsDomainLink && !isCustomSchemeLink) {
       return;
     }
 
-    final path = uri.path;
+    // For custom scheme links like realtorone://reset-password, Flutter parses
+    // "reset-password" as host and path as "/". Normalize both forms.
+    final normalizedPath = isCustomSchemeLink
+        ? (uri.path == '/' || uri.path.isEmpty ? '/${uri.host}' : uri.path)
+        : uri.path;
     final queryParams = uri.queryParameters;
 
-    if (path == '/reset-password' || path == '/reset-password/') {
+    if (normalizedPath == '/reset-password' ||
+        normalizedPath == '/reset-password/') {
       final token = queryParams['token'];
       final email = queryParams['email'];
       
@@ -50,14 +61,15 @@ class DeepLinkService {
         AppRoutes.resetPassword,
         arguments: {'token': token, 'email': email},
       );
-    } else if (path == '/verify-otp' || path == '/verify-otp/') {
+    } else if (normalizedPath == '/verify-otp' ||
+        normalizedPath == '/verify-otp/') {
       final email = queryParams['email'];
       
       navigatorKey.currentState?.pushNamed(
         AppRoutes.verifyOtp,
         arguments: email,
       );
-    } else if (path == '/login' || path == '/login/') {
+    } else if (normalizedPath == '/login' || normalizedPath == '/login/') {
       navigatorKey.currentState?.pushNamed(AppRoutes.login);
     }
   }
