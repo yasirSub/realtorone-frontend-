@@ -2,12 +2,16 @@ import 'api_client.dart';
 import 'api_endpoints.dart';
 
 class AuthApi {
+  static bool isEmailIdentifier(String value) => value.contains('@');
+
   static Future<Map<String, dynamic>> login(
-    String email,
+    String identifier,
     String password,
   ) async {
+    final cleaned = identifier.trim();
     final response = await ApiClient.post(ApiEndpoints.login, {
-      'email': email,
+      if (isEmailIdentifier(cleaned)) 'email': cleaned,
+      if (!isEmailIdentifier(cleaned)) 'mobile': cleaned,
       'password': password,
     });
 
@@ -21,12 +25,14 @@ class AuthApi {
 
   static Future<Map<String, dynamic>> register(
     String name,
-    String email,
+    String identifier,
     String password,
   ) async {
+    final cleaned = identifier.trim();
     final response = await ApiClient.post(ApiEndpoints.register, {
       'name': name,
-      'email': email,
+      if (isEmailIdentifier(cleaned)) 'email': cleaned,
+      if (!isEmailIdentifier(cleaned)) 'mobile': cleaned,
       'password': password,
     });
 
@@ -90,8 +96,12 @@ class AuthApi {
     return response;
   }
 
-  static Future<Map<String, dynamic>> forgotPassword(String email) async {
-    return await ApiClient.post(ApiEndpoints.forgotPassword, {'email': email});
+  static Future<Map<String, dynamic>> forgotPassword(String identifier) async {
+    final cleaned = identifier.trim();
+    return await ApiClient.post(ApiEndpoints.forgotPassword, {
+      if (isEmailIdentifier(cleaned)) 'email': cleaned,
+      if (!isEmailIdentifier(cleaned)) 'mobile': cleaned,
+    });
   }
 
   static Future<Map<String, dynamic>> verifyToken(String email, String token) async {
@@ -110,6 +120,38 @@ class AuthApi {
       'email': email,
       'token': token,
       'password': newPassword,
+    });
+  }
+
+  static Future<Map<String, dynamic>> loginWithPhoneOtp({
+    required String idToken,
+    String? email,
+  }) async {
+    final response = await ApiClient.post(ApiEndpoints.loginPhoneOtp, {
+      'id_token': idToken,
+      if (email != null && email.isNotEmpty) 'email': email,
+    });
+    if (response['status'] == 'ok' && response['token'] != null) {
+      await ApiClient.setToken(response['token']);
+    }
+    return response;
+  }
+
+  static Future<Map<String, dynamic>> forgotPasswordPhone(String mobile) async {
+    return await ApiClient.post(ApiEndpoints.forgotPasswordPhone, {
+      'mobile': mobile,
+    });
+  }
+
+  static Future<Map<String, dynamic>> resetPasswordPhone({
+    required String idToken,
+    required String newPassword,
+    String? email,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.resetPasswordPhone, {
+      'id_token': idToken,
+      'password': newPassword,
+      if (email != null && email.isNotEmpty) 'email': email,
     });
   }
 

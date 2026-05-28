@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 
@@ -13,6 +14,7 @@ class AddClientPage extends StatefulWidget {
 }
 
 class _AddClientPageState extends State<AddClientPage> {
+  static const String _dealRoomClientAddedKey = 'hasAddedDealRoomClient';
   final _clientNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
@@ -109,6 +111,10 @@ class _AddClientPageState extends State<AddClientPage> {
       if (!mounted) return;
 
       if (response['success'] == true) {
+        if (!isEditing) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool(_dealRoomClientAddedKey, true);
+        }
         Navigator.pop(context, true);
       } else {
         // Handle explicit 422 or validation messages from the server

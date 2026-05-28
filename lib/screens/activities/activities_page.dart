@@ -101,6 +101,10 @@ class _ActivitiesPageState extends State<ActivitiesPage>
   }
 
   Future<void> _checkAndShowDailyCrmFilter() async {
+    // Disabled: this auto-popup was opening "All Stages" on app start.
+    // Stage filter can still be opened manually from Deal Room.
+    return;
+
     // Only show if tour is not active
     if (widget.tourActive?.value == true) return;
 

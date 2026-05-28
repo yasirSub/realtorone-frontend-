@@ -32,8 +32,13 @@ class DeepLinkService {
 
   static void _handleUri(Uri uri, GlobalKey<NavigatorState> navigatorKey) {
     // Example: https://aanantbishthealing.com/reset-password?token=XYZ&email=ABC
-    // Example: https://aanantbishthealing.com/verify-otp?email=ABC
-    
+    // Example: https://api.aanantbishthealing.com/verify-otp?email=ABC
+
+    final host = uri.host.toLowerCase();
+    if (host != 'aanantbishthealing.com' && host != 'api.aanantbishthealing.com') {
+      return;
+    }
+
     final path = uri.path;
     final queryParams = uri.queryParameters;
 

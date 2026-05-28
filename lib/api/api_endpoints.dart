@@ -5,6 +5,7 @@ class ApiEndpoints {
 
   // Auth endpoints
   static const String login = '/login';
+  static const String loginPhoneOtp = '/login/phone-otp';
   static const String googleLogin = '/login/google';
   static const String register = '/register';
   static const String logout = '/logout';
@@ -12,8 +13,10 @@ class ApiEndpoints {
 
   // Password endpoints
   static const String forgotPassword = '/password/forgot';
+  static const String forgotPasswordPhone = '/password/forgot/phone';
   static const String verifyToken = '/password/verify-token';
   static const String resetPassword = '/password/reset';
+  static const String resetPasswordPhone = '/password/reset/phone';
 
   // Email verification
   static const String sendEmailOtp = '/email/send-otp';

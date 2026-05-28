@@ -19,7 +19,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -27,7 +27,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -42,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await AuthApi.login(
-        _emailController.text.trim(),
+        _identifierController.text.trim(),
         _passwordController.text,
       );
 
@@ -53,7 +53,7 @@ class _LoginPageState extends State<LoginPage> {
         await PushNotificationService.syncTokenWithBackend();
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name']);
-        await prefs.setString('user_email', response['user']['email']);
+        await prefs.setString('user_email', response['user']['email'] ?? '');
         await prefs.setBool('hasSeenOnboarding', true);
 
         // Clear cache to ensure fresh data for the new session
@@ -312,7 +312,7 @@ class _LoginPageState extends State<LoginPage> {
     return ElevatedButton(
       onPressed: () {
         Navigator.pop(context);
-        _emailController.text = email;
+        _identifierController.text = email;
         _passwordController.text = password;
         _handleLogin();
       },
@@ -452,14 +452,20 @@ class _LoginPageState extends State<LoginPage> {
                         ).animate().shake(),
 
                       _buildTextField(
-                        controller: _emailController,
-                        label: 'EMAIL ADDRESS',
-                        hint: 'agent@example.com',
-                        icon: Icons.email_outlined,
+                        controller: _identifierController,
+                        label: 'EMAIL OR PHONE NUMBER',
+                        hint: 'agent@example.com or +919876543210',
+                        icon: Icons.alternate_email_rounded,
                         keyboardType: TextInputType.emailAddress,
-                        validator: (v) => (v == null || !v.contains('@'))
-                            ? 'Valid email required'
-                            : null,
+                        validator: (v) {
+                          final value = (v ?? '').trim();
+                          if (value.isEmpty) return 'Required';
+                          if (value.contains('@')) {
+                            return value.contains('.') ? null : 'Valid email required';
+                          }
+                          final digits = value.replaceAll(RegExp(r'\D'), '');
+                          return digits.length >= 7 ? null : 'Valid phone required';
+                        },
                       ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.05),
 
                       const SizedBox(height: 20),
@@ -485,7 +491,7 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () => Navigator.pushNamed(
                             context,
                             AppRoutes.forgotPassword,
-                            arguments: _emailController.text.trim(),
+                            arguments: _identifierController.text.trim(),
                           ),
                           child: const Text(
                             'Forgot Password?',

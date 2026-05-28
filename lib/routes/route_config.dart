@@ -40,9 +40,14 @@ class RouteConfig {
       AppRoutes.register: (context) => const RegisterPage(),
       AppRoutes.forgotPassword: (context) => const ForgotPasswordPage(),
       AppRoutes.verifyOtp: (context) {
-        final email =
-            ModalRoute.of(context)?.settings.arguments as String? ?? '';
-        return OtpVerificationPage(email: email);
+        final args = ModalRoute.of(context)?.settings.arguments;
+        String identifier = '';
+        if (args is String) {
+          identifier = args;
+        } else if (args is Map<String, dynamic>) {
+          identifier = (args['email'] ?? args['identifier'] ?? '').toString();
+        }
+        return OtpVerificationPage(identifier: identifier);
       },
       AppRoutes.resetPassword: (context) {
         final args =

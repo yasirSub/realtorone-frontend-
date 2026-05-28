@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
 import 'home/home_page.dart';
 import 'activities/activities_page.dart';
 import 'learning/learning_page.dart';
@@ -43,6 +45,7 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   static const String _tourSeenKey = 'hasSeenAppTourV2';
   static const String _tourSeenLegacyKey = 'hasSeenAppTourV1';
+  static const String _dealRoomClientAddedKey = 'hasAddedDealRoomClient';
   int _currentIndex = 0;
 
   late final ValueNotifier<ActivitiesTourSync?> _activitiesTourSync;
@@ -165,10 +168,34 @@ class _MainNavigationState extends State<MainNavigation> {
     final seen = prefs.getBool(_tourSeenKey) ?? false;
     if (seen || !mounted) return;
 
+    bool hasDealRoomClient = prefs.getBool(_dealRoomClientAddedKey) ?? false;
+    if (!hasDealRoomClient) {
+      try {
+        final statusRes = await ApiClient.get(
+          ApiEndpoints.clientsStatus,
+          requiresAuth: true,
+        );
+        hasDealRoomClient =
+            statusRes['has_clients'] == true ||
+            (statusRes['clients_count'] ?? 0) > 0;
+        if (hasDealRoomClient) {
+          await prefs.setBool(_dealRoomClientAddedKey, true);
+        }
+      } catch (_) {
+        hasDealRoomClient = false;
+      }
+    }
+    if (!hasDealRoomClient || !mounted) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showTourGuide();
     });
+  }
+
+  void _onNavTap(int index) {
+    setState(() => _currentIndex = index);
+    _maybeShowTourGuide();
   }
 
   Future<void> _finishTour() async {
@@ -750,7 +777,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
     return GestureDetector(
       key: _navItemKeys[index],
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => _onNavTap(index),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10),

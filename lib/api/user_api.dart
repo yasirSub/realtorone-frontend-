@@ -235,10 +235,46 @@ class UserApi {
     );
   }
 
+  static Future<Map<String, dynamic>> sendPhoneOtpWithIdToken({
+    String? email,
+    String? mobile,
+    required String idToken,
+  }) async {
+    return await ApiClient.post(
+      ApiEndpoints.sendPhoneOtp,
+      {
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
+        'id_token': idToken,
+      },
+      requiresAuth: true,
+    );
+  }
+
   static Future<Map<String, dynamic>> verifyPhoneOtp(String email, String token) async {
     final result = await ApiClient.post(
       ApiEndpoints.verifyPhoneOtp,
       {'email': email, 'token': token},
+      requiresAuth: true,
+    );
+    if (result['status'] == 'ok' || result['success'] == true) {
+      await ApiClient.clearCache();
+    }
+    return result;
+  }
+
+  static Future<Map<String, dynamic>> verifyPhoneOtpWithIdToken({
+    String? email,
+    String? mobile,
+    required String idToken,
+  }) async {
+    final result = await ApiClient.post(
+      ApiEndpoints.verifyPhoneOtp,
+      {
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
+        'id_token': idToken,
+      },
       requiresAuth: true,
     );
     if (result['status'] == 'ok' || result['success'] == true) {

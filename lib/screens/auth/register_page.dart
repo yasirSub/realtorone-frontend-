@@ -20,7 +20,7 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
@@ -30,7 +30,7 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -47,7 +47,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final response = await AuthApi.register(
         _nameController.text.trim(),
-        _emailController.text.trim(),
+        _identifierController.text.trim(),
         _passwordController.text,
       );
 
@@ -58,7 +58,7 @@ class _RegisterPageState extends State<RegisterPage> {
         final token = await ApiClient.getToken();
         if (token == null) {
           final loginResponse = await AuthApi.login(
-            _emailController.text.trim(),
+            _identifierController.text.trim(),
             _passwordController.text,
           );
           if (loginResponse['status'] != 'ok' ||
@@ -77,7 +77,12 @@ class _RegisterPageState extends State<RegisterPage> {
             AppRoutes.profileSetup,
             arguments: {
               'name': _nameController.text.trim(),
-              'email': _emailController.text.trim(),
+              'email': AuthApi.isEmailIdentifier(_identifierController.text.trim())
+                  ? _identifierController.text.trim()
+                  : null,
+              'mobile': !AuthApi.isEmailIdentifier(_identifierController.text.trim())
+                  ? _identifierController.text.trim()
+                  : null,
             },
           );
         }
@@ -345,14 +350,20 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 20),
 
                         _buildTextField(
-                          controller: _emailController,
-                          label: 'EMAIL ADDRESS',
-                          hint: 'agent@example.com',
-                          icon: Icons.email_outlined,
+                          controller: _identifierController,
+                          label: 'EMAIL OR PHONE NUMBER',
+                          hint: 'agent@example.com or +919876543210',
+                          icon: Icons.alternate_email_rounded,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (v) => (v == null || !v.contains('@'))
-                              ? 'Invalid'
-                              : null,
+                          validator: (v) {
+                            final value = (v ?? '').trim();
+                            if (value.isEmpty) return 'Required';
+                            if (value.contains('@')) {
+                              return value.contains('.') ? null : 'Invalid email';
+                            }
+                            final digits = value.replaceAll(RegExp(r'\D'), '');
+                            return digits.length >= 7 ? null : 'Invalid phone';
+                          },
                         ).animate().fadeIn(delay: 600.ms).slideX(begin: 0.05),
 
                         const SizedBox(height: 20),

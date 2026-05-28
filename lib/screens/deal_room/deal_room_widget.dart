@@ -869,12 +869,6 @@ class _DealRoomWidgetState extends State<DealRoomWidget> {
   }
 
   Future<void> _startAddFirstClient() async {
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => _privacyDialog(ctx),
-    );
-    if (proceed != true || !mounted) return;
-
     final choice = await _showAddMethodDialog();
     if (choice == null || !mounted) return;
 

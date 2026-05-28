@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/auth_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 
 class OtpVerificationPage extends StatefulWidget {
-  final String email;
-  const OtpVerificationPage({super.key, required this.email});
+  final String identifier;
+  const OtpVerificationPage({super.key, required this.identifier});
 
   @override
   State<OtpVerificationPage> createState() => _OtpVerificationPageState();
@@ -44,11 +45,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     });
 
     try {
-      final response = await AuthApi.verifyToken(widget.email, otp);
+      final response = await AuthApi.verifyToken(widget.identifier, otp);
       if (response['status'] == 'ok') {
         // If OTP is valid, mark email as verified so profile warning can disappear.
         try {
-          await AuthApi.verifyEmail(widget.email);
+          await AuthApi.verifyEmail(widget.identifier);
         } catch (_) {
           // Best-effort: do not block reset password flow on verification call failure.
         }
@@ -57,7 +58,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         Navigator.pushNamed(
           context,
           AppRoutes.resetPassword,
-          arguments: {'email': widget.email, 'token': otp},
+          arguments: {'email': widget.identifier, 'token': otp},
         );
       } else {
         setState(() {
@@ -80,7 +81,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     });
 
     try {
-      final response = await AuthApi.forgotPassword(widget.email);
+      final response = await AuthApi.forgotPassword(widget.identifier);
       if (!mounted) return;
       
       if (response['status'] == 'ok') {
@@ -147,7 +148,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Enter the 6-digit code sent to\n${widget.email}',
+                    'Enter the 6-digit code sent to\n${widget.identifier}',
                     style: const TextStyle(
                       fontSize: 15,
                       color: Color(0xFF64748B),
@@ -222,8 +223,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         controller: _controllers[index],
         focusNode: _focusNodes[index],
         textAlign: TextAlign.center,
-        keyboardType: TextInputType.text,
-        textCapitalization: TextCapitalization.characters,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         maxLength: 1,
         style: const TextStyle(
           fontSize: 22,
@@ -244,8 +245,21 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           ),
         ),
         onChanged: (value) {
-          if (value.isNotEmpty) {
-            _controllers[index].text = value.toUpperCase();
+          final clean = value.replaceAll(RegExp(r'\D'), '');
+          if (clean.length > 1) {
+            for (int i = 0; i < clean.length && (index + i) < 6; i++) {
+              _controllers[index + i].text = clean[i];
+            }
+            final nextIndex = (index + clean.length).clamp(0, 5);
+            _focusNodes[nextIndex].requestFocus();
+            setState(() {});
+            if (_otp.length == 6) {
+              _verifyOtp();
+            }
+            return;
+          }
+          if (clean.isNotEmpty) {
+            _controllers[index].text = clean;
             if (index < 5) {
               _focusNodes[index + 1].requestFocus();
             } else {
