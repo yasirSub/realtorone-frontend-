@@ -223,18 +223,19 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
         controller: _controllers[index],
         focusNode: _focusNodes[index],
         textAlign: TextAlign.center,
+        cursorColor: Colors.black,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         maxLength: 1,
         style: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF1E293B),
+          color: Colors.black,
         ),
         decoration: InputDecoration(
           counterText: "",
           filled: true,
-          fillColor: Colors.grey[50],
+          fillColor: Colors.white,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
