@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   bool _showCompletenessLabel = true;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   String _verificationDialCode = '+971';
 
   static const List<Map<String, String>> _countryPhoneOptions = [
@@ -1033,17 +1035,45 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = true);
     try {
-      final response = await UserApi.sendPhoneOtp(email, phone);
-      setState(() => _isLoading = false);
-
-      if (response['status'] == 'ok' || response['success'] == true) {
-        _showOtpVerifyDialog(email: email, isEmail: false, phone: phone);
-      } else {
-        _showSnackBar(response['message'] ?? 'Failed to send verification code', Colors.red);
-      }
+      await _firebaseAuth.verifyPhoneNumber(
+        phoneNumber: phone,
+        verificationCompleted: (credential) async {
+          await _verifyPhoneWithFirebaseCredential(
+            credential: credential,
+            email: email,
+            mobile: phone,
+          );
+        },
+        verificationFailed: (e) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showSnackBar(
+            e.message ?? 'Failed to send Firebase OTP. Please try again.',
+            Colors.red,
+          );
+        },
+        codeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          _showOtpVerifyDialog(
+            email: email,
+            isEmail: false,
+            phone: phone,
+            firebaseVerificationId: verificationId,
+            usesFirebasePhone: true,
+          );
+        },
+        codeAutoRetrievalTimeout: (verificationId) {
+          // User can still verify manually with OTP.
+        },
+      );
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnackBar('Connection error. Please try again.', Colors.red);
+      _showSnackBar(
+        'Could not start phone verification. Please try again.',
+        Colors.red,
+      );
     }
   }
 
@@ -1083,6 +1113,8 @@ class _ProfilePageState extends State<ProfilePage> {
     required String email,
     required bool isEmail,
     String? phone,
+    String? firebaseVerificationId,
+    bool usesFirebasePhone = false,
   }) {
     final controllers = List.generate(6, (_) => TextEditingController());
     final focusNodes = List.generate(6, (_) => FocusNode());
@@ -1114,9 +1146,25 @@ class _ProfilePageState extends State<ProfilePage> {
                           setState(() => _isLoading = true);
 
                           try {
-                            final response = isEmail
-                                ? await UserApi.verifyEmailOtp(email, otp)
-                                : await UserApi.verifyPhoneOtp(email, otp);
+                            Map<String, dynamic> response;
+                            if (isEmail) {
+                              response = await UserApi.verifyEmailOtp(email, otp);
+                            } else if (usesFirebasePhone &&
+                                firebaseVerificationId != null &&
+                                firebaseVerificationId.isNotEmpty) {
+                              final credential = PhoneAuthProvider.credential(
+                                verificationId: firebaseVerificationId,
+                                smsCode: otp,
+                              );
+                              response = await _verifyPhoneWithFirebaseCredential(
+                                credential: credential,
+                                email: email,
+                                mobile: phone ?? '',
+                                showSuccessSnackBar: false,
+                              );
+                            } else {
+                              response = await UserApi.verifyPhoneOtp(email, otp);
+                            }
 
                             if (response['status'] == 'ok' ||
                                 response['success'] == true) {
@@ -1237,6 +1285,49 @@ class _ProfilePageState extends State<ProfilePage> {
         n.dispose();
       }
     });
+  }
+
+  Future<Map<String, dynamic>> _verifyPhoneWithFirebaseCredential({
+    required PhoneAuthCredential credential,
+    required String email,
+    required String mobile,
+    bool showSuccessSnackBar = true,
+  }) async {
+    try {
+      final authResult = await _firebaseAuth.signInWithCredential(credential);
+      final idToken = await authResult.user?.getIdToken();
+      if (idToken == null || idToken.isEmpty) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showSnackBar('Failed to verify phone with Firebase.', Colors.red);
+        }
+        return {'status': 'error', 'message': 'Missing Firebase id token'};
+      }
+
+      final response = await UserApi.verifyPhoneOtpWithIdToken(
+        email: email,
+        mobile: mobile,
+        idToken: idToken,
+      );
+
+      if (response['status'] == 'ok' || response['success'] == true) {
+        if (showSuccessSnackBar) {
+          _showSnackBar('Phone number verified successfully!', Colors.green);
+        }
+        _loadUserData();
+      } else if (mounted) {
+        setState(() => _isLoading = false);
+      }
+
+      await _firebaseAuth.signOut();
+      return response;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar('Invalid OTP or Firebase verification failed.', Colors.red);
+      }
+      return {'status': 'error', 'message': e.toString()};
+    }
   }
 
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
