@@ -103,22 +103,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> _openMailApp() async {
     final email = _emailController.text.trim().toLowerCase();
     final isGmailUser = email.endsWith('@gmail.com');
+    final target = _emailController.text.trim();
 
-    if (isGmailUser) {
-      final gmailUri = Uri.parse('googlegmail://');
-      if (await canLaunchUrl(gmailUri)) {
-        await launchUrl(gmailUri, mode: LaunchMode.externalApplication);
-        return;
+    final candidateUris = <Uri>[
+      if (isGmailUser) Uri.parse('googlegmail://co?to=$target'),
+      if (isGmailUser)
+        Uri.parse(
+          'intent://compose?to=$target#Intent;scheme=mailto;package=com.google.android.gm;end',
+        ),
+      Uri(scheme: 'mailto', path: target),
+      if (isGmailUser) Uri.parse('https://mail.google.com/mail/u/0/#inbox'),
+    ];
+
+    for (final uri in candidateUris) {
+      try {
+        if (await canLaunchUrl(uri)) {
+          final launched = await launchUrl(
+            uri,
+            mode: LaunchMode.externalApplication,
+          );
+          if (launched) return;
+        }
+      } catch (_) {
+        // Try the next fallback URI.
       }
-    }
-
-    final mailtoUri = Uri(
-      scheme: 'mailto',
-      path: _emailController.text.trim(),
-    );
-    if (await canLaunchUrl(mailtoUri)) {
-      await launchUrl(mailtoUri, mode: LaunchMode.externalApplication);
-      return;
     }
 
     if (!mounted) return;

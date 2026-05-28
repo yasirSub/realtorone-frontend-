@@ -8,6 +8,12 @@ import 'api_endpoints.dart';
 
 class ApiClient {
   static String? _token;
+  static const Set<String> _preservedLocalKeys = {
+    'hasSeenOnboarding',
+    'hasSeenAppTourV2',
+    'hasSeenAppTourV1',
+    'hasAddedDealRoomClient',
+  };
 
   /// Optional hook (e.g. remove FCM token from backend before clearing session).
   static Future<void> Function()? beforeClearToken;
@@ -35,6 +41,36 @@ class ApiClient {
     _token = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
+  }
+
+  /// Clear local session data while preserving first-install tutorial flags.
+  static Future<void> clearLocalSessionData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final preservedValues = <String, Object>{};
+    for (final key in _preservedLocalKeys) {
+      if (!prefs.containsKey(key)) continue;
+      final value = prefs.get(key);
+      if (value != null) {
+        preservedValues[key] = value;
+      }
+    }
+
+    await prefs.clear();
+
+    for (final entry in preservedValues.entries) {
+      final value = entry.value;
+      if (value is bool) {
+        await prefs.setBool(entry.key, value);
+      } else if (value is int) {
+        await prefs.setInt(entry.key, value);
+      } else if (value is double) {
+        await prefs.setDouble(entry.key, value);
+      } else if (value is String) {
+        await prefs.setString(entry.key, value);
+      } else if (value is List<String>) {
+        await prefs.setStringList(entry.key, value);
+      }
+    }
   }
 
   // Build headers

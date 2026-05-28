@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/google_auth_service.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
@@ -318,8 +317,7 @@ class _SettingsPageState extends State<SettingsPage> {
       } catch (_) {}
 
       // 3. Clear all local preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      await ApiClient.clearLocalSessionData();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(

@@ -85,8 +85,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
         // Clear ALL local data
         await ApiClient.clearToken();
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear(); // Clear all SharedPreferences data
+        await ApiClient.clearLocalSessionData();
 
         if (mounted) {
           Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -96,8 +95,7 @@ class _DashboardPageState extends State<DashboardPage> {
         // Even if there's an error, still try to clear local data
         try {
           await ApiClient.clearToken();
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.clear();
+          await ApiClient.clearLocalSessionData();
         } catch (clearError) {
           debugPrint('Failed to clear data: $clearError');
         }

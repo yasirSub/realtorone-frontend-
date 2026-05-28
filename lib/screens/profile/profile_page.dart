@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
 import '../../l10n/app_localizations.dart';
@@ -185,8 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Clear ALL local data
       await ApiClient.clearToken();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      await ApiClient.clearLocalSessionData();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -198,8 +196,7 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       debugPrint('Logout error: $e');
       await ApiClient.clearToken();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
+      await ApiClient.clearLocalSessionData();
 
       if (mounted) {
         Navigator.pushNamedAndRemoveUntil(
@@ -1333,6 +1330,13 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
     final emailVerified = _userData?['email_verified_at'] != null;
     final phoneVerified = _userData?['mobile_verified_at'] != null;
+    final showEmailVerify = !emailVerified;
+    final showPhoneVerify = !phoneVerified;
+
+    // Hide the verification panel when everything is already verified.
+    if (!showEmailVerify && !showPhoneVerify) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1374,26 +1378,29 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           const SizedBox(height: 16),
-          _buildVerificationRow(
-            icon: Icons.email_rounded,
-            title: 'Email Verification',
-            subtitle: _userData?['email'] ?? 'Not set',
-            isVerified: emailVerified,
-            onVerify: () => _startEmailVerification(),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: Color(0xFF334155), height: 1),
-          ),
-          _buildVerificationRow(
-            icon: Icons.phone_android_rounded,
-            title: 'Phone Verification',
-            subtitle: _userData?['mobile']?.toString().isNotEmpty == true
-                ? _userData!['mobile']
-                : 'Add phone number to verify',
-            isVerified: phoneVerified,
-            onVerify: () => _startPhoneVerification(),
-          ),
+          if (showEmailVerify)
+            _buildVerificationRow(
+              icon: Icons.email_rounded,
+              title: 'Email Verification',
+              subtitle: _userData?['email'] ?? 'Not set',
+              isVerified: false,
+              onVerify: () => _startEmailVerification(),
+            ),
+          if (showEmailVerify && showPhoneVerify)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Divider(color: Color(0xFF334155), height: 1),
+            ),
+          if (showPhoneVerify)
+            _buildVerificationRow(
+              icon: Icons.phone_android_rounded,
+              title: 'Phone Verification',
+              subtitle: _userData?['mobile']?.toString().isNotEmpty == true
+                  ? _userData!['mobile']
+                  : 'Add phone number to verify',
+              isVerified: false,
+              onVerify: () => _startPhoneVerification(),
+            ),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.1);
