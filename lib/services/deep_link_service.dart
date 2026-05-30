@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import '../api/api_client.dart';
 import '../api/user_api.dart';
 import '../routes/app_routes.dart';
 
@@ -88,6 +89,7 @@ class DeepLinkService {
     if (navigator == null) return;
 
     if (queryParams['verified'] == '1') {
+      await ApiClient.clearCache();
       navigator.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
       return;
     }
