@@ -13,6 +13,7 @@ import '../../widgets/realtor_one_dialog_scaffold.dart';
 import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
+import '../../widgets/app_version_details_sheet.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -41,7 +42,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final info = await PackageInfo.fromPlatform();
       if (!mounted) return;
       setState(() {
-        _appVersionLabel = 'Version ${info.version} (${info.buildNumber})';
+        _appVersionLabel = 'v${info.version}';
       });
     } catch (_) {}
   }
@@ -516,20 +517,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       _buildMenuSection(l10n.profileSectionAccount, [
                         _MenuItem(
-                          icon: Icons.system_update_rounded,
-                          title: 'App version & updates',
-                          subtitle: _appVersionLabel.isEmpty
-                              ? 'Check version and release notes'
-                              : _appVersionLabel,
-                          onTap: () async {
-                            await Navigator.pushNamed(
-                              context,
-                              AppRoutes.appVersion,
-                            );
-                            _loadAppVersionLabel();
-                          },
-                        ),
-                        _MenuItem(
                           icon: Icons.settings_outlined,
                           title: l10n.profileAppSettingsTitle,
                           subtitle: l10n.profileAppSettingsSubtitle,
@@ -829,9 +816,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            _appVersionLabel.isNotEmpty ? _appVersionLabel : l10n.profileVersion,
-            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
+          AppVersionTapLabel(
+            label: _appVersionLabel.isNotEmpty
+                ? _appVersionLabel
+                : l10n.profileVersion.replaceAll('Version ', 'v'),
           ),
         ],
       ),

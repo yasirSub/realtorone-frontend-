@@ -126,7 +126,7 @@ class _LearningPageState extends State<LearningPage>
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: NestedScrollView(
@@ -136,6 +136,40 @@ class _LearningPageState extends State<LearningPage>
               pinned: true,
               backgroundColor: const Color(0xFF1E293B),
               elevation: 0,
+              actions: [
+                IconButton(
+                  onPressed: _openCertificatesSheet,
+                  tooltip: 'My certificates',
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.workspace_premium_outlined,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      if (_certificates.isNotEmpty)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF1E293B),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                 centerTitle: true,
                 title: const Text(
@@ -227,7 +261,6 @@ class _LearningPageState extends State<LearningPage>
                   ),
                   tabs: const [
                     Tab(text: 'COURSES'),
-                    Tab(text: 'CERTIFICATES'),
                     Tab(text: 'E-BOOKS'),
                   ],
                 ),
@@ -245,14 +278,6 @@ class _LearningPageState extends State<LearningPage>
                   child: _isLoading
                       ? const Center(child: EliteLoader())
                       : _buildTieredList(),
-                ),
-                // CERTIFICATES TAB
-                RefreshIndicator(
-                  onRefresh: _loadData,
-                  color: const Color(0xFF6366F1),
-                  child: _isLoading
-                      ? const Center(child: EliteLoader())
-                      : _buildCertificatesList(),
                 ),
                 // E-BOOKS TAB
                 RefreshIndicator(
@@ -972,9 +997,87 @@ class _LearningPageState extends State<LearningPage>
     }
   }
 
-  Widget _buildCertificatesList() {
+  void _openCertificatesSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: _certificates.isEmpty ? 0.45 : 0.72,
+          minChildSize: 0.35,
+          maxChildSize: 0.92,
+          builder: (_, scrollController) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.workspace_premium_rounded,
+                          color: Color(0xFF6366F1),
+                          size: 28,
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'My Certificates',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                              color: Color(0xFF1E293B),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close_rounded),
+                          color: const Color(0xFF64748B),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildCertificatesList(
+                      scrollController: scrollController,
+                      onGoToCourses: () {
+                        Navigator.pop(sheetContext);
+                        DefaultTabController.of(context).animateTo(0);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildCertificatesList({
+    ScrollController? scrollController,
+    VoidCallback? onGoToCourses,
+  }) {
     if (_certificates.isEmpty) {
       return ListView(
+        controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(32),
         children: [
@@ -995,7 +1098,7 @@ class _LearningPageState extends State<LearningPage>
           ),
           const SizedBox(height: 10),
           Text(
-            'Open a course, complete all lessons, pass the certification test, then download your certificate from the bottom of the course page.',
+            'Complete a course and pass the test to earn your certificate. You can also download it from the course page.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
@@ -1005,9 +1108,7 @@ class _LearningPageState extends State<LearningPage>
           ),
           const SizedBox(height: 24),
           TextButton(
-            onPressed: () {
-              DefaultTabController.of(context).animateTo(0);
-            },
+            onPressed: onGoToCourses ?? () => DefaultTabController.of(context).animateTo(0),
             child: const Text(
               'Go to Courses',
               style: TextStyle(
@@ -1021,8 +1122,9 @@ class _LearningPageState extends State<LearningPage>
     }
 
     return ListView.builder(
+      controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       itemCount: _certificates.length,
       itemBuilder: (context, index) {
         final c = _certificates[index];

@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:ui';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
@@ -1341,117 +1340,106 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final useStackedBar = screenWidth < 380;
 
-    return ClipRRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            14,
-            16,
-            MediaQuery.of(context).padding.bottom + 14,
-          ),
-          decoration: BoxDecoration(
-            color: (isDark ? const Color(0xFF0F172A) : Colors.white)
-                .withOpacity(0.92),
-            border: Border(
-              top: BorderSide(color: Colors.white.withOpacity(0.06)),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: useStackedBar
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildPurchaseBarSummary(
+    return Material(
+      color: isDark ? const Color(0xFF0F172A) : Colors.white,
+      elevation: 12,
+      shadowColor: Colors.black.withOpacity(0.12),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: useStackedBar
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildPurchaseBarSummary(
+                      isDark: isDark,
+                      name: name,
+                      durationText: durationText,
+                      isComingSoon: isComingSoon,
+                      pkg: pkg,
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPurchaseActionButton(
+                      label: buttonLabel,
+                      color: glowColor,
+                      enabled: !isComingSoon && !_isPurchasing,
+                      onPressed: _purchasePackage,
+                      fullWidth: true,
+                    ),
+                  ],
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: _buildPurchaseBarSummary(
                         isDark: isDark,
                         name: name,
                         durationText: durationText,
                         isComingSoon: isComingSoon,
                         pkg: pkg,
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: (isComingSoon || _isPurchasing)
-                              ? null
-                              : _purchasePackage,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: glowColor,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 8,
-                            shadowColor: glowColor.withOpacity(0.3),
-                          ),
-                          child: Text(
-                            buttonLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        child: _buildPurchaseBarSummary(
-                          isDark: isDark,
-                          name: name,
-                          durationText: durationText,
-                          isComingSoon: isComingSoon,
-                          pkg: pkg,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: ElevatedButton(
-                          onPressed: (isComingSoon || _isPurchasing)
-                              ? null
-                              : _purchasePackage,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: glowColor,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 8,
-                            shadowColor: glowColor.withOpacity(0.3),
-                          ),
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              buttonLabel,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 13,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
+                    ),
+                    const SizedBox(width: 12),
+                    _buildPurchaseActionButton(
+                      label: buttonLabel,
+                      color: glowColor,
+                      enabled: !isComingSoon && !_isPurchasing,
+                      onPressed: _purchasePackage,
+                      fullWidth: false,
+                    ),
+                  ],
+                ),
         ),
       ),
     ).animate().slideY(begin: 1, duration: 400.ms, curve: Curves.easeOutCubic);
+  }
+
+  Widget _buildPurchaseActionButton({
+    required String label,
+    required Color color,
+    required bool enabled,
+    required VoidCallback onPressed,
+    required bool fullWidth,
+  }) {
+    final child = Material(
+      color: enabled ? color : color.withOpacity(0.45),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: fullWidth ? 16 : 22,
+            vertical: 14,
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (fullWidth) {
+      return SizedBox(width: double.infinity, child: child);
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 132, maxWidth: 168),
+      child: child,
+    );
   }
 
   Widget _buildPurchaseBarSummary({

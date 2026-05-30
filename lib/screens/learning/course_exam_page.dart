@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../api/learning_api.dart';
@@ -28,6 +30,8 @@ class _CourseExamPageState extends State<CourseExamPage> {
   bool? _passed;
   int? _correct;
   int? _total;
+  int? _earnedMarks;
+  int? _totalMarks;
   String? _startedAt;
   Map<String, dynamic>? _certificate;
 
@@ -35,6 +39,46 @@ class _CourseExamPageState extends State<CourseExamPage> {
   void initState() {
     super.initState();
     _loadExam();
+  }
+
+  List<String> _parseExamOptions(dynamic raw) {
+    if (raw == null) return [];
+
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return [];
+      try {
+        return _parseExamOptions(jsonDecode(trimmed));
+      } catch (_) {
+        return [];
+      }
+    }
+
+    if (raw is List) {
+      return raw
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    if (raw is Map) {
+      const keys = ['A', 'B', 'C', 'D', 'a', 'b', 'c', 'd'];
+      final fromKeys = <String>[];
+      for (final key in keys) {
+        if (raw.containsKey(key)) {
+          final text = raw[key]?.toString().trim() ?? '';
+          if (text.isNotEmpty) fromKeys.add(text);
+        }
+      }
+      if (fromKeys.length >= 2) return fromKeys;
+
+      return raw.values
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+
+    return [];
   }
 
   Future<void> _loadExam() async {
@@ -104,6 +148,8 @@ class _CourseExamPageState extends State<CourseExamPage> {
           _passed = data['passed'] as bool?;
           _correct = data['correct'] as int?;
           _total = data['total'] as int?;
+          _earnedMarks = data['earned_marks'] as int?;
+          _totalMarks = data['total_marks'] as int?;
           _certificate = data['certificate'] as Map<String, dynamic>?;
           _submitted = true;
           _isLoading = false;
@@ -303,7 +349,9 @@ class _CourseExamPageState extends State<CourseExamPage> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Score: $_scorePercent% ($_correct / $_total correct)',
+              _earnedMarks != null && _totalMarks != null
+                  ? 'Score: $_scorePercent% ($_earnedMarks / $_totalMarks marks · $_correct / $_total correct)'
+                  : 'Score: $_scorePercent% ($_correct / $_total correct)',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -442,7 +490,8 @@ class _CourseExamPageState extends State<CourseExamPage> {
               final q = questions[i] as Map<String, dynamic>;
               final id = q['id'] as int? ?? 0;
               final text = q['question_text'] as String? ?? '';
-              final options = (q['options'] as List<dynamic>?)?.cast<String>() ?? [];
+              final options = _parseExamOptions(q['options']);
+              final marks = q['marks'] as int? ?? 0;
               final selected = _answers[id];
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -468,69 +517,128 @@ class _CourseExamPageState extends State<CourseExamPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${i + 1}. $text',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...List.generate(options.length, (j) {
-                        final isSelected = selected == j;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() => _answers[id] = j);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF6366F1).withOpacity(0.12)
-                                    : Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF6366F1)
-                                      : Colors.transparent,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    isSelected
-                                        ? Icons.radio_button_checked_rounded
-                                        : Icons.radio_button_off_rounded,
-                                    color: isSelected
-                                        ? const Color(0xFF6366F1)
-                                        : Colors.grey,
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      options[j],
-                                      style: TextStyle(
-                                        fontWeight:
-                                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                                        color: const Color(0xFF1E293B),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${i + 1}. $text',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: Color(0xFF1E293B),
                               ),
                             ),
                           ),
-                        );
-                      }),
+                          if (marks > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$marks marks',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF6366F1),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      if (options.isEmpty)
+                        Text(
+                          'No answer options for this question. Ask your admin to re-save the question in the curriculum exam editor.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.orange.shade800,
+                            height: 1.4,
+                          ),
+                        )
+                      else
+                        ...List.generate(options.length, (j) {
+                          final isSelected = selected == j;
+                          final letter = String.fromCharCode(65 + j);
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() => _answers[id] = j);
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF6366F1).withOpacity(0.12)
+                                      : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFF6366F1)
+                                        : Colors.transparent,
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 28,
+                                      height: 28,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? const Color(0xFF6366F1)
+                                            : Colors.grey.shade200,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        letter,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 13,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : const Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        options[j],
+                                        style: TextStyle(
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          color: const Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked_rounded
+                                          : Icons.radio_button_off_rounded,
+                                      color: isSelected
+                                          ? const Color(0xFF6366F1)
+                                          : Colors.grey,
+                                      size: 22,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
                     ],
                   ),
                 ),

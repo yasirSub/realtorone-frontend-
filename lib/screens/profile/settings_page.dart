@@ -11,6 +11,8 @@ import '../legal/legal_document_webview_page.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../utils/responsive_helper.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../../widgets/app_version_details_sheet.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -24,11 +26,20 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _pushNotifications = true;
   bool _emailUpdates = true;
   Map<String, dynamic>? _userData;
+  String _appVersionShort = '';
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadVersionLabel();
+  }
+
+  Future<void> _loadVersionLabel() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _appVersionShort = 'v${info.version}');
+    } catch (_) {}
   }
 
   Future<void> _loadProfile() async {
@@ -585,8 +596,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
                   Center(
-                    child: Text(
-                      l10n.settingsVersion,
+                    child: AppVersionTapLabel(
+                      label: _appVersionShort.isNotEmpty
+                          ? _appVersionShort
+                          : l10n.settingsVersion.replaceAll('Version ', 'v'),
                       style: TextStyle(
                         color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
                         fontSize: 10,
