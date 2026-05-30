@@ -101,14 +101,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
         if (mounted && !_usePhone && email != null) {
           final needsVerify = response['email_verification_required'] == true;
-          if (needsVerify && !otpSendFailed) {
+          if (needsVerify) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
+              const SnackBar(
                 content: Text(
-                  'We sent a verification email to $email. '
-                  'You can verify after profile setup or anytime from Profile.',
+                  'Verify your email anytime from Profile after you finish setup.',
                 ),
-                duration: const Duration(seconds: 5),
+                duration: Duration(seconds: 4),
               ),
             );
           }
