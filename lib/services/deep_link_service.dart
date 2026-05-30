@@ -76,6 +76,11 @@ class DeepLinkService {
         normalizedPath == '/email/verify' ||
         normalizedPath == '/email/verify/') {
       _handleEmailVerificationLink(queryParams, navigatorKey);
+    } else if (normalizedPath == '/home' ||
+        normalizedPath == '/home/' ||
+        normalizedPath == '/main' ||
+        normalizedPath == '/main/') {
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
     } else if (normalizedPath == '/login' || normalizedPath == '/login/') {
       navigatorKey.currentState?.pushNamed(AppRoutes.login);
     }

@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api/api_client.dart';
 import '../firebase_options.dart';
+import '../routes/app_routes.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -56,6 +57,29 @@ class PushNotificationService {
 
   static void attachNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
+  }
+
+  static Future<void> _openPushTarget(
+    Map<String, dynamic> data,
+    String deepLink,
+  ) async {
+    if ((data['kind'] ?? '').toString() == 'home_announcement') {
+      _navigatorKey?.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
+      return;
+    }
+    final uri = Uri.tryParse(deepLink);
+    if (uri == null) return;
+    if (uri.scheme == 'realtorone' &&
+        (uri.host == 'home' ||
+            uri.host == 'main' ||
+            uri.path == '/home' ||
+            uri.path == '/main')) {
+      _navigatorKey?.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
+      return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   static Future<bool> initializeApp() async {
@@ -250,14 +274,11 @@ class PushNotificationService {
                 ],
               ),
               actions: [
-                if (deepLink.isNotEmpty)
+                if (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement')
                   TextButton(
                     onPressed: () async {
-                      final uri = Uri.tryParse(deepLink);
                       ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
-                      if (uri != null && await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
+                      await _openPushTarget(data, deepLink);
                     },
                     child: Text(cta.toUpperCase()),
                   ),
@@ -274,16 +295,10 @@ class PushNotificationService {
             SnackBar(
               content: Text('$title: $body'),
               behavior: SnackBarBehavior.floating,
-              action: (deepLink.isNotEmpty)
+              action: (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement')
                   ? SnackBarAction(
                       label: cta.toUpperCase(),
-                      onPressed: () async {
-                        final uri = Uri.tryParse(deepLink);
-                        if (uri == null) return;
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
+                      onPressed: () async => _openPushTarget(data, deepLink),
                     )
                   : null,
             ),
@@ -294,6 +309,13 @@ class PushNotificationService {
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) async {
       await storeNotificationFromMessage(message);
+      final data = message.data;
+      final deepLink = (data['deep_link'] ?? '').toString().trim();
+      if (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _openPushTarget(data, deepLink);
+        });
+      }
     });
   }
 
