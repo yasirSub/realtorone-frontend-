@@ -12,6 +12,7 @@ import '../../api/api_endpoints.dart';
 import '../../api/api_client.dart';
 import '../../api/app_config.dart';
 import 'pdf_viewer_page.dart';
+import '../../utils/authenticated_media_url.dart';
 import '../../utils/responsive_helper.dart';
 
 class LearningPage extends StatefulWidget {
@@ -546,12 +547,19 @@ class _LearningPageState extends State<LearningPage>
 
   void _openEbook(EbookModel ebook) async {
     if (ebook.fileUrl == null) return;
-    final url = _resolveAssetUrl(ebook.fileUrl!);
+    final base = _resolveAssetUrl(ebook.fileUrl!);
+    final url = await AuthenticatedMediaUrl.resolve(base);
+    final headers = await AuthenticatedMediaUrl.streamHeaders();
 
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PdfViewerPage(title: ebook.title, url: url),
+        builder: (context) => PdfViewerPage(
+          title: ebook.title,
+          url: url,
+          headers: headers,
+        ),
       ),
     );
   }

@@ -14,6 +14,8 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../utils/authenticated_media_url.dart';
+import 'pdf_viewer_page.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1361,33 +1363,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   String _resolveMaterialUrl(String path) {
     final trimmedPath = path.trim();
     if (trimmedPath.contains('://')) return trimmedPath;
-
-    final root = AppConfig.apiOrigin;
-    final normalizedPath = trimmedPath.startsWith('/')
-        ? trimmedPath
-        : '/$trimmedPath';
-
-    // PRIORITIZE STREAM ROUTE FOR ASSETS: If it contains 'course-assets',
-    // force the authenticated stream route to handle range requests correctly.
-    if (normalizedPath.contains('course-assets/')) {
-      final filename = Uri.decodeComponent(normalizedPath.split('/').last);
-      return '$root/api/stream/${Uri.encodeComponent(filename)}';
-    }
-
-    if (normalizedPath.startsWith('/api/stream/')) {
-      return '$root$normalizedPath';
-    }
-
-    if (normalizedPath.startsWith('/storage/')) {
-      return '$root$normalizedPath';
-    }
-
-    final finalPath = normalizedPath.startsWith('/storage/')
-        ? normalizedPath
-        : '/storage$normalizedPath';
-
-    // Ensure the final storage path is encoded correctly once
-    return '$root${Uri.encodeFull(Uri.decodeFull(finalPath))}';
+    return AuthenticatedMediaUrl.materialPathToStreamUrl(trimmedPath);
   }
 
   /// For video materials without thumbnail_url, try derived URLs (e.g. same name with _thumb.jpg).
@@ -1540,29 +1516,49 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
 
     if (material.type.toLowerCase() == 'video') {
       _playVideo(material);
-    } else {
-      String pathToOpen;
+      return;
+    }
 
+    if (material.type.toLowerCase() == 'pdf') {
       if (_localFiles.containsKey(material.id)) {
-        pathToOpen = _localFiles[material.id]!;
-        debugPrint('[PDF Viewer] Opening LOCAL: $pathToOpen');
-        final uri = Uri.file(pathToOpen);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri);
-        } else {
-          await launchUrl(uri, mode: LaunchMode.externalNonBrowserApplication);
-        }
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PdfViewerPage(
+              title: material.title ?? 'PDF',
+              filePath: _localFiles[material.id],
+            ),
+          ),
+        );
       } else {
-        final materialUrl = _resolveMaterialUrl(material.url!);
-        final uri = Uri.parse(materialUrl);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
+        final materialUrl =
+            await AuthenticatedMediaUrl.resolve(_resolveMaterialUrl(material.url!));
+        final headers = await AuthenticatedMediaUrl.streamHeaders();
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PdfViewerPage(
+              title: material.title ?? 'PDF',
+              url: materialUrl,
+              headers: headers,
+            ),
+          ),
+        );
       }
 
       if (!material.isCompleted) {
         _markAsCompleted(material);
       }
+      return;
+    }
+
+    // Other resource types: open externally if possible
+    final materialUrl = await AuthenticatedMediaUrl.resolve(_resolveMaterialUrl(material.url!));
+    final uri = Uri.parse(materialUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 

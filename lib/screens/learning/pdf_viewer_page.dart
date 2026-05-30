@@ -1,17 +1,25 @@
 // ignore_for_file: unnecessary_import
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
+import '../../utils/authenticated_media_url.dart';
+
 class PdfViewerPage extends StatefulWidget {
   final String title;
-  final String url;
+  final String? url;
+  final String? filePath;
+  final Map<String, String>? headers;
 
   const PdfViewerPage({
     super.key,
     required this.title,
-    required this.url,
-  });
+    this.url,
+    this.filePath,
+    this.headers,
+  }) : assert(url != null || filePath != null);
 
   @override
   State<PdfViewerPage> createState() => _PdfViewerPageState();
@@ -20,13 +28,25 @@ class PdfViewerPage extends StatefulWidget {
 class _PdfViewerPageState extends State<PdfViewerPage> {
   final GlobalKey<SfPdfViewerState> _pdfViewerKey = GlobalKey();
   bool _isLoading = true;
+  Map<String, String> _headers = {};
 
   @override
   void initState() {
     super.initState();
-    // Disable screenshots if possible (security)
-    // Actually, this requires a specialized plugin like flutter_windowmanager
-    // For now, we just don't provide a download button.
+    _initHeaders();
+  }
+
+  Future<void> _initHeaders() async {
+    final merged = <String, String>{};
+    if (widget.headers != null) {
+      merged.addAll(widget.headers!);
+    }
+    if (widget.url != null && widget.url!.contains('/api/stream/')) {
+      merged.addAll(await AuthenticatedMediaUrl.streamHeaders());
+    }
+    if (mounted) {
+      setState(() => _headers = merged);
+    }
   }
 
   @override
@@ -50,7 +70,6 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // We explicitly DO NOT add a download button here
           IconButton(
             icon: const Icon(Icons.info_outline_rounded, color: Colors.white70, size: 20),
             onPressed: () {
@@ -66,23 +85,31 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       ),
       body: Stack(
         children: [
-          SfPdfViewer.network(
-            widget.url,
-            key: _pdfViewerKey,
-            onDocumentLoaded: (PdfDocumentLoadedDetails details) {
-              setState(() {
-                _isLoading = false;
-              });
-            },
-            onDocumentLoadFailed: (PdfDocumentLoadFailedDetails details) {
-              setState(() {
-                _isLoading = false;
-              });
-              _showErrorDialog(details.description);
-            },
-            enableDoubleTapZooming: true,
-            enableTextSelection: false, // Disable text selection to prevent copying
-          ),
+          if (widget.filePath != null)
+            SfPdfViewer.file(
+              File(widget.filePath!),
+              key: _pdfViewerKey,
+              onDocumentLoaded: (_) => setState(() => _isLoading = false),
+              onDocumentLoadFailed: (details) {
+                setState(() => _isLoading = false);
+                _showErrorDialog(details.description);
+              },
+              enableDoubleTapZooming: true,
+              enableTextSelection: false,
+            )
+          else if (widget.url != null)
+            SfPdfViewer.network(
+              widget.url!,
+              key: _pdfViewerKey,
+              headers: _headers,
+              onDocumentLoaded: (_) => setState(() => _isLoading = false),
+              onDocumentLoadFailed: (details) {
+                setState(() => _isLoading = false);
+                _showErrorDialog(details.description);
+              },
+              enableDoubleTapZooming: true,
+              enableTextSelection: false,
+            ),
           if (_isLoading)
             const Center(
               child: CircularProgressIndicator(
@@ -95,14 +122,22 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
   }
 
   void _showErrorDialog(String description) {
+    final msg = description.toLowerCase().contains('unauthorized')
+        ? 'Could not open this PDF. Please sign in again or check your connection.'
+        : 'Failed to load asset: $description';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
-        title: const Text('ENCRYPTION ERROR',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16)),
-        content: Text('Failed to decrypt and load asset: $description',
-            style: const TextStyle(color: Colors.white70)),
+        title: const Text(
+          'Could not open PDF',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+        ),
+        content: Text(
+          msg,
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
