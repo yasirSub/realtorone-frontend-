@@ -880,7 +880,10 @@ class _ProfilePageState extends State<ProfilePage> {
       if (response['status'] == 'ok' || response['success'] == true) {
         _showOtpVerifyDialog(email: email, isEmail: true);
       } else {
-        _showSnackBar(response['message'] ?? 'Failed to send verification code', Colors.red);
+        final message = response['mail_configured'] == false
+            ? 'Email delivery is not configured on the server yet. Please try again later or contact support.'
+            : (response['message'] ?? 'Failed to send verification code');
+        _showSnackBar(message, Colors.red);
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -1226,15 +1229,16 @@ class _ProfilePageState extends State<ProfilePage> {
                             FilteringTextInputFormatter.digitsOnly,
                           ],
                           maxLength: 1,
+                          cursorColor: Colors.black,
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                            color: Colors.black,
                           ),
                           decoration: InputDecoration(
                             counterText: '',
                             filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
+                            fillColor: Colors.white,
                             contentPadding: EdgeInsets.zero,
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -1330,7 +1334,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
     final emailVerified = _userData?['email_verified_at'] != null;
     final phoneVerified = _userData?['mobile_verified_at'] != null;
-    final showEmailVerify = !emailVerified;
+    final hasEmail = (_userData?['email']?.toString() ?? '').trim().isNotEmpty;
+    final showEmailVerify = hasEmail && !emailVerified;
     final showPhoneVerify = !phoneVerified;
 
     // Hide the verification panel when everything is already verified.

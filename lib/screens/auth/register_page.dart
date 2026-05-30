@@ -53,7 +53,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
       if (!mounted) return;
 
-      if (response['status'] == 'ok') {
+      final otpSendFailed = response['otp_send_failed'] == true;
+
+      if (response['status'] == 'ok' || otpSendFailed) {
+        if (otpSendFailed && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['message'] ??
+                    'Account created, but verification email could not be sent. You can resend from Profile after login.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+
         // Ensure we have a token (handle cases where register doesn't return one)
         final token = await ApiClient.getToken();
         if (token == null) {
@@ -64,8 +78,10 @@ class _RegisterPageState extends State<RegisterPage> {
           if (loginResponse['status'] != 'ok' ||
               loginResponse['token'] == null) {
             setState(
-              () => _errorMessage =
-                  'Registration successful, but failed to log in automatically.',
+              () => _errorMessage = otpSendFailed
+                  ? (response['message'] ??
+                      'Account created, but login failed. Try signing in manually.')
+                  : 'Registration successful, but failed to log in automatically.',
             );
             return;
           }

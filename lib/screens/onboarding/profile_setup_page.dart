@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../api/user_api.dart';
@@ -182,6 +183,146 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     super.dispose();
   }
 
+  Future<bool> _promptEmailOtpVerification(String email) async {
+    final controllers = List.generate(6, (_) => TextEditingController());
+    final focusNodes = List.generate(6, (_) => FocusNode());
+    var verified = false;
+
+    try {
+      verified = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) {
+              return StatefulBuilder(
+                builder: (context, setDialogState) {
+                  final otp = controllers.map((c) => c.text).join();
+                  return AlertDialog(
+                    title: const Text('Verify your email'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Enter the 6-digit code sent to:\n$email',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF475569),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: List.generate(6, (index) {
+                            return SizedBox(
+                              width: 42,
+                              height: 52,
+                              child: TextFormField(
+                                controller: controllers[index],
+                                focusNode: focusNodes[index],
+                                textAlign: TextAlign.center,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                maxLength: 1,
+                                cursorColor: Colors.black,
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black,
+                                ),
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: EdgeInsets.zero,
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF667eea),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                onChanged: (value) {
+                                  final clean =
+                                      value.replaceAll(RegExp(r'\D'), '');
+                                  if (clean.isNotEmpty) {
+                                    controllers[index].text = clean[0];
+                                    if (index < 5) {
+                                      focusNodes[index + 1].requestFocus();
+                                    } else {
+                                      focusNodes[index].unfocus();
+                                    }
+                                  } else if (index > 0) {
+                                    focusNodes[index - 1].requestFocus();
+                                  }
+                                  setDialogState(() {});
+                                },
+                              ),
+                            );
+                          }),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('SKIP FOR NOW'),
+                      ),
+                      FilledButton(
+                        onPressed: otp.length < 6
+                            ? null
+                            : () async {
+                                final result = await UserApi.verifyEmailOtp(
+                                  email,
+                                  otp,
+                                );
+                                if (result['status'] == 'ok' ||
+                                    result['success'] == true) {
+                                  if (dialogContext.mounted) {
+                                    Navigator.pop(dialogContext, true);
+                                  }
+                                } else if (dialogContext.mounted) {
+                                  ScaffoldMessenger.of(dialogContext)
+                                      .showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        result['message'] ?? 'Invalid code',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              },
+                        child: const Text('VERIFY'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ) ??
+          false;
+    } finally {
+      for (final c in controllers) {
+        c.dispose();
+      }
+      for (final n in focusNodes) {
+        n.dispose();
+      }
+    }
+
+    return verified;
+  }
+
   Future<void> _pickProfileImage() async {
     try {
       final XFile? pickedFile = await _imagePicker.pickImage(
@@ -261,6 +402,30 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
 
       if (mounted) {
         if (response['success'] == true || response['status'] == 'ok') {
+          final needsEmailVerify = response['email_verification_required'] == true;
+          if (needsEmailVerify && response['otp_send_failed'] != true) {
+            final verified = await _promptEmailOtpVerification(email);
+            if (!verified && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'You can verify your email later from Profile.',
+                  ),
+                ),
+              );
+            }
+          } else if (needsEmailVerify && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  response['message'] ??
+                      'Verification email could not be sent. Verify from Profile later.',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+
           // Upload profile picture if selected (optional)
           if (_profileImage != null) {
             try {

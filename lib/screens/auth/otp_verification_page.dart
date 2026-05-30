@@ -47,13 +47,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     try {
       final response = await AuthApi.verifyToken(widget.identifier, otp);
       if (response['status'] == 'ok') {
-        // If OTP is valid, mark email as verified so profile warning can disappear.
-        try {
-          await AuthApi.verifyEmail(widget.identifier);
-        } catch (_) {
-          // Best-effort: do not block reset password flow on verification call failure.
-        }
-
         if (!mounted) return;
         Navigator.pushNamed(
           context,
@@ -109,7 +102,12 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return Theme(
+      data: ThemeData(
+        brightness: Brightness.light,
+        textSelectionTheme: const TextSelectionThemeData(cursorColor: Colors.black),
+      ),
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -212,6 +210,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           ),
         ],
       ),
+    ),
     );
   }
 

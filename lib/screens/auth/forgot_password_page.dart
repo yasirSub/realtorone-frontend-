@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../api/auth_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -98,41 +97,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _openMailApp() async {
-    final email = _emailController.text.trim().toLowerCase();
-    final isGmailUser = email.endsWith('@gmail.com');
-    final target = _emailController.text.trim();
-
-    final candidateUris = <Uri>[
-      if (isGmailUser) Uri.parse('googlegmail://co?to=$target'),
-      if (isGmailUser)
-        Uri.parse(
-          'intent://compose?to=$target#Intent;scheme=mailto;package=com.google.android.gm;end',
-        ),
-      Uri(scheme: 'mailto', path: target),
-      if (isGmailUser) Uri.parse('https://mail.google.com/mail/u/0/#inbox'),
-    ];
-
-    for (final uri in candidateUris) {
-      try {
-        if (await canLaunchUrl(uri)) {
-          final launched = await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (launched) return;
-        }
-      } catch (_) {
-        // Try the next fallback URI.
-      }
-    }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('No email app found on this device.')),
-    );
   }
 
   @override
@@ -259,28 +223,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             child: Text(_isPhoneMode ? 'GO TO LOGIN' : 'ENTER RESET CODE'),
           ),
         ),
-        if (!_isPhoneMode) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 52,
-            child: OutlinedButton.icon(
-              onPressed: _openMailApp,
-              icon: const Icon(Icons.mail_outline_rounded),
-              label: Text(
-                _emailController.text.trim().toLowerCase().endsWith('@gmail.com')
-                    ? 'OPEN GMAIL'
-                    : 'OPEN MAIL APP',
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF667eea),
-                side: const BorderSide(color: Color(0xFF667eea)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 16),
         TextButton(
           onPressed: () async {

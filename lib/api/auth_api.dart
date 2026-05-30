@@ -155,10 +155,6 @@ class AuthApi {
     });
   }
 
-  static Future<Map<String, dynamic>> verifyEmail(String email) async {
-    return await ApiClient.post(ApiEndpoints.verifyEmail, {'email': email});
-  }
-
   static Future<Map<String, dynamic>> checkHealth() async {
     return await ApiClient.get(ApiEndpoints.health);
   }

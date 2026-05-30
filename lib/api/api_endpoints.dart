@@ -21,7 +21,6 @@ class ApiEndpoints {
   // Email verification
   static const String sendEmailOtp = '/email/send-otp';
   static const String verifyEmailOtp = '/email/verify-otp';
-  static const String verifyEmail = '/email/verify';
 
   // Phone verification
   static const String sendPhoneOtp = '/phone/send-otp';
