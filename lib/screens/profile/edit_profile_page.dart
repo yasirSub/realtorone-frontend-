@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/user_api.dart';
+import '../../utils/phone_utils.dart';
 import '../../widgets/elite_loader.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -26,6 +28,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _experienceController = TextEditingController();
   final _currentIncomeController = TextEditingController();
   final _targetIncomeController = TextEditingController();
+  String _selectedDialCode = '+971';
 
   final List<String> _dubaiCities = [
     'Dubai Marina',
@@ -66,7 +69,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
 
         _emailController.text = userData['email'] ?? '';
-        _mobileController.text = userData['mobile'] ?? '';
+        final storedMobile =
+            (userData['mobile'] ?? userData['phone_number'] ?? '').toString();
+        final parsed = PhoneUtils.parseStored(storedMobile);
+        _selectedDialCode = parsed.dialCode;
+        _mobileController.text = parsed.localDigits;
         _cityController.text = userData['city'] ?? 'Dubai Marina';
         _brokerageController.text = userData['brokerage'] ?? '';
         _instagramController.text = userData['instagram'] ?? '';
@@ -101,7 +108,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
             '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
                 .trim(),
         email: _emailController.text.trim(),
-        mobile: _mobileController.text.trim(),
+        mobile: PhoneUtils.composeE164(
+          _selectedDialCode,
+          _mobileController.text,
+        ),
         city: _cityController.text.trim(),
         brokerage: _brokerageController.text.trim(),
         instagram: _instagramController.text.trim(),
@@ -207,13 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         (v == null || !v.contains('@')) ? 'Invalid' : null,
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _mobileController,
-                    label: 'PHONE NUMBER',
-                    hint: '+971 50 123 4567',
-                    icon: Icons.phone_android_rounded,
-                    keyboardType: TextInputType.phone,
-                  ),
+                  _buildPhoneField(),
                   const SizedBox(height: 16),
                   _buildCityDropdown(),
                   const SizedBox(height: 16),
@@ -308,6 +312,97 @@ class _EditProfilePageState extends State<EditProfilePage> {
           if (_isLoading || _isSaving) EliteLoader.top(),
         ],
       ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'PHONE NUMBER',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 128,
+              child: DropdownButtonFormField<String>(
+                value: _selectedDialCode,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                items: PhoneUtils.countryOptions
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item['code'],
+                        child: Text(
+                          item['label']!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _selectedDialCode = v);
+                  _formKey.currentState?.validate();
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _mobileController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
+                  ),
+                ],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Phone number',
+                  prefixIcon: const Icon(
+                    Icons.phone_android_rounded,
+                    color: Color(0xFF667eea),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

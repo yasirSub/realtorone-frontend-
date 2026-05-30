@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../api/auth_api.dart';
-import '../../routes/app_routes.dart';
+import '../../utils/auth_session.dart';
 import '../../widgets/elite_loader.dart';
 
 class ResetPasswordPage extends StatefulWidget {
@@ -54,10 +54,26 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       if (!mounted) return;
 
       if (response['status'] == 'ok') {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully!')),
+          const SnackBar(
+            content: Text('Password updated — you are signed in.'),
+            backgroundColor: Colors.green,
+          ),
         );
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (route) => false);
+        if (response['token'] != null) {
+          await AuthSession.establishAndNavigate(context, response);
+        } else {
+          // Fallback: sign in with new password if API did not return a token.
+          final loginRes = await AuthApi.login(
+            widget.email!,
+            _passwordController.text,
+          );
+          if (!mounted) return;
+          if (loginRes['status'] == 'ok' && loginRes['token'] != null) {
+            await AuthSession.establishAndNavigate(context, loginRes);
+          }
+        }
       } else {
         setState(() {
           _errorMessage = response['message'] ?? 'Failed to reset password';

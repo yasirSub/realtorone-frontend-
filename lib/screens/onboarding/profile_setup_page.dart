@@ -9,6 +9,8 @@ import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/email_otp_verification_dialog.dart';
+import '../../utils/phone_utils.dart';
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key});
@@ -39,18 +41,6 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   final _currentIncomeController = TextEditingController();
   final _targetIncomeController = TextEditingController();
   String _selectedDialCode = '+971';
-
-  static const List<Map<String, String>> _countryPhoneOptions = [
-    {'label': 'AE (+971)', 'code': '+971'},
-    {'label': 'IN (+91)', 'code': '+91'},
-    {'label': 'US (+1)', 'code': '+1'},
-    {'label': 'UK (+44)', 'code': '+44'},
-    {'label': 'SA (+966)', 'code': '+966'},
-    {'label': 'QA (+974)', 'code': '+974'},
-    {'label': 'KW (+965)', 'code': '+965'},
-    {'label': 'BH (+973)', 'code': '+973'},
-    {'label': 'OM (+968)', 'code': '+968'},
-  ];
 
   final List<String> _dubaiCities = [
     'Dubai Marina',
@@ -183,145 +173,8 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     super.dispose();
   }
 
-  Future<bool> _promptEmailOtpVerification(String email) async {
-    final controllers = List.generate(6, (_) => TextEditingController());
-    final focusNodes = List.generate(6, (_) => FocusNode());
-    var verified = false;
-
-    try {
-      verified = await showDialog<bool>(
-            context: context,
-            barrierDismissible: false,
-            builder: (dialogContext) {
-              return StatefulBuilder(
-                builder: (context, setDialogState) {
-                  final otp = controllers.map((c) => c.text).join();
-                  return AlertDialog(
-                    title: const Text('Verify your email'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Enter the 6-digit code sent to:\n$email',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF475569),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(6, (index) {
-                            return SizedBox(
-                              width: 42,
-                              height: 52,
-                              child: TextFormField(
-                                controller: controllers[index],
-                                focusNode: focusNodes[index],
-                                textAlign: TextAlign.center,
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                maxLength: 1,
-                                cursorColor: Colors.black,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                ),
-                                decoration: InputDecoration(
-                                  counterText: '',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: EdgeInsets.zero,
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE2E8F0),
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF667eea),
-                                      width: 2,
-                                    ),
-                                  ),
-                                ),
-                                onChanged: (value) {
-                                  final clean =
-                                      value.replaceAll(RegExp(r'\D'), '');
-                                  if (clean.isNotEmpty) {
-                                    controllers[index].text = clean[0];
-                                    if (index < 5) {
-                                      focusNodes[index + 1].requestFocus();
-                                    } else {
-                                      focusNodes[index].unfocus();
-                                    }
-                                  } else if (index > 0) {
-                                    focusNodes[index - 1].requestFocus();
-                                  }
-                                  setDialogState(() {});
-                                },
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogContext, false),
-                        child: const Text('SKIP FOR NOW'),
-                      ),
-                      FilledButton(
-                        onPressed: otp.length < 6
-                            ? null
-                            : () async {
-                                final result = await UserApi.verifyEmailOtp(
-                                  email,
-                                  otp,
-                                );
-                                if (result['status'] == 'ok' ||
-                                    result['success'] == true) {
-                                  if (dialogContext.mounted) {
-                                    Navigator.pop(dialogContext, true);
-                                  }
-                                } else if (dialogContext.mounted) {
-                                  ScaffoldMessenger.of(dialogContext)
-                                      .showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        result['message'] ?? 'Invalid code',
-                                      ),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              },
-                        child: const Text('VERIFY'),
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ) ??
-          false;
-    } finally {
-      for (final c in controllers) {
-        c.dispose();
-      }
-      for (final n in focusNodes) {
-        n.dispose();
-      }
-    }
-
-    return verified;
-  }
+  Future<bool> _promptEmailOtpVerification(String email) =>
+      EmailOtpVerificationDialog.show(context, email);
 
   Future<void> _pickProfileImage() async {
     try {
@@ -1016,7 +869,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                     ),
                   ),
                 ),
-                items: _countryPhoneOptions
+                items: PhoneUtils.countryOptions
                     .map(
                       (item) => DropdownMenuItem<String>(
                         value: item['code'],
@@ -1034,6 +887,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                 onChanged: (value) {
                   if (value == null) return;
                   setState(() => _selectedDialCode = value);
+                  _formKey.currentState?.validate();
                 },
               ),
             ),
@@ -1042,6 +896,12 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
               child: TextFormField(
                 controller: _mobileController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
+                  ),
+                ],
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -1102,14 +962,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                     ),
                   ),
                 ),
-                validator: (v) {
-                  final digits = _digitsOnly(v ?? '');
-                  if (digits.isEmpty) return 'Required';
-                  if (digits.length < 7 || digits.length > 15) {
-                    return 'Enter a valid phone number';
-                  }
-                  return null;
-                },
+                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
               ),
             ),
           ],
@@ -1118,29 +971,13 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     );
   }
 
-  String _digitsOnly(String raw) => raw.replaceAll(RegExp(r'\D'), '');
-
-  String _composePhoneE164() {
-    final digits = _digitsOnly(_mobileController.text);
-    if (digits.isEmpty) return '';
-    return '$_selectedDialCode$digits';
-  }
+  String _composePhoneE164() =>
+      PhoneUtils.composeE164(_selectedDialCode, _mobileController.text);
 
   void _setPhoneFromStored(String raw) {
-    final value = raw.trim();
-    if (value.isEmpty) return;
-    final matched = _countryPhoneOptions.firstWhere(
-      (c) => value.startsWith(c['code']!),
-      orElse: () => {'label': 'AE (+971)', 'code': '+971'},
-    );
-    _selectedDialCode = matched['code']!;
-    if (value.startsWith(_selectedDialCode)) {
-      _mobileController.text = _digitsOnly(
-        value.substring(_selectedDialCode.length),
-      );
-    } else {
-      _mobileController.text = _digitsOnly(value);
-    }
+    final parsed = PhoneUtils.parseStored(raw);
+    _selectedDialCode = parsed.dialCode;
+    _mobileController.text = parsed.localDigits;
   }
 
   Widget _buildCityDropdown() {

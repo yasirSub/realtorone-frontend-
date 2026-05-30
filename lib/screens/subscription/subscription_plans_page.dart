@@ -3,12 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'dart:ui';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
 import '../../widgets/elite_loader.dart';
 import '../../utils/responsive_helper.dart';
+import '../../utils/subscription_pricing.dart';
 import '../legal/legal_document_webview_page.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -355,6 +355,59 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return result;
   }
 
+  String _durationChipLabel(int months) {
+    switch (months) {
+      case 1:
+        return '1 mo';
+      case 3:
+        return '3 mo';
+      case 6:
+        return '6 mo';
+      case 12:
+        return '1 yr';
+      default:
+        return '${months}mo';
+    }
+  }
+
+  String _durationSuffixLabel(int months) {
+    switch (months) {
+      case 1:
+        return '/mo';
+      case 3:
+        return '/3 mo';
+      case 6:
+        return '/6 mo';
+      case 12:
+        return '/yr';
+      default:
+        return '/$months mo';
+    }
+  }
+
+  Widget _fittedSingleLineText(
+    String text, {
+    required TextStyle style,
+    Alignment alignment = Alignment.center,
+    int maxLines = 1,
+  }) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: alignment,
+      child: Text(
+        text,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignment == Alignment.center
+            ? TextAlign.center
+            : alignment == Alignment.centerRight
+            ? TextAlign.right
+            : TextAlign.left,
+        style: style,
+      ),
+    );
+  }
+
   double _calculatePrice(Map<String, dynamic> pkg) {
     final baseMonthly =
         (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0);
@@ -385,18 +438,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final isFree = (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
     if (isFree) return 'FREE';
 
-    final productId = IapService().getProductId(name, _selectedMonths);
-    final iapProduct = IapService().products.cast<ProductDetails?>().firstWhere(
-      (p) => p?.id == productId,
-      orElse: () => null,
+    final iapProduct = IapService().findProductForTier(name, _selectedMonths);
+    final aedTotal = _calculatePrice(pkg);
+
+    return SubscriptionPricing.displayPrice(
+      tierName: name,
+      selectedMonths: _selectedMonths,
+      aedTotal: aedTotal,
+      storeProduct: iapProduct,
     );
-
-    if (iapProduct != null) {
-      return iapProduct.price;
-    }
-
-    // Fallback if not loaded yet or not found in store
-    return 'AED ${_calculatePrice(pkg).toStringAsFixed(2)}';
   }
 
   @override
@@ -529,48 +579,52 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             children: [
                               Row(
                                 children: [
-                                  const Text(
-                                    'SUBSCRIPTION',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: 1,
+                                  Expanded(
+                                    child: _fittedSingleLineText(
+                                      'SUBSCRIPTION',
+                                      alignment: Alignment.centerLeft,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 1,
+                                      ),
                                     ),
                                   ).animate().fadeIn().slideX(begin: -0.1),
-                                  const SizedBox(width: 10),
-                                  Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            (_tierGlow[_currentTier] ??
+                                                    const Color(0xFF64748B))
+                                                .withOpacity(0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
                                           color:
                                               (_tierGlow[_currentTier] ??
                                                       const Color(0xFF64748B))
-                                                  .withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color:
-                                                (_tierGlow[_currentTier] ??
-                                                        const Color(0xFF64748B))
-                                                    .withOpacity(0.3),
-                                          ),
+                                                  .withOpacity(0.3),
                                         ),
-                                        child: Text(
-                                          _currentTier.toUpperCase(),
-                                          style: TextStyle(
-                                            color:
-                                                _tierGlow[_currentTier] ??
-                                                const Color(0xFF64748B),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w900,
-                                            letterSpacing: 1,
-                                          ),
+                                      ),
+                                      child: _fittedSingleLineText(
+                                        _currentTier.toUpperCase(),
+                                        alignment: Alignment.center,
+                                        style: TextStyle(
+                                          color:
+                                              _tierGlow[_currentTier] ??
+                                              const Color(0xFF64748B),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.5,
                                         ),
-                                      )
+                                      ),
+                                    ),
+                                  )
                                       .animate()
                                       .fadeIn(delay: 200.ms)
                                       .scale(begin: const Offset(0.8, 0.8)),
@@ -581,6 +635,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                     _isPremium
                                         ? 'Your premium plan is active'
                                         : 'Choose a plan to unlock premium features',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: Colors.white54,
                                       fontSize: 13,
@@ -818,13 +874,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       child: Row(
         children: availableDurations.map((m) {
           final isSelected = _selectedMonths == m;
-          final label = m == 1
-              ? '1 Month'
-              : m == 3
-              ? '3 Months'
-              : m == 6
-              ? '6 Monthly'
-              : '1 Yearly';
+          final label = _durationChipLabel(m);
 
           final savings = m == 3
               ? '-10%'
@@ -840,14 +890,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               onTap: () => setState(() => _selectedMonths = m),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
                 decoration: BoxDecoration(
                   color: isSelected ? glowColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
+                    _fittedSingleLineText(
                       label,
                       style: TextStyle(
                         color: isSelected
@@ -855,13 +906,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             : isDark
                             ? Colors.white60
                             : const Color(0xFF64748B),
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     if (savings != null) ...[
                       const SizedBox(height: 2),
-                      Text(
+                      _fittedSingleLineText(
                         savings,
                         style: TextStyle(
                           color: isSelected
@@ -1002,6 +1053,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           children: [
             // Header Row
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.all(10),
@@ -1015,15 +1067,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
                             displayName.toUpperCase(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: isTitan
                                   ? const Color(0xFFF59E0B)
@@ -1032,13 +1089,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                   : (isDark
                                         ? Colors.white
                                         : const Color(0xFF1E293B)),
-                              fontSize: 16,
+                              fontSize: 15,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.3,
                             ),
                           ),
-                          if (isCurrentTier) ...[
-                            const SizedBox(width: 8),
+                          if (isCurrentTier)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -1058,7 +1114,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                 ),
                               ),
                             ),
-                          ],
                         ],
                       ),
                       if (description.isNotEmpty)
@@ -1068,67 +1123,68 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             color: Color(0xFF64748B),
                             fontSize: 11,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                     ],
                   ),
                 ),
-                // Price
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (isFree)
-                      Text(
-                        'FREE',
-                        style: TextStyle(
-                          color: glowColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      )
-                    else ...[
-                      Text(
-                        isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
-                        style: TextStyle(
-                          color: isTitan
-                              ? const Color(0xFFF59E0B)
-                              : isRainmaker
-                              ? const Color(0xFF94A3B8)
-                              : (isDark
-                                    ? Colors.white
-                                    : const Color(0xFF1E293B)),
-                          fontSize: isComingSoon ? 14 : 22,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      if (!isComingSoon)
-                        Text(
-                          // Billing suffix changes with selected duration
-                          _selectedMonths == 1
-                              ? '/month'
-                              : _selectedMonths == 3
-                              ? '/3 months'
-                              : _selectedMonths == 6
-                              ? '/6 months'
-                              : '/year',
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      if (isComingSoon && isSelected)
-                        Text(
-                          'Not active in App Store Connect yet',
+                const SizedBox(width: 8),
+                // Price — scales down on narrow screens / long INR strings
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (isFree)
+                        _fittedSingleLineText(
+                          'FREE',
+                          alignment: Alignment.centerRight,
                           style: TextStyle(
-                            color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
+                            color: glowColor,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        )
+                      else ...[
+                        _fittedSingleLineText(
+                          isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
+                          alignment: Alignment.centerRight,
+                          style: TextStyle(
+                            color: isTitan
+                                ? const Color(0xFFF59E0B)
+                                : isRainmaker
+                                ? const Color(0xFF94A3B8)
+                                : (isDark
+                                      ? Colors.white
+                                      : const Color(0xFF1E293B)),
+                            fontSize: isComingSoon ? 13 : 20,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
+                        if (!isComingSoon)
+                          _fittedSingleLineText(
+                            _durationSuffixLabel(_selectedMonths),
+                            alignment: Alignment.centerRight,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        if (isComingSoon && isSelected)
+                          _fittedSingleLineText(
+                            'Not in store yet',
+                            alignment: Alignment.centerRight,
+                            maxLines: 2,
+                            style: TextStyle(
+                              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ],
             ),
@@ -1202,7 +1258,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: (isSelected || isCurrentTier)
                           ? glowColor
@@ -1210,15 +1269,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Center(
-                      child: Text(
+                      child: _fittedSingleLineText(
                         label,
                         style: TextStyle(
                           color: (isSelected || isCurrentTier)
                               ? Colors.white
                               : glowColor,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
@@ -1279,16 +1338,18 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     }
 
     final glowColor = _getGlowForSelectedPackage();
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final useStackedBar = screenWidth < 380;
 
     return ClipRRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
           padding: EdgeInsets.fromLTRB(
-            24,
             16,
-            24,
-            MediaQuery.of(context).padding.bottom + 16,
+            14,
+            16,
+            MediaQuery.of(context).padding.bottom + 14,
           ),
           decoration: BoxDecoration(
             color: (isDark ? const Color(0xFF0F172A) : Colors.white)
@@ -1299,67 +1360,133 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           ),
           child: SafeArea(
             top: false,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            child: useStackedBar
+                ? Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        '$name · $durationText',
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.white70
-                              : const Color(0xFF64748B),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                      _buildPurchaseBarSummary(
+                        isDark: isDark,
+                        name: name,
+                        durationText: durationText,
+                        isComingSoon: isComingSoon,
+                        pkg: pkg,
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: (isComingSoon || _isPurchasing)
+                              ? null
+                              : _purchasePackage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: glowColor,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 8,
+                            shadowColor: glowColor.withOpacity(0.3),
+                          ),
+                          child: Text(
+                            buttonLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
-                        style: TextStyle(
-                          color: isDark
-                              ? Colors.white
-                              : const Color(0xFF1E293B),
-                          fontSize: isComingSoon ? 18 : 24,
-                          fontWeight: FontWeight.w900,
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _buildPurchaseBarSummary(
+                          isDark: isDark,
+                          name: name,
+                          durationText: durationText,
+                          isComingSoon: isComingSoon,
+                          pkg: pkg,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: ElevatedButton(
+                          onPressed: (isComingSoon || _isPurchasing)
+                              ? null
+                              : _purchasePackage,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: glowColor,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 8,
+                            shadowColor: glowColor.withOpacity(0.3),
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              buttonLabel,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                ElevatedButton(
-                  onPressed: (isComingSoon || _isPurchasing) ? null : _purchasePackage,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: glowColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 8,
-                    shadowColor: glowColor.withOpacity(0.3),
-                  ),
-                  child: Text(
-                    buttonLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
     ).animate().slideY(begin: 1, duration: 400.ms, curve: Curves.easeOutCubic);
+  }
+
+  Widget _buildPurchaseBarSummary({
+    required bool isDark,
+    required String name,
+    required String durationText,
+    required bool isComingSoon,
+    required Map<String, dynamic> pkg,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$name · $durationText',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: isDark ? Colors.white70 : const Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        _fittedSingleLineText(
+          isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
+          alignment: Alignment.centerLeft,
+          style: TextStyle(
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            fontSize: isComingSoon ? 18 : 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildLegalFooter(bool isDark) {

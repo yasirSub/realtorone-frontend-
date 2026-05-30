@@ -11,6 +11,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import '../../utils/responsive_helper.dart';
+import '../../utils/phone_utils.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -25,18 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _showCompletenessLabel = true;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   String _verificationDialCode = '+971';
-
-  static const List<Map<String, String>> _countryPhoneOptions = [
-    {'label': 'AE (+971)', 'code': '+971'},
-    {'label': 'IN (+91)', 'code': '+91'},
-    {'label': 'US (+1)', 'code': '+1'},
-    {'label': 'UK (+44)', 'code': '+44'},
-    {'label': 'SA (+966)', 'code': '+966'},
-    {'label': 'QA (+974)', 'code': '+974'},
-    {'label': 'KW (+965)', 'code': '+965'},
-    {'label': 'BH (+973)', 'code': '+973'},
-    {'label': 'OM (+968)', 'code': '+968'},
-  ];
 
   @override
   void initState() {
@@ -877,7 +866,18 @@ class _ProfilePageState extends State<ProfilePage> {
       final response = await UserApi.sendEmailOtp(email);
       setState(() => _isLoading = false);
 
-      if (response['status'] == 'ok' || response['success'] == true) {
+      if (response['status'] == 'ok' ||
+          response['success'] == true ||
+          response['already_verified'] == true) {
+        if (response['already_verified'] == true) {
+          _showSnackBar('Email is already verified.', Colors.green);
+          await _loadUserData();
+          return;
+        }
+        _showSnackBar(
+          'Verification email sent. Check your inbox and spam folder.',
+          Colors.green,
+        );
         _showOtpVerifyDialog(email: email, isEmail: true);
       } else {
         final message = response['mail_configured'] == false
@@ -896,9 +896,10 @@ class _ProfilePageState extends State<ProfilePage> {
     if (email == null || email.isEmpty) return;
 
     final existingPhone = (_userData?['mobile']?.toString() ?? '').trim();
-    final initialPhone = _extractPhoneLocalDigits(existingPhone);
+    final initialPhone = PhoneUtils.parseStored(existingPhone).localDigits;
     final phoneController = TextEditingController(text: initialPhone);
-    _verificationDialCode = _detectDialCode(existingPhone);
+    final parsed = PhoneUtils.parseStored(existingPhone);
+    _verificationDialCode = parsed.dialCode;
 
     final newPhone = await RealtorOneDialogScaffold.show<String>(
       context: context,
@@ -921,15 +922,19 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final digits = _digitsOnly(phoneController.text);
-                    if (digits.length < 7 || digits.length > 15) {
-                      _showSnackBar(
-                        'Enter a valid phone number with country code',
-                        Colors.red,
-                      );
+                    final e164 = PhoneUtils.composeE164(
+                      _verificationDialCode,
+                      phoneController.text,
+                    );
+                    final phoneError = PhoneUtils.validateLocalDigits(
+                      phoneController.text,
+                      dialCode: _verificationDialCode,
+                    );
+                    if (phoneError != null) {
+                      _showSnackBar(phoneError, Colors.red);
                       return;
                     }
-                    Navigator.pop(dCtx, '$_verificationDialCode$digits');
+                    Navigator.pop(dCtx, e164);
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF667eea),
@@ -963,7 +968,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          items: _countryPhoneOptions
+                          items: PhoneUtils.countryOptions
                               .map(
                                 (item) => DropdownMenuItem<String>(
                                   value: item['code'],
@@ -991,6 +996,14 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: TextField(
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(
+                              PhoneUtils.maxInputLengthFor(
+                                _verificationDialCode,
+                              ),
+                            ),
+                          ],
                           style: TextStyle(
                             color: isDark
                                 ? Colors.white
@@ -1075,28 +1088,6 @@ class _ProfilePageState extends State<ProfilePage> {
         Colors.red,
       );
     }
-  }
-
-  String _digitsOnly(String raw) => raw.replaceAll(RegExp(r'\D'), '');
-
-  String _detectDialCode(String rawPhone) {
-    final value = rawPhone.trim();
-    if (value.isEmpty) return _verificationDialCode;
-    final matched = _countryPhoneOptions.firstWhere(
-      (item) => value.startsWith(item['code']!),
-      orElse: () => {'label': 'AE (+971)', 'code': '+971'},
-    );
-    return matched['code']!;
-  }
-
-  String _extractPhoneLocalDigits(String rawPhone) {
-    final value = rawPhone.trim();
-    if (value.isEmpty) return '';
-    final code = _detectDialCode(value);
-    if (value.startsWith(code)) {
-      return _digitsOnly(value.substring(code.length));
-    }
-    return _digitsOnly(value);
   }
 
   void _showSnackBar(String message, Color backgroundColor) {

@@ -140,6 +140,14 @@ class IapService {
     return products.any((p) => candidates.contains(p.id));
   }
 
+  ProductDetails? findProductForTier(String tierName, int months) {
+    final candidates = getProductIdCandidates(tierName, months);
+    for (final p in products) {
+      if (candidates.contains(p.id)) return p;
+    }
+    return null;
+  }
+
   Set<String> get lastNotFoundIds => Set.unmodifiable(_lastNotFoundIds);
 
   Future<void> buyByTier(String tierName, int months, int packageId) async {

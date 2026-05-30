@@ -70,28 +70,42 @@ class _ReportsPageState extends State<ReportsPage>
         final labels = response['labels'];
         final data = response['data'];
         setState(() {
-          _labels = labels is List ? List<String>.from(labels.map((e) => e.toString())) : [];
-          _data = data is List ? List<int>.from(data.map((e) => int.tryParse('$e') ?? 0)) : [];
-          _growthScore = int.tryParse(
+          _labels = labels is List
+              ? List<String>.from(labels.map((e) => e.toString()))
+              : [];
+          _data = data is List
+              ? List<int>.from(data.map((e) => int.tryParse('$e') ?? 0))
+              : [];
+          _growthScore =
+              int.tryParse(
                 '${response['growth_potential'] ?? response['growth_score'] ?? 0}',
               ) ??
               0;
-          _executionRate = int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
+          _executionRate =
+              int.tryParse('${response['execution_rate'] ?? 0}') ?? 0;
           _beliefScore = int.tryParse('${response['belief_score'] ?? 0}') ?? 0;
           _focusScore = int.tryParse('${response['focus_score'] ?? 0}') ?? 0;
-          _beliefTasksDone = int.tryParse('${response['belief_tasks_done'] ?? 0}') ?? 0;
-          _beliefTasksTotal = int.tryParse('${response['belief_tasks_total'] ?? 0}') ?? 0;
+          _beliefTasksDone =
+              int.tryParse('${response['belief_tasks_done'] ?? 0}') ?? 0;
+          _beliefTasksTotal =
+              int.tryParse('${response['belief_tasks_total'] ?? 0}') ?? 0;
           _beliefPointsPerTask =
-              double.tryParse('${response['belief_points_per_task'] ?? 11.1}') ?? 11.1;
+              double.tryParse(
+                '${response['belief_points_per_task'] ?? 11.1}',
+              ) ??
+              11.1;
           _beliefErContribution =
-              double.tryParse('${response['belief_er_contribution'] ?? 0}') ?? 0;
+              double.tryParse('${response['belief_er_contribution'] ?? 0}') ??
+              0;
           _beliefGpContribution =
-              double.tryParse('${response['belief_gp_contribution'] ?? 0}') ?? 0;
+              double.tryParse('${response['belief_gp_contribution'] ?? 0}') ??
+              0;
           _focusErContribution =
               double.tryParse('${response['focus_er_contribution'] ?? 0}') ?? 0;
           _focusGpContribution =
               double.tryParse('${response['focus_gp_contribution'] ?? 0}') ?? 0;
-          _focusClientCount = int.tryParse(
+          _focusClientCount =
+              int.tryParse(
                 '${(response['focus_pillar'] as Map?)?['client_count'] ?? 0}',
               ) ??
               0;
@@ -102,7 +116,9 @@ class _ReportsPageState extends State<ReportsPage>
         });
       } else {
         setState(() {
-          _errorMessage = response['message']?.toString() ?? 'Could not load performance report.';
+          _errorMessage =
+              response['message']?.toString() ??
+              'Could not load performance report.';
         });
       }
     } catch (e) {
@@ -327,8 +343,9 @@ class _ReportsPageState extends State<ReportsPage>
                         indicatorSize: TabBarIndicatorSize.tab,
                         dividerColor: Colors.transparent,
                         labelColor: Colors.white,
-                        unselectedLabelColor:
-                            isDark ? Colors.white54 : const Color(0xFF64748B),
+                        unselectedLabelColor: isDark
+                            ? Colors.white54
+                            : const Color(0xFF64748B),
                         labelStyle: const TextStyle(
                           fontWeight: FontWeight.w900,
                           fontSize: 12,
@@ -589,8 +606,18 @@ class _ReportsPageState extends State<ReportsPage>
               color,
               isDark,
             ),
-            _statChip('→ ER', '${_beliefErContribution.toStringAsFixed(1)}', color, isDark),
-            _statChip('→ GP', '+${_beliefGpContribution.toStringAsFixed(1)}', color, isDark),
+            _statChip(
+              '→ ER',
+              _beliefErContribution.toStringAsFixed(1),
+              color,
+              isDark,
+            ),
+            _statChip(
+              '→ GP',
+              '+${_beliefGpContribution.toStringAsFixed(1)}',
+              color,
+              isDark,
+            ),
           ],
         ),
         if (_beliefBreakdown.isEmpty)
@@ -600,7 +627,9 @@ class _ReportsPageState extends State<ReportsPage>
             final name = '${item['name'] ?? 'Task'}';
             final count = int.tryParse('${item['count'] ?? 0}') ?? 0;
             final pts =
-                double.tryParse('${item['points_per_task'] ?? _beliefPointsPerTask}') ??
+                double.tryParse(
+                  '${item['points_per_task'] ?? _beliefPointsPerTask}',
+                ) ??
                 _beliefPointsPerTask;
             final section = '${item['section_title'] ?? ''}'.trim();
 
@@ -633,8 +662,18 @@ class _ReportsPageState extends State<ReportsPage>
           color: color,
           stats: [
             _statChip('Clients', '$_focusClientCount active', color, isDark),
-            _statChip('→ ER', '${_focusErContribution.toStringAsFixed(1)}', color, isDark),
-            _statChip('→ GP', '+${_focusGpContribution.toStringAsFixed(1)}', color, isDark),
+            _statChip(
+              '→ ER',
+              _focusErContribution.toStringAsFixed(1),
+              color,
+              isDark,
+            ),
+            _statChip(
+              '→ GP',
+              '+${_focusGpContribution.toStringAsFixed(1)}',
+              color,
+              isDark,
+            ),
           ],
         ),
         Text(
@@ -655,7 +694,8 @@ class _ReportsPageState extends State<ReportsPage>
             final label = '${item['label'] ?? key}';
             final count = int.tryParse('${item['count'] ?? 0}') ?? 0;
             final pts = int.tryParse('${item['points_per_client'] ?? 0}') ?? 0;
-            final icon = _focusActivityIcons[key] ?? Icons.track_changes_rounded;
+            final icon =
+                _focusActivityIcons[key] ?? Icons.track_changes_rounded;
 
             return _breakdownRow(
               isDark: isDark,
@@ -780,7 +820,9 @@ class _ReportsPageState extends State<ReportsPage>
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                        color: isDark
+                            ? Colors.white38
+                            : const Color(0xFF94A3B8),
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),

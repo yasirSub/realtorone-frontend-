@@ -16,6 +16,11 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiClient.beforeClearToken = PushNotificationService.unregisterBackendToken;
+  ApiClient.onSessionExpired = () async {
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+  };
   final firebaseOk = await PushNotificationService.initializeApp();
   if (firebaseOk) {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);

@@ -9,6 +9,8 @@ import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/email_otp_verification_dialog.dart';
+import '../../utils/phone_utils.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,18 +21,26 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final _identifierController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _usePhone = false;
+  String _selectedDialCode = '+971';
   String? _errorMessage;
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
+
+  String _loginIdentifier() => _usePhone
+      ? PhoneUtils.composeE164(_selectedDialCode, _phoneController.text)
+      : _emailController.text.trim().toLowerCase();
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -42,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await AuthApi.login(
-        _identifierController.text.trim(),
+        _loginIdentifier(),
         _passwordController.text,
       );
 
@@ -58,6 +68,14 @@ class _LoginPageState extends State<LoginPage> {
 
         // Clear cache to ensure fresh data for the new session
         await ApiClient.clearCache();
+
+        if (response['email_verification_required'] == true && mounted) {
+          final userEmail =
+              response['user']?['email']?.toString() ?? _loginIdentifier();
+          if (userEmail.contains('@')) {
+            await EmailOtpVerificationDialog.show(context, userEmail);
+          }
+        }
 
         final profile = await ApiClient.get(
           '/user/profile',
@@ -312,7 +330,8 @@ class _LoginPageState extends State<LoginPage> {
     return ElevatedButton(
       onPressed: () {
         Navigator.pop(context);
-        _identifierController.text = email;
+        _usePhone = false;
+        _emailController.text = email;
         _passwordController.text = password;
         _handleLogin();
       },
@@ -451,22 +470,32 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ).animate().shake(),
 
-                      _buildTextField(
-                        controller: _identifierController,
-                        label: 'EMAIL OR PHONE NUMBER',
-                        hint: 'agent@example.com or +919876543210',
-                        icon: Icons.alternate_email_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          final value = (v ?? '').trim();
-                          if (value.isEmpty) return 'Required';
-                          if (value.contains('@')) {
-                            return value.contains('.') ? null : 'Valid email required';
-                          }
-                          final digits = value.replaceAll(RegExp(r'\D'), '');
-                          return digits.length >= 7 ? null : 'Valid phone required';
-                        },
-                      ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.05),
+                      _buildLoginModeSelector()
+                          .animate()
+                          .fadeIn(delay: 550.ms)
+                          .slideX(begin: 0.05),
+                      const SizedBox(height: 16),
+                      if (_usePhone)
+                        _buildLoginPhoneField()
+                            .animate()
+                            .fadeIn(delay: 600.ms)
+                            .slideX(begin: -0.05)
+                      else
+                        _buildTextField(
+                          controller: _emailController,
+                          label: 'EMAIL ADDRESS',
+                          hint: 'agent@example.com',
+                          icon: Icons.alternate_email_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) {
+                            final value = (v ?? '').trim();
+                            if (value.isEmpty) return 'Required';
+                            if (!value.contains('@') || !value.contains('.')) {
+                              return 'Valid email required';
+                            }
+                            return null;
+                          },
+                        ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.05),
 
                       const SizedBox(height: 20),
 
@@ -491,7 +520,7 @@ class _LoginPageState extends State<LoginPage> {
                           onPressed: () => Navigator.pushNamed(
                             context,
                             AppRoutes.forgotPassword,
-                            arguments: _identifierController.text.trim(),
+                            arguments: _loginIdentifier(),
                           ),
                           child: const Text(
                             'Forgot Password?',
@@ -621,6 +650,157 @@ class _LoginPageState extends State<LoginPage> {
 
         ],
       ),
+    );
+  }
+
+  Widget _buildLoginModeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _usePhone = false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: !_usePhone
+                      ? const Color(0xFF667eea)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Email',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: !_usePhone ? Colors.white : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _usePhone = true),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _usePhone
+                      ? const Color(0xFF667eea)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  'Phone',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: _usePhone ? Colors.white : const Color(0xFF475569),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'PHONE NUMBER',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 128,
+              child: DropdownButtonFormField<String>(
+                value: _selectedDialCode,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                items: PhoneUtils.countryOptions
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item['code'],
+                        child: Text(
+                          item['label']!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _selectedDialCode = v);
+                  _formKey.currentState?.validate();
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
+                  ),
+                ],
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Phone number',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+                  ),
+                ),
+                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

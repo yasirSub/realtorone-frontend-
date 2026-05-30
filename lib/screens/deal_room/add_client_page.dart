@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
+import '../../utils/phone_utils.dart';
 
 class AddClientPage extends StatefulWidget {
   final Map<String, dynamic>? client;
@@ -72,12 +73,27 @@ class _AddClientPageState extends State<AddClientPage> {
     final name = _clientNameController.text.trim();
     if (name.isEmpty) return;
 
+    final phoneRaw = _phoneController.text.trim();
+    String? normalizedPhone;
+    if (phoneRaw.isNotEmpty) {
+      normalizedPhone = PhoneUtils.normalizeFreeform(phoneRaw);
+      if (!PhoneUtils.isValidE164(normalizedPhone)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enter a valid phone number with country code (e.g. +971501234567)',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSaving = true);
     try {
       final notes = jsonEncode({
-        'phone': _phoneController.text.trim().isEmpty
-            ? null
-            : _phoneController.text.trim(),
+        'phone': normalizedPhone,
         'email': _emailController.text.trim().isEmpty
             ? null
             : _emailController.text.trim(),

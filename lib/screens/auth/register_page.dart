@@ -9,6 +9,8 @@ import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/email_otp_verification_dialog.dart';
+import '../../utils/phone_utils.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,21 +22,28 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _identifierController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _usePhone = false;
+  String _selectedDialCode = '+971';
   String? _errorMessage;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _identifierController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
+
+  String _composePhoneE164() =>
+      PhoneUtils.composeE164(_selectedDialCode, _phoneController.text);
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
@@ -45,10 +54,14 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
+      final email = _usePhone ? null : _emailController.text.trim().toLowerCase();
+      final mobile = _usePhone ? _composePhoneE164() : null;
+
       final response = await AuthApi.register(
-        _nameController.text.trim(),
-        _identifierController.text.trim(),
-        _passwordController.text,
+        name: _nameController.text.trim(),
+        password: _passwordController.text,
+        email: email,
+        mobile: mobile,
       );
 
       if (!mounted) return;
@@ -72,7 +85,7 @@ class _RegisterPageState extends State<RegisterPage> {
         final token = await ApiClient.getToken();
         if (token == null) {
           final loginResponse = await AuthApi.login(
-            _identifierController.text.trim(),
+            _usePhone ? mobile! : email!,
             _passwordController.text,
           );
           if (loginResponse['status'] != 'ok' ||
@@ -87,25 +100,34 @@ class _RegisterPageState extends State<RegisterPage> {
           }
         }
 
+        if (mounted && !_usePhone && email != null) {
+          final needsVerify = response['email_verification_required'] == true;
+          if (needsVerify && !otpSendFailed) {
+            await EmailOtpVerificationDialog.show(context, email);
+          }
+        }
+
         if (mounted) {
           Navigator.pushReplacementNamed(
             context,
             AppRoutes.profileSetup,
             arguments: {
               'name': _nameController.text.trim(),
-              'email': AuthApi.isEmailIdentifier(_identifierController.text.trim())
-                  ? _identifierController.text.trim()
-                  : null,
-              'mobile': !AuthApi.isEmailIdentifier(_identifierController.text.trim())
-                  ? _identifierController.text.trim()
-                  : null,
+              'email': _usePhone ? null : email,
+              'mobile': _usePhone ? mobile : null,
             },
           );
         }
       } else {
-        setState(
-          () => _errorMessage = response['message'] ?? 'Registration failed.',
-        );
+        final field = response['field']?.toString();
+        setState(() {
+          _errorMessage = response['message'] ?? 'Registration failed.';
+          if (field == 'email') {
+            _usePhone = false;
+          } else if (field == 'mobile') {
+            _usePhone = true;
+          }
+        });
       }
     } catch (e) {
       setState(
@@ -365,22 +387,21 @@ class _RegisterPageState extends State<RegisterPage> {
 
                         const SizedBox(height: 20),
 
-                        _buildTextField(
-                          controller: _identifierController,
-                          label: 'EMAIL OR PHONE NUMBER',
-                          hint: 'agent@example.com or +919876543210',
-                          icon: Icons.alternate_email_rounded,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (v) {
-                            final value = (v ?? '').trim();
-                            if (value.isEmpty) return 'Required';
-                            if (value.contains('@')) {
-                              return value.contains('.') ? null : 'Invalid email';
-                            }
-                            final digits = value.replaceAll(RegExp(r'\D'), '');
-                            return digits.length >= 7 ? null : 'Invalid phone';
-                          },
-                        ).animate().fadeIn(delay: 600.ms).slideX(begin: 0.05),
+                        _buildModeSelector()
+                            .animate()
+                            .fadeIn(delay: 550.ms)
+                            .slideX(begin: 0.05),
+                        const SizedBox(height: 16),
+                        if (_usePhone)
+                          _buildPhoneField()
+                              .animate()
+                              .fadeIn(delay: 600.ms)
+                              .slideX(begin: 0.05)
+                        else
+                          _buildEmailField()
+                              .animate()
+                              .fadeIn(delay: 600.ms)
+                              .slideX(begin: 0.05),
 
                         const SizedBox(height: 20),
 
@@ -515,6 +536,212 @@ class _RegisterPageState extends State<RegisterPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildModeSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _modeChip(
+              title: 'Email',
+              selected: !_usePhone,
+              onTap: () => setState(() {
+                _usePhone = false;
+                _errorMessage = null;
+              }),
+            ),
+          ),
+          Expanded(
+            child: _modeChip(
+              title: 'Phone',
+              selected: _usePhone,
+              onTap: () => setState(() {
+                _usePhone = true;
+                _errorMessage = null;
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeChip({
+    required String title,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF667eea) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: selected ? Colors.white : const Color(0xFF475569),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmailField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'EMAIL ADDRESS',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          decoration: InputDecoration(
+            hintText: 'agent@example.com',
+            prefixIcon: const Icon(
+              Icons.email_outlined,
+              color: Color(0xFF667eea),
+            ),
+            filled: true,
+            fillColor: Colors.grey[50],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+            ),
+          ),
+          validator: (v) {
+            final value = (v ?? '').trim();
+            if (value.isEmpty) return 'Required';
+            if (!value.contains('@') || !value.contains('.')) {
+              return 'Invalid email';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'PHONE NUMBER',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF64748B),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 128,
+              child: DropdownButtonFormField<String>(
+                value: _selectedDialCode,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                items: PhoneUtils.countryOptions
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item['code'],
+                        child: Text(
+                          item['label']!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _selectedDialCode = v);
+                  _formKey.currentState?.validate();
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
+                  ),
+                ],
+                decoration: InputDecoration(
+                  hintText: 'Phone number',
+                  prefixIcon: const Icon(
+                    Icons.phone_android_rounded,
+                    color: Color(0xFF667eea),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
+                  ),
+                ),
+                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

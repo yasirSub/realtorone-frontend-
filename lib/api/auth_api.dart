@@ -23,22 +23,27 @@ class AuthApi {
     return response;
   }
 
-  static Future<Map<String, dynamic>> register(
-    String name,
-    String identifier,
-    String password,
-  ) async {
-    final cleaned = identifier.trim();
+  static Future<Map<String, dynamic>> register({
+    required String name,
+    required String password,
+    String? email,
+    String? mobile,
+  }) async {
+    final normalizedEmail = email?.trim().toLowerCase();
+    final normalizedMobile = mobile?.trim();
     final response = await ApiClient.post(ApiEndpoints.register, {
-      'name': name,
-      if (isEmailIdentifier(cleaned)) 'email': cleaned,
-      if (!isEmailIdentifier(cleaned)) 'mobile': cleaned,
+      'name': name.trim(),
+      if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+        'email': normalizedEmail,
+      if (normalizedMobile != null && normalizedMobile.isNotEmpty)
+        'mobile': normalizedMobile,
       'password': password,
     });
 
-    // Save token if registration successful and token provided
-    if (response['status'] == 'ok' && response['token'] != null) {
-      await ApiClient.setToken(response['token']);
+    // Save token when register returns one (success or OTP send failed but account created)
+    final token = response['token']?.toString();
+    if (token != null && token.isNotEmpty) {
+      await ApiClient.setToken(token);
     }
 
     return response;

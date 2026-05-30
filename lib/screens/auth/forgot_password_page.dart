@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/auth_api.dart';
+import '../../utils/phone_utils.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 
@@ -23,18 +25,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   bool _usePhone = false;
   String _selectedDialCode = '+971';
 
-  static const List<Map<String, String>> _countryPhoneOptions = [
-    {'label': 'AE (+971)', 'code': '+971'},
-    {'label': 'IN (+91)', 'code': '+91'},
-    {'label': 'US (+1)', 'code': '+1'},
-    {'label': 'UK (+44)', 'code': '+44'},
-    {'label': 'SA (+966)', 'code': '+966'},
-    {'label': 'QA (+974)', 'code': '+974'},
-    {'label': 'KW (+965)', 'code': '+965'},
-    {'label': 'BH (+973)', 'code': '+973'},
-    {'label': 'OM (+968)', 'code': '+968'},
-  ];
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -44,7 +34,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         if (args.contains('@')) {
           _emailController.text = args;
         } else {
-          _phoneController.text = _digitsOnly(args);
+          final parsed = PhoneUtils.parseStored(args);
+          _selectedDialCode = parsed.dialCode;
+          _phoneController.text = parsed.localDigits;
           _usePhone = true;
         }
       }
@@ -69,7 +61,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     debugPrint('----------------------------------------------');
     final identifier = _usePhone
-        ? '$_selectedDialCode${_digitsOnly(_phoneController.text)}'
+        ? PhoneUtils.composeE164(_selectedDialCode, _phoneController.text)
         : _emailController.text.trim();
     debugPrint('[FORGOT PASSWORD] Attempting for: $identifier');
     try {
@@ -361,7 +353,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                 ),
-                items: _countryPhoneOptions
+                items: PhoneUtils.countryOptions
                     .map(
                       (item) => DropdownMenuItem<String>(
                         value: item['code'],
@@ -372,6 +364,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 onChanged: (v) {
                   if (v == null) return;
                   setState(() => _selectedDialCode = v);
+                  _formKey.currentState?.validate();
                 },
               ),
             ),
@@ -380,6 +373,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               child: TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(
+                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
+                  ),
+                ],
                 decoration: InputDecoration(
                   hintText: 'Enter phone number',
                   prefixIcon: const Icon(
@@ -397,14 +396,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                 ),
-                validator: (v) {
-                  final digits = _digitsOnly(v ?? '');
-                  if (digits.isEmpty) return 'Required';
-                  if (digits.length < 7 || digits.length > 15) {
-                    return 'Invalid phone';
-                  }
-                  return null;
-                },
+                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
               ),
             ),
           ],
@@ -412,8 +404,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       ],
     );
   }
-
-  String _digitsOnly(String raw) => raw.replaceAll(RegExp(r'\D'), '');
 
   Widget _buildErrorBox(String message) {
     return Container(

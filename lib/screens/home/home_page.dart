@@ -28,6 +28,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  String? _homeBannerMessage;
   int _todayTotal = 0;
   int _todayDone = 0;
   int _hotLeads = 0;
@@ -43,18 +44,33 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final response = await ApiClient.get('/user/profile', requiresAuth: true);
-      final tasksRes = await ApiClient.get('/tasks/today', requiresAuth: true);
-      final hotLeadRes = await ApiClient.get(
-        '/results?type=hot_lead',
-        requiresAuth: true,
-      );
+      final results = await Future.wait([
+        ApiClient.get('/user/profile', requiresAuth: true),
+        ApiClient.get('/tasks/today', requiresAuth: true),
+        ApiClient.get('/results?type=hot_lead', requiresAuth: true),
+        ApiClient.getPublic('/app-config'),
+      ]);
+
+      final response = results[0];
+      final tasksRes = results[1];
+      final hotLeadRes = results[2];
+      final configRes = results[3];
+
+      String? bannerMessage;
+      final configData = configRes['data'];
+      if (configData is Map && configData['home_banner_enabled'] == true) {
+        final raw = configData['home_banner_message']?.toString().trim();
+        if (raw != null && raw.isNotEmpty) {
+          bannerMessage = raw;
+        }
+      }
 
       if (mounted) {
         setState(() {
           if (response['success'] == true) {
             _userData = response['data'];
           }
+          _homeBannerMessage = bannerMessage;
           _applyTaskStats(tasksRes);
           _applyPipelineStats(hotLeadRes);
         });
@@ -528,13 +544,19 @@ class _HomePageState extends State<HomePage> {
                                     .slideY(begin: 0.1),
                                 const SizedBox(height: 10),
                                 Text(
-                                      l10n.homePerformanceReady,
+                                      _homeBannerMessage ??
+                                          l10n.homePerformanceReady,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: Colors.white.withValues(
-                                          alpha: 0.72,
+                                          alpha: _homeBannerMessage != null
+                                              ? 0.9
+                                              : 0.72,
                                         ),
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
+                                        height: 1.35,
                                       ),
                                     )
                                     .animate()

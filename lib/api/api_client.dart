@@ -8,6 +8,10 @@ import 'api_endpoints.dart';
 
 class ApiClient {
   static String? _token;
+
+  /// Called when an authenticated request returns 401 (session expired / logged out).
+  static Future<void> Function()? onSessionExpired;
+  static bool _handlingSessionExpiry = false;
   static const Set<String> _preservedLocalKeys = {
     'hasSeenOnboarding',
     'hasSeenAppTourV2',
@@ -117,7 +121,10 @@ class ApiClient {
           )
           .timeout(const Duration(seconds: 30));
 
-      final data = _handleResponse(response);
+      final data = _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+      );
 
       // Save to cache if successful
       if (useCache && data['status'] != 'error') {
@@ -222,7 +229,7 @@ class ApiClient {
       request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
       final streamed = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamed);
-      return _handleResponse(response);
+      return _handleResponse(response, sessionRequired: requiresAuth);
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -245,7 +252,7 @@ class ApiClient {
             body: jsonEncode(data),
           )
           .timeout(timeout ?? const Duration(seconds: 30));
-      return _handleResponse(response);
+      return _handleResponse(response, sessionRequired: requiresAuth);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -265,7 +272,7 @@ class ApiClient {
         headers: headers,
         body: jsonEncode(data),
       );
-      return _handleResponse(response);
+      return _handleResponse(response, sessionRequired: requiresAuth);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -285,7 +292,7 @@ class ApiClient {
         headers: headers,
         body: jsonEncode(data),
       );
-      return _handleResponse(response);
+      return _handleResponse(response, sessionRequired: requiresAuth);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -303,14 +310,20 @@ class ApiClient {
         Uri.parse(url),
         headers: headers,
       );
-      return _handleResponse(response);
+      return _handleResponse(response, sessionRequired: requiresAuth);
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
   }
 
   // Handle API response
-  static Map<String, dynamic> _handleResponse(http.Response response) {
+  static Map<String, dynamic> _handleResponse(
+    http.Response response, {
+    bool sessionRequired = false,
+  }) {
+    if (sessionRequired && response.statusCode == 401) {
+      _triggerSessionExpired();
+    }
     try {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
@@ -324,5 +337,21 @@ class ApiClient {
         'statusCode': response.statusCode,
       };
     }
+  }
+
+  static void _triggerSessionExpired() {
+    if (_handlingSessionExpiry) return;
+    _handlingSessionExpiry = true;
+    Future<void>(() async {
+      try {
+        final hadToken = await getToken();
+        if (hadToken != null) {
+          await clearLocalSessionData();
+        }
+        await onSessionExpired?.call();
+      } finally {
+        _handlingSessionExpiry = false;
+      }
+    });
   }
 }

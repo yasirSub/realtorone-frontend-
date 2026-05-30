@@ -210,16 +210,23 @@ class UserApi {
   static Future<Map<String, dynamic>> sendEmailOtp(String email) async {
     return await ApiClient.post(
       ApiEndpoints.sendEmailOtp,
-      {'email': email},
+      {'email': email.trim().toLowerCase()},
       requiresAuth: true,
     );
   }
 
-  static Future<Map<String, dynamic>> verifyEmailOtp(String email, String token) async {
+  static Future<Map<String, dynamic>> verifyEmailOtp(
+    String email,
+    String token, {
+    bool requiresAuth = true,
+  }) async {
     final result = await ApiClient.post(
       ApiEndpoints.verifyEmailOtp,
-      {'email': email, 'token': token},
-      requiresAuth: true,
+      {
+        'email': email.trim().toLowerCase(),
+        'token': token,
+      },
+      requiresAuth: requiresAuth,
     );
     if (result['status'] == 'ok' || result['success'] == true) {
       await ApiClient.clearCache();

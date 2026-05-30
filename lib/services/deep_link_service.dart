@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import '../api/user_api.dart';
 import '../routes/app_routes.dart';
 
 class DeepLinkService {
@@ -64,13 +65,60 @@ class DeepLinkService {
     } else if (normalizedPath == '/verify-otp' ||
         normalizedPath == '/verify-otp/') {
       final email = queryParams['email'];
-      
+
       navigatorKey.currentState?.pushNamed(
         AppRoutes.verifyOtp,
         arguments: email,
       );
+    } else if (normalizedPath == '/verify-email' ||
+        normalizedPath == '/verify-email/' ||
+        normalizedPath == '/email/verify' ||
+        normalizedPath == '/email/verify/') {
+      _handleEmailVerificationLink(queryParams, navigatorKey);
     } else if (normalizedPath == '/login' || normalizedPath == '/login/') {
       navigatorKey.currentState?.pushNamed(AppRoutes.login);
+    }
+  }
+
+  static Future<void> _handleEmailVerificationLink(
+    Map<String, String> queryParams,
+    GlobalKey<NavigatorState> navigatorKey,
+  ) async {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    if (queryParams['verified'] == '1') {
+      navigator.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
+      return;
+    }
+
+    final email = queryParams['email']?.trim() ?? '';
+    final token = queryParams['token']?.trim() ?? '';
+    if (email.isEmpty || token.isEmpty) {
+      navigator.pushNamed(AppRoutes.login);
+      return;
+    }
+
+    try {
+      final result = await UserApi.verifyEmailOtp(
+        email,
+        token,
+        requiresAuth: false,
+      );
+      if (result['status'] == 'ok' || result['success'] == true) {
+        navigator.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
+      } else {
+        navigator.pushNamed(
+          AppRoutes.verifyOtp,
+          arguments: email,
+        );
+      }
+    } catch (e) {
+      debugPrint('Email verify deep link error: $e');
+      navigator.pushNamed(
+        AppRoutes.verifyOtp,
+        arguments: email,
+      );
     }
   }
 

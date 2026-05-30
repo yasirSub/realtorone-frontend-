@@ -36,8 +36,8 @@ class SubscriptionApi {
       'package_id': packageId,
       'months': months,
       'payment_id': paymentId,
-      if (productId != null) 'product_id': productId,
-      if (platform != null) 'platform': platform,
+      'product_id': ?productId,
+      'platform': ?platform,
       ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
@@ -56,8 +56,8 @@ class SubscriptionApi {
       'months': months,
       'payment_id': paymentId,
       if (receipt != null && receipt.isNotEmpty) 'receipt': receipt,
-      if (productId != null) 'product_id': productId,
-      if (platform != null) 'platform': platform,
+      'product_id': ?productId,
+      'platform': ?platform,
     }, requiresAuth: true);
   }
 }
