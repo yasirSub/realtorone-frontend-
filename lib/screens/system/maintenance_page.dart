@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
+import '../../services/support_contact_service.dart';
 
 class MaintenancePage extends StatelessWidget {
-  const MaintenancePage({super.key, required this.message});
+  const MaintenancePage({
+    super.key,
+    required this.message,
+    this.contact = SupportContact.defaults,
+  });
 
   final String message;
+  final SupportContact contact;
+
+  Future<void> _launch(Uri uri) async {
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      debugPrint('Could not launch $uri');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +41,6 @@ class MaintenancePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Spacer(),
-                  // Animated Illustration or Icon
                   Container(
                         padding: const EdgeInsets.all(28),
                         decoration: BoxDecoration(
@@ -110,7 +123,65 @@ class MaintenancePage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  if (contact.hasAny) ...[
+                    const SizedBox(height: 24),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Contact support',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (contact.email.isNotEmpty)
+                            _ContactRow(
+                              icon: Icons.mail_outline_rounded,
+                              label: contact.email,
+                              onTap: () => _launch(
+                                Uri(scheme: 'mailto', path: contact.email),
+                              ),
+                            ),
+                          if (contact.phone.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            _ContactRow(
+                              icon: Icons.phone_outlined,
+                              label: contact.phone,
+                              onTap: () {
+                                final digits = contact.phone.replaceAll(
+                                  RegExp(r'[^\d+]'),
+                                  '',
+                                );
+                                _launch(Uri(scheme: 'tel', path: digits));
+                              },
+                            ),
+                          ],
+                          if (contact.contactUrl.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            _ContactRow(
+                              icon: Icons.language_rounded,
+                              label: 'Visit support page',
+                              onTap: () => _launch(Uri.parse(contact.contactUrl)),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 32),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(
@@ -159,6 +230,47 @@ class MaintenancePage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  const _ContactRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: const Color(0xFF818CF8)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFFCBD5F1),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

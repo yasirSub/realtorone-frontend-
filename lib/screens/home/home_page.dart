@@ -13,6 +13,7 @@ import '../../routes/app_routes.dart';
 import 'home_webinar_carousel.dart';
 import '../../utils/responsive_helper.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../widgets/marquee_text.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onOpenActivitiesTab});
@@ -46,8 +47,18 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadUserData() async {
     try {
       final results = await Future.wait([
-        ApiClient.get('/user/profile', requiresAuth: true),
-        ApiClient.get('/tasks/today', requiresAuth: true),
+        ApiClient.get(
+          '/user/profile',
+          requiresAuth: true,
+          useCache: true,
+          cacheMaxAge: const Duration(minutes: 15),
+        ),
+        ApiClient.get(
+          '/tasks/today',
+          requiresAuth: true,
+          useCache: true,
+          cacheMaxAge: const Duration(minutes: 10),
+        ),
         ApiClient.get('/results?type=hot_lead', requiresAuth: true),
         ApiClient.getPublic('/app-config'),
       ]);
@@ -59,17 +70,14 @@ class _HomePageState extends State<HomePage> {
 
       String? bannerMessage;
       String bannerType = 'info';
-      final configData = configRes['data'];
-      if (configData is Map && configData['home_banner_enabled'] == true) {
+      final configData = configRes['data'] is Map
+          ? Map<String, dynamic>.from(configRes['data'] as Map)
+          : null;
+      if (configData != null && _configFlagEnabled(configData['home_banner_enabled'])) {
         final raw = configData['home_banner_message']?.toString().trim();
         if (raw != null && raw.isNotEmpty) {
           bannerMessage = raw;
-          final rawType =
-              configData['home_banner_type']?.toString().trim().toLowerCase() ??
-                  'info';
-          if (rawType == 'news' || rawType == 'warning' || rawType == 'info') {
-            bannerType = rawType;
-          }
+          bannerType = _normalizeBannerType(configData['home_banner_type']);
         }
       }
 
@@ -392,9 +400,10 @@ class _HomePageState extends State<HomePage> {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverAppBar(
-                  expandedHeight: 220,
+                  expandedHeight:
+                      _homeBannerMessage != null ? 178 : 154,
                   pinned: true,
-                  stretch: true,
+                  stretch: false,
                   backgroundColor: isDark
                       ? const Color(0xFF0F172A)
                       : const Color(0xFF1E293B),
@@ -513,68 +522,66 @@ class _HomePageState extends State<HomePage> {
                                   .fadeIn(duration: 1500.ms)
                                   .scale(begin: const Offset(0.8, 0.8)),
                         ),
-                        SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(28, 52, 28, 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 12),
-                                Text(
-                                      l10n.homeWelcomeBack,
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: SafeArea(
+                            bottom: false,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 38, 20, 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    l10n.homeWelcomeBack,
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  )
+                                      .animate()
+                                      .fadeIn(delay: 400.ms)
+                                      .slideY(begin: 0.1),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _userData?['name']?.toString().toUpperCase() ??
+                                        l10n.homeGuestName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -1.5,
+                                      height: 1,
+                                    ),
+                                  )
+                                      .animate()
+                                      .fadeIn(delay: 500.ms)
+                                      .slideY(begin: 0.1),
+                                  if (_homeBannerMessage != null) ...[
+                                    const SizedBox(height: 5),
+                                    _buildCompactHomeAnnouncement(),
+                                  ] else ...[
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      l10n.homePerformanceReady,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                        fontSize: 14,
+                                        color: Colors.white.withValues(alpha: 0.7),
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w500,
-                                        letterSpacing: -0.5,
+                                        height: 1.3,
                                       ),
                                     )
-                                    .animate()
-                                    .fadeIn(delay: 400.ms)
-                                    .slideY(begin: 0.1),
-                                const SizedBox(height: 4),
-                                Text(
-                                      _userData?['name']
-                                              ?.toString()
-                                              .toUpperCase() ??
-                                          l10n.homeGuestName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: -2,
-                                        height: 0.9,
-                                      ),
-                                    )
-                                    .animate()
-                                    .fadeIn(delay: 500.ms)
-                                    .slideY(begin: 0.1),
-                                const SizedBox(height: 10),
-                                _homeBannerMessage != null
-                                    ? _buildHomeBannerNotice()
-                                        .animate()
-                                        .fadeIn(delay: 550.ms)
-                                        .slideY(begin: 0.1)
-                                    : Text(
-                                        l10n.homePerformanceReady,
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Colors.white.withValues(
-                                            alpha: 0.72,
-                                          ),
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w500,
-                                          height: 1.35,
-                                        ),
-                                      )
                                         .animate()
                                         .fadeIn(delay: 550.ms)
                                         .slideY(begin: 0.1),
-                                const Spacer(),
-                              ],
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -583,7 +590,11 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 SliverPadding(
-                  padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 120),
+                  padding: ResponsiveHelper.contentPadding(
+                    context,
+                    top: 4,
+                    bottom: 120,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       ResponsiveHelper.constrainWidth(
@@ -635,79 +646,97 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildHomeBannerNotice() {
-    final message = _homeBannerMessage ?? '';
-    final type = _homeBannerType;
-    late final Color accent;
-    late final Color chipBg;
-    late final IconData icon;
-    late final String label;
-
-    switch (type) {
-      case 'news':
-        accent = const Color(0xFF38BDF8);
-        chipBg = const Color(0xFF0C4A6E);
-        icon = Icons.campaign_rounded;
-        label = 'NEWS';
-        break;
-      case 'warning':
-        accent = const Color(0xFFFBBF24);
-        chipBg = const Color(0xFF78350F);
-        icon = Icons.warning_amber_rounded;
-        label = 'WARNING';
-        break;
-      default:
-        accent = const Color(0xFFA78BFA);
-        chipBg = const Color(0xFF4C1D95);
-        icon = Icons.info_outline_rounded;
-        label = 'INFO';
+  static bool _configFlagEnabled(dynamic value) {
+    if (value == true || value == 1) return true;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == 'true' || normalized == '1' || normalized == 'yes';
     }
+    return false;
+  }
+
+  static String _normalizeBannerType(dynamic value) {
+    final raw = value?.toString().trim().toLowerCase() ?? 'info';
+    if (raw == 'news' || raw == 'warning' || raw == 'info') return raw;
+    return 'info';
+  }
+
+  _HomeAnnouncementVisual _announcementVisualFor(String type) {
+    switch (_normalizeBannerType(type)) {
+      case 'news':
+        return const _HomeAnnouncementVisual(
+          accent: Color(0xFF0EA5E9),
+          fill: Color(0xFF082F49),
+          icon: Icons.campaign_outlined,
+          label: 'News',
+        );
+      case 'warning':
+        return const _HomeAnnouncementVisual(
+          accent: Color(0xFFF59E0B),
+          fill: Color(0xFF451A03),
+          icon: Icons.warning_amber_rounded,
+          label: 'Warning',
+        );
+      default:
+        return const _HomeAnnouncementVisual(
+          accent: Color(0xFF8B5CF6),
+          fill: Color(0xFF2E1065),
+          icon: Icons.info_outline_rounded,
+          label: 'Info',
+        );
+    }
+  }
+
+  Widget _buildCompactHomeAnnouncement() {
+    final message = _homeBannerMessage ?? '';
+    final visual = _announcementVisualFor(_homeBannerType);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: accent.withValues(alpha: 0.45)),
+        color: visual.fill.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: visual.accent.withValues(alpha: 0.85), width: 1),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, color: accent, size: 20),
-          const SizedBox(width: 10),
+          Icon(visual.icon, size: 14, color: visual.accent),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: visual.accent.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              visual.label.toUpperCase(),
+              style: TextStyle(
+                color: visual.accent,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+                height: 1.1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: chipBg.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: accent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  message,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
+            child: SizedBox(
+              height: 18,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: MarqueeText(
+                  text: message,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.92),
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    height: 1.35,
+                    height: 1.2,
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -729,4 +758,18 @@ class _HomePageState extends State<HomePage> {
         return const Color(0xFF64748B);
     }
   }
+}
+
+class _HomeAnnouncementVisual {
+  const _HomeAnnouncementVisual({
+    required this.accent,
+    required this.fill,
+    required this.icon,
+    required this.label,
+  });
+
+  final Color accent;
+  final Color fill;
+  final IconData icon;
+  final String label;
 }

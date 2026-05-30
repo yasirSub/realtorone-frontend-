@@ -13,6 +13,7 @@ import '../screens/main_navigation.dart';
 import '../screens/belief_rewiring/belief_rewiring_page.dart';
 import '../screens/profile/edit_profile_page.dart';
 import '../screens/profile/settings_page.dart';
+import '../screens/profile/app_version_page.dart';
 import '../screens/reports/reports_page.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/subscription/subscription_plans_page.dart';
@@ -29,6 +30,7 @@ import '../screens/learning/course_curriculum_page.dart';
 import '../screens/learning/video_player_page.dart';
 import '../screens/learning/course_exam_page.dart';
 import '../screens/system/maintenance_page.dart';
+import '../services/support_contact_service.dart';
 import '../screens/system/update_required_page.dart';
 
 class RouteConfig {
@@ -77,6 +79,7 @@ class RouteConfig {
       AppRoutes.beliefRewiring: (context) => const BeliefRewiringPage(),
       AppRoutes.reports: (context) => const ReportsPage(),
       AppRoutes.settings: (context) => const SettingsPage(),
+      AppRoutes.appVersion: (context) => const AppVersionPage(),
       AppRoutes.dashboard: (context) => const DashboardPage(), // Legacy
       AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),
       AppRoutes.rewards: (context) => const RewardsPage(),
@@ -90,7 +93,10 @@ class RouteConfig {
             ModalRoute.of(context)?.settings.arguments
                 as Map<String, dynamic>? ??
             <String, dynamic>{};
-        return MaintenancePage(message: (args['message'] as String?) ?? '');
+        return MaintenancePage(
+          message: (args['message'] as String?) ?? '',
+          contact: SupportContact.fromRouteArgs(args),
+        );
       },
       AppRoutes.updateRequired: (context) {
         final args =
@@ -100,6 +106,7 @@ class RouteConfig {
         return UpdateRequiredPage(
           minVersion: (args['minVersion'] as String?) ?? '',
           storeUrl: (args['storeUrl'] as String?) ?? '',
+          apkUrl: (args['apkUrl'] as String?) ?? '',
           platformLabel: (args['platformLabel'] as String?) ?? 'mobile',
         );
       },

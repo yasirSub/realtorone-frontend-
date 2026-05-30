@@ -7,6 +7,7 @@ import 'providers/theme_provider.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
 import 'api/api_client.dart';
+import 'services/support_contact_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/iap_service.dart';
@@ -20,6 +21,21 @@ Future<void> main() async {
     final navigator = appNavigatorKey.currentState;
     if (navigator == null) return;
     navigator.pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+  };
+  ApiClient.onServiceUnavailable = (statusCode, endpoint) async {
+    final navigator = appNavigatorKey.currentState;
+    if (navigator == null) return;
+    final message = statusCode == 404
+        ? 'We could not reach the RealtorOne service. The app may be updating — please try again shortly.'
+        : 'RealtorOne is temporarily unavailable. Please try again in a few minutes.';
+    final args = await SupportContactService.maintenanceRouteArgs(
+      message: message,
+    );
+    navigator.pushNamedAndRemoveUntil(
+      AppRoutes.maintenance,
+      (_) => false,
+      arguments: args,
+    );
   };
   final firebaseOk = await PushNotificationService.initializeApp();
   if (firebaseOk) {

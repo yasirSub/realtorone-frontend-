@@ -13,6 +13,7 @@ class AppRoutes {
   static const String beliefRewiring = '/belief-rewiring';
   static const String reports = '/reports';
   static const String settings = '/settings';
+  static const String appVersion = '/app-version';
   static const String dashboard = '/dashboard'; // Legacy
   static const String subscriptionPlans = '/subscription-plans';
   static const String rewards = '/rewards';

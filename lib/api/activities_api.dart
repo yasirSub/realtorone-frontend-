@@ -80,11 +80,21 @@ class ActivitiesApi {
 
   /// Get available activity types
   static Future<Map<String, dynamic>> getActivityTypes() async {
-    return await ApiClient.get(ApiEndpoints.activityTypes, requiresAuth: true);
+    return await ApiClient.get(
+      ApiEndpoints.activityTypes,
+      requiresAuth: true,
+      useCache: true,
+      cacheMaxAge: const Duration(hours: 24),
+    );
   }
 
   /// Get today's key tasks
   static Future<Map<String, dynamic>> getTodayTasks() async {
-    return await ApiClient.get(ApiEndpoints.todayTasks, requiresAuth: true);
+    return await ApiClient.get(
+      ApiEndpoints.todayTasks,
+      requiresAuth: true,
+      useCache: true,
+      cacheMaxAge: const Duration(minutes: 10),
+    );
   }
 }

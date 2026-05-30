@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,16 +12,19 @@ class UpdateRequiredPage extends StatelessWidget {
     super.key,
     required this.minVersion,
     required this.storeUrl,
+    required this.apkUrl,
     required this.platformLabel,
   });
 
   final String minVersion;
   final String storeUrl;
+  final String apkUrl;
   final String platformLabel;
 
-  Future<void> _openStore() async {
-    if (storeUrl.isEmpty) return;
-    final uri = Uri.parse(storeUrl);
+  Future<void> _openStore(String url) async {
+    if (url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -102,24 +108,43 @@ class UpdateRequiredPage extends StatelessWidget {
                   const SizedBox(height: 32),
                   Column(
                     children: [
-                      ElevatedButton(
-                        onPressed: _openStore,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF97316),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(50),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                      if (storeUrl.isNotEmpty)
+                        ElevatedButton(
+                          onPressed: () => _openStore(storeUrl),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF97316),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            l10n.updateButtonLabel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
-                        child: Text(
-                          l10n.updateButtonLabel,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
+                      if (!kIsWeb && Platform.isAndroid && apkUrl.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: () => _openStore(apkUrl),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF94A3B8)),
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Download APK (beta)',
+                            style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                         ),
-                      ),
+                      ],
                       const SizedBox(height: 12),
                       TextButton(
                         onPressed: () {

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_client.dart';
 import '../api/api_endpoints.dart';
+import '../services/app_warm_cache_service.dart';
 import 'home/home_page.dart';
 import 'activities/activities_page.dart';
 import 'learning/learning_page.dart';
@@ -102,6 +105,9 @@ class _MainNavigationState extends State<MainNavigation> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(AppWarmCacheService.warmAfterLogin());
+    });
     _activitiesTourSync = ValueNotifier<ActivitiesTourSync?>(null);
     _tourActive = ValueNotifier<bool>(false);
     _currentIndex = widget.initialIndex;

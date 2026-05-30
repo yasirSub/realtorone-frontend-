@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -11,7 +12,11 @@ class ApiClient {
 
   /// Called when an authenticated request returns 401 (session expired / logged out).
   static Future<void> Function()? onSessionExpired;
+
+  /// Called when the API appears unavailable (404 route/HTML, 502–504).
+  static Future<void> Function(int statusCode, String endpoint)? onServiceUnavailable;
   static bool _handlingSessionExpiry = false;
+  static bool _handlingServiceUnavailable = false;
   static const Set<String> _preservedLocalKeys = {
     'hasSeenOnboarding',
     'hasSeenAppTourV2',
@@ -94,55 +99,115 @@ class ApiClient {
     return headers;
   }
 
-  // GET request with internal caching
+  static String _cacheStorageKey(String endpoint) {
+    final path = endpoint.split('?').first;
+    return 'cache_$path';
+  }
+
+  static bool _isCacheableSuccess(Map<String, dynamic> data) {
+    if (data['service_unavailable'] == true) return false;
+    return data['success'] == true || data['status'] == 'ok';
+  }
+
+  // GET request with TTL cache + optional background refresh
   static Future<Map<String, dynamic>> get(
     String endpoint, {
     bool requiresAuth = false,
     bool useCache = false,
+    Duration cacheMaxAge = const Duration(hours: 6),
+    bool revalidateInBackground = true,
   }) async {
-    final cacheKey = 'cache_$endpoint';
+    final cacheKey = _cacheStorageKey(endpoint);
 
-    // Attempt to return cached data first for speed
     if (useCache) {
-      final cachedData = await _getCachedData(cacheKey);
-      if (cachedData != null) {
-        return cachedData;
+      final fresh = await _getCachedData(cacheKey, maxAge: cacheMaxAge);
+      if (fresh != null) {
+        if (revalidateInBackground) {
+          unawaited(
+            _refreshCache(
+              endpoint: endpoint,
+              requiresAuth: requiresAuth,
+              cacheKey: cacheKey,
+            ),
+          );
+        }
+        return fresh;
+      }
+
+      final stale = await _getCachedData(cacheKey);
+      if (stale != null) {
+        if (revalidateInBackground) {
+          unawaited(
+            _refreshCache(
+              endpoint: endpoint,
+              requiresAuth: requiresAuth,
+              cacheKey: cacheKey,
+            ),
+          );
+        }
+        return stale;
       }
     }
 
     try {
-      final headers = await _buildHeaders(includeAuth: requiresAuth);
-      final url = '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
-      
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: headers,
-          )
-          .timeout(const Duration(seconds: 30));
-
-      final data = _handleResponse(
-        response,
-        sessionRequired: requiresAuth,
-      );
-
-      // Save to cache if successful
-      if (useCache && data['status'] != 'error') {
-        _saveToCache(cacheKey, data);
+      final data = await _fetchGet(endpoint, requiresAuth: requiresAuth);
+      if (useCache && _isCacheableSuccess(data)) {
+        await _saveToCache(cacheKey, data);
       }
-
       return data;
     } catch (e) {
-      // Fallback to cache if network fails
       final cachedData = await _getCachedData(cacheKey);
       if (cachedData != null) return cachedData;
       return {'status': 'error', 'message': e.toString()};
     }
   }
 
-  /// Public GET helper without auth, for non-cached configuration like /app-config.
-  static Future<Map<String, dynamic>> getPublic(String endpoint) {
-    return get(endpoint, requiresAuth: false, useCache: false);
+  static Future<Map<String, dynamic>> _fetchGet(
+    String endpoint, {
+    required bool requiresAuth,
+  }) async {
+    final headers = await _buildHeaders(includeAuth: requiresAuth);
+    final url =
+        '${(endpoint.startsWith('http')) ? '' : ApiEndpoints.baseUrl}$endpoint';
+
+    final response = await http
+        .get(Uri.parse(url), headers: headers)
+        .timeout(const Duration(seconds: 30));
+
+    return _handleResponse(
+      response,
+      sessionRequired: requiresAuth,
+      endpoint: endpoint,
+    );
+  }
+
+  static Future<void> _refreshCache({
+    required String endpoint,
+    required bool requiresAuth,
+    required String cacheKey,
+  }) async {
+    try {
+      final data = await _fetchGet(endpoint, requiresAuth: requiresAuth);
+      if (_isCacheableSuccess(data)) {
+        await _saveToCache(cacheKey, data);
+      }
+    } catch (_) {}
+  }
+
+  /// Public GET (e.g. app-config). Cached on device to reduce server reads.
+  static Future<Map<String, dynamic>> getPublic(
+    String endpoint, {
+    bool useCache = true,
+    Duration cacheMaxAge = const Duration(minutes: 15),
+    bool revalidateInBackground = true,
+  }) {
+    return get(
+      endpoint,
+      requiresAuth: false,
+      useCache: useCache,
+      cacheMaxAge: cacheMaxAge,
+      revalidateInBackground: revalidateInBackground,
+    );
   }
 
   static Future<void> _saveToCache(
@@ -163,12 +228,22 @@ class ApiClient {
     }
   }
 
-  static Future<Map<String, dynamic>?> _getCachedData(String key) async {
+  static Future<Map<String, dynamic>?> _getCachedData(
+    String key, {
+    Duration? maxAge,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? cachedStr = prefs.getString(key);
       if (cachedStr != null) {
         final Map<String, dynamic> decoded = jsonDecode(cachedStr);
+        final ts = decoded['timestamp'];
+        if (maxAge != null && ts is int) {
+          final ageMs = DateTime.now().millisecondsSinceEpoch - ts;
+          if (ageMs > maxAge.inMilliseconds) {
+            return null;
+          }
+        }
         return decoded['data'] as Map<String, dynamic>;
       }
     } catch (e) {
@@ -229,7 +304,11 @@ class ApiClient {
       request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
       final streamed = await request.send().timeout(timeout);
       final response = await http.Response.fromStream(streamed);
-      return _handleResponse(response, sessionRequired: requiresAuth);
+      return _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+        endpoint: endpoint,
+      );
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }
@@ -252,7 +331,11 @@ class ApiClient {
             body: jsonEncode(data),
           )
           .timeout(timeout ?? const Duration(seconds: 30));
-      return _handleResponse(response, sessionRequired: requiresAuth);
+      return _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+        endpoint: endpoint,
+      );
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -272,7 +355,11 @@ class ApiClient {
         headers: headers,
         body: jsonEncode(data),
       );
-      return _handleResponse(response, sessionRequired: requiresAuth);
+      return _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+        endpoint: endpoint,
+      );
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -292,7 +379,11 @@ class ApiClient {
         headers: headers,
         body: jsonEncode(data),
       );
-      return _handleResponse(response, sessionRequired: requiresAuth);
+      return _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+        endpoint: endpoint,
+      );
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
@@ -310,33 +401,92 @@ class ApiClient {
         Uri.parse(url),
         headers: headers,
       );
-      return _handleResponse(response, sessionRequired: requiresAuth);
+      return _handleResponse(
+        response,
+        sessionRequired: requiresAuth,
+        endpoint: endpoint,
+      );
     } catch (e) {
       return {'status': 'error', 'message': e.toString()};
     }
+  }
+
+  static bool _isInfrastructureFailure(
+    int statusCode,
+    String endpoint,
+    String body,
+  ) {
+    if (!{404, 502, 503, 504}.contains(statusCode)) {
+      return false;
+    }
+    if (endpoint.contains('app-config')) {
+      return true;
+    }
+    final lower = body.toLowerCase();
+    if (lower.contains('<!doctype') || lower.contains('<html')) {
+      return true;
+    }
+    if (statusCode == 404 && lower.contains('could not be found')) {
+      return true;
+    }
+    return statusCode >= 502;
   }
 
   // Handle API response
   static Map<String, dynamic> _handleResponse(
     http.Response response, {
     bool sessionRequired = false,
+    String endpoint = '',
   }) {
     if (sessionRequired && response.statusCode == 401) {
       _triggerSessionExpired();
     }
+
+    final infrastructureFailure = _isInfrastructureFailure(
+      response.statusCode,
+      endpoint,
+      response.body,
+    );
+    if (infrastructureFailure) {
+      _triggerServiceUnavailable(response.statusCode, endpoint);
+    }
+
     try {
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) {
-        return {...data, 'statusCode': response.statusCode};
+        return {
+          ...data,
+          'statusCode': response.statusCode,
+          if (infrastructureFailure) 'service_unavailable': true,
+        };
       }
-      return {'statusCode': response.statusCode, 'data': data};
+      return {
+        'statusCode': response.statusCode,
+        'data': data,
+        if (infrastructureFailure) 'service_unavailable': true,
+      };
     } catch (e) {
       return {
         'status': 'error',
         'message': 'Failed to parse response',
         'statusCode': response.statusCode,
+        if (infrastructureFailure) 'service_unavailable': true,
       };
     }
+  }
+
+  static void _triggerServiceUnavailable(int statusCode, String endpoint) {
+    if (_handlingServiceUnavailable) return;
+    final handler = onServiceUnavailable;
+    if (handler == null) return;
+    _handlingServiceUnavailable = true;
+    Future<void>(() async {
+      try {
+        await handler(statusCode, endpoint);
+      } finally {
+        _handlingServiceUnavailable = false;
+      }
+    });
   }
 
   static void _triggerSessionExpired() {

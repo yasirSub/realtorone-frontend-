@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import '../../api/api_client.dart';
 import '../../routes/app_routes.dart';
 import '../../services/push_notification_service.dart';
+import '../../services/support_contact_service.dart';
 import '../../utils/version_utils.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -101,10 +102,29 @@ class _SplashScreenState extends State<SplashScreen>
 
       if (config.maintenanceEnabled) {
         debugPrint('Splash: maintenance enabled, redirecting');
+        final args = await SupportContactService.maintenanceRouteArgs(
+          message: config.maintenanceMessage,
+        );
+        if (!mounted) return;
         Navigator.pushReplacementNamed(
           context,
           AppRoutes.maintenance,
-          arguments: {'message': config.maintenanceMessage},
+          arguments: args,
+        );
+        return;
+      }
+
+      if (config.serviceUnavailable) {
+        debugPrint('Splash: app-config unavailable, redirecting to maintenance');
+        final args = await SupportContactService.maintenanceRouteArgs(
+          message:
+              'We could not reach the RealtorOne service. Please try again shortly or contact support below.',
+        );
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(
+          context,
+          AppRoutes.maintenance,
+          arguments: args,
         );
         return;
       }
@@ -117,6 +137,7 @@ class _SplashScreenState extends State<SplashScreen>
           arguments: {
             'minVersion': config.minVersionForPlatform,
             'storeUrl': config.storeUrlForPlatform,
+            'apkUrl': config.apkUrl,
             'platformLabel': defaultTargetPlatform == TargetPlatform.iOS
                 ? 'iOS'
                 : 'Android',
@@ -232,14 +253,32 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<_AppRuntimeConfig> _fetchAppConfig() async {
     try {
-      final response = await ApiClient.getPublic('/app-config');
+      final response = await ApiClient.getPublic(
+        '/app-config?_=${DateTime.now().millisecondsSinceEpoch}',
+      );
+      final statusCode = response['statusCode'] as int? ?? 0;
+      final serviceUnavailable = response['service_unavailable'] == true ||
+          statusCode == 404 ||
+          statusCode >= 502;
+      if (serviceUnavailable) {
+        return _AppRuntimeConfig.unavailable();
+      }
+
       final data = (response['data'] as Map?) ?? <String, dynamic>{};
-      final maintenanceEnabled = data['maintenance_enabled'] == true;
+      if (data.isNotEmpty) {
+        await SupportContactService.cacheFromAppConfig(
+          Map<String, dynamic>.from(data),
+        );
+      }
+      final maintenanceEnabled = data['maintenance_enabled'] == true ||
+          data['maintenance_enabled'] == 1 ||
+          data['maintenance_enabled']?.toString() == 'true';
       final maintenanceMessage = (data['maintenance_message'] as String?) ?? '';
       final minAndroid = (data['min_android_version'] as String?)?.trim() ?? '';
       final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
       final androidStore = (data['android_store_url'] as String?)?.trim() ?? '';
       final iosStore = (data['ios_store_url'] as String?)?.trim() ?? '';
+      final apkUrl = (data['apk_url'] as String?)?.trim() ?? '';
 
       final info = await PackageInfo.fromPlatform();
       final currentVersion = info.version;
@@ -265,6 +304,7 @@ class _SplashScreenState extends State<SplashScreen>
       return _AppRuntimeConfig(
         maintenanceEnabled: maintenanceEnabled,
         maintenanceMessage: maintenanceMessage,
+        serviceUnavailable: false,
         minAndroidVersion: minAndroid,
         minIosVersion: minIos,
         androidStoreUrl: androidStore,
@@ -273,6 +313,7 @@ class _SplashScreenState extends State<SplashScreen>
         requiresUpdate: requiresUpdate,
         minVersionForPlatform: minForPlatform,
         storeUrlForPlatform: storeForPlatform,
+        apkUrl: apkUrl,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -284,6 +325,7 @@ class _SplashScreenState extends State<SplashScreen>
     return _AppRuntimeConfig(
       maintenanceEnabled: false,
       maintenanceMessage: '',
+      serviceUnavailable: false,
       minAndroidVersion: '',
       minIosVersion: '',
       androidStoreUrl: '',
@@ -292,6 +334,7 @@ class _SplashScreenState extends State<SplashScreen>
       requiresUpdate: false,
       minVersionForPlatform: '',
       storeUrlForPlatform: '',
+      apkUrl: '',
     );
   }
 
@@ -591,6 +634,7 @@ class _AppRuntimeConfig {
   _AppRuntimeConfig({
     required this.maintenanceEnabled,
     required this.maintenanceMessage,
+    required this.serviceUnavailable,
     required this.minAndroidVersion,
     required this.minIosVersion,
     required this.androidStoreUrl,
@@ -599,10 +643,29 @@ class _AppRuntimeConfig {
     required this.requiresUpdate,
     required this.minVersionForPlatform,
     required this.storeUrlForPlatform,
+    required this.apkUrl,
   });
+
+  factory _AppRuntimeConfig.unavailable() {
+    return _AppRuntimeConfig(
+      maintenanceEnabled: false,
+      maintenanceMessage: '',
+      serviceUnavailable: true,
+      minAndroidVersion: '',
+      minIosVersion: '',
+      androidStoreUrl: '',
+      iosStoreUrl: '',
+      currentVersion: '',
+      requiresUpdate: false,
+      minVersionForPlatform: '',
+      storeUrlForPlatform: '',
+      apkUrl: '',
+    );
+  }
 
   final bool maintenanceEnabled;
   final String maintenanceMessage;
+  final bool serviceUnavailable;
   final String minAndroidVersion;
   final String minIosVersion;
   final String androidStoreUrl;
@@ -611,4 +674,5 @@ class _AppRuntimeConfig {
   final bool requiresUpdate;
   final String minVersionForPlatform;
   final String storeUrlForPlatform;
+  final String apkUrl;
 }

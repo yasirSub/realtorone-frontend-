@@ -11,6 +11,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import '../../utils/responsive_helper.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -26,11 +27,23 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _showCompletenessLabel = true;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   String _verificationDialCode = '+971';
+  String _appVersionLabel = '';
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadAppVersionLabel();
+  }
+
+  Future<void> _loadAppVersionLabel() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() {
+        _appVersionLabel = 'Version ${info.version} (${info.buildNumber})';
+      });
+    } catch (_) {}
   }
 
   Future<void> _loadUserData() async {
@@ -503,6 +516,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       _buildMenuSection(l10n.profileSectionAccount, [
                         _MenuItem(
+                          icon: Icons.system_update_rounded,
+                          title: 'App version & updates',
+                          subtitle: _appVersionLabel.isEmpty
+                              ? 'Check version and release notes'
+                              : _appVersionLabel,
+                          onTap: () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.appVersion,
+                            );
+                            _loadAppVersionLabel();
+                          },
+                        ),
+                        _MenuItem(
                           icon: Icons.settings_outlined,
                           title: l10n.profileAppSettingsTitle,
                           subtitle: l10n.profileAppSettingsSubtitle,
@@ -803,7 +830,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 4),
           Text(
-            l10n.profileVersion,
+            _appVersionLabel.isNotEmpty ? _appVersionLabel : l10n.profileVersion,
             style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 10),
           ),
         ],
