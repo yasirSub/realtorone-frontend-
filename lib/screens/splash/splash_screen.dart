@@ -297,7 +297,10 @@ class _SplashScreenState extends State<SplashScreen>
           ? iosStore
           : '';
 
-      final requiresUpdate =
+      final versionControlEnabled = data['version_control_enabled'] != false &&
+          data['version_control_enabled'] != 0 &&
+          data['version_control_enabled']?.toString() != 'false';
+      final requiresUpdate = versionControlEnabled &&
           minForPlatform.isNotEmpty &&
           compareSemanticVersions(currentVersion, minForPlatform) < 0;
 

@@ -45,11 +45,15 @@ class AppVersionService {
     var apkUrl = '';
     var releaseNotes = '';
     var updatedAt = '';
+    var versionControlEnabled = true;
 
     try {
       final response = await ApiClient.getPublic(endpoint);
       final data = response['data'];
       if (data is Map) {
+        versionControlEnabled = data['version_control_enabled'] != false &&
+            data['version_control_enabled'] != 0 &&
+            data['version_control_enabled']?.toString() != 'false';
         minAndroid = data['min_android_version']?.toString().trim() ?? '';
         minIos = data['min_ios_version']?.toString().trim() ?? '';
         androidStore = data['android_store_url']?.toString().trim() ?? '';
@@ -78,7 +82,8 @@ class AppVersionService {
             ? iosStore
             : '';
 
-    final updateRequired = minForPlatform.isNotEmpty &&
+    final updateRequired = versionControlEnabled &&
+        minForPlatform.isNotEmpty &&
         compareSemanticVersions(package.version, minForPlatform) < 0;
 
     return AppVersionInfo(
