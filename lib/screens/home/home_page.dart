@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
   String? _homeBannerMessage;
+  String _homeBannerType = 'info';
   int _todayTotal = 0;
   int _todayDone = 0;
   int _hotLeads = 0;
@@ -57,11 +58,18 @@ class _HomePageState extends State<HomePage> {
       final configRes = results[3];
 
       String? bannerMessage;
+      String bannerType = 'info';
       final configData = configRes['data'];
       if (configData is Map && configData['home_banner_enabled'] == true) {
         final raw = configData['home_banner_message']?.toString().trim();
         if (raw != null && raw.isNotEmpty) {
           bannerMessage = raw;
+          final rawType =
+              configData['home_banner_type']?.toString().trim().toLowerCase() ??
+                  'info';
+          if (rawType == 'news' || rawType == 'warning' || rawType == 'info') {
+            bannerType = rawType;
+          }
         }
       }
 
@@ -71,6 +79,7 @@ class _HomePageState extends State<HomePage> {
             _userData = response['data'];
           }
           _homeBannerMessage = bannerMessage;
+          _homeBannerType = bannerType;
           _applyTaskStats(tasksRes);
           _applyPipelineStats(hotLeadRes);
         });
@@ -543,25 +552,27 @@ class _HomePageState extends State<HomePage> {
                                     .fadeIn(delay: 500.ms)
                                     .slideY(begin: 0.1),
                                 const SizedBox(height: 10),
-                                Text(
-                                      _homeBannerMessage ??
-                                          l10n.homePerformanceReady,
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: _homeBannerMessage != null
-                                              ? 0.9
-                                              : 0.72,
+                                _homeBannerMessage != null
+                                    ? _buildHomeBannerNotice()
+                                        .animate()
+                                        .fadeIn(delay: 550.ms)
+                                        .slideY(begin: 0.1)
+                                    : Text(
+                                        l10n.homePerformanceReady,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.72,
+                                          ),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          height: 1.35,
                                         ),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.35,
-                                      ),
-                                    )
-                                    .animate()
-                                    .fadeIn(delay: 550.ms)
-                                    .slideY(begin: 0.1),
+                                      )
+                                        .animate()
+                                        .fadeIn(delay: 550.ms)
+                                        .slideY(begin: 0.1),
                                 const Spacer(),
                               ],
                             ),
@@ -618,6 +629,86 @@ class _HomePageState extends State<HomePage> {
             right: 16,
             bottom: 140,
             child: ChatbotFloatingButton(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeBannerNotice() {
+    final message = _homeBannerMessage ?? '';
+    final type = _homeBannerType;
+    late final Color accent;
+    late final Color chipBg;
+    late final IconData icon;
+    late final String label;
+
+    switch (type) {
+      case 'news':
+        accent = const Color(0xFF38BDF8);
+        chipBg = const Color(0xFF0C4A6E);
+        icon = Icons.campaign_rounded;
+        label = 'NEWS';
+        break;
+      case 'warning':
+        accent = const Color(0xFFFBBF24);
+        chipBg = const Color(0xFF78350F);
+        icon = Icons.warning_amber_rounded;
+        label = 'WARNING';
+        break;
+      default:
+        accent = const Color(0xFFA78BFA);
+        chipBg = const Color(0xFF4C1D95);
+        icon = Icons.info_outline_rounded;
+        label = 'INFO';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: chipBg.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  maxLines: 4,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
