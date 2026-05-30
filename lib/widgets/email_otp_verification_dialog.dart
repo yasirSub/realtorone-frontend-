@@ -34,8 +34,8 @@ class EmailOtpVerificationDialog {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Enter the 6-digit code sent to:\n$normalizedEmail\n\n'
-                          'Or tap Verify Email in the message we sent — it opens the app and verifies automatically.',
+                          'Enter the 6-digit code from your email (not your email address):\n$normalizedEmail\n\n'
+                          'Or tap Verify Email in the message — it opens the app and verifies automatically.',
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF475569),
@@ -148,9 +148,10 @@ class EmailOtpVerificationDialog {
                         onPressed: otp.length < 6
                             ? null
                             : () async {
+                                final code = otp.replaceAll(RegExp(r'\D'), '');
                                 final result = await UserApi.verifyEmailOtp(
                                   normalizedEmail,
-                                  otp,
+                                  code,
                                 );
                                 if (result['status'] == 'ok' ||
                                     result['success'] == true) {

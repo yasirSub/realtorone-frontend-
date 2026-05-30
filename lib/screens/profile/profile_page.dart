@@ -1159,13 +1159,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             if (response['status'] == 'ok' ||
                                 response['success'] == true) {
+                              if (isEmail && mounted) {
+                                setState(() {
+                                  _userData ??= {};
+                                  _userData!['email_verified_at'] =
+                                      response['email_verified_at'] ??
+                                      DateTime.now().toIso8601String();
+                                });
+                              }
                               _showSnackBar(
                                 isEmail
                                     ? 'Email verified successfully!'
                                     : 'Phone number verified successfully!',
                                 Colors.green,
                               );
-                              _loadUserData();
+                              await _loadUserData();
                             } else {
                               setState(() => _isLoading = false);
                               _showSnackBar(

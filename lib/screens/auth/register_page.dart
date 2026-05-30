@@ -9,7 +9,6 @@ import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
-import '../../widgets/email_otp_verification_dialog.dart';
 import '../../utils/phone_utils.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -103,7 +102,15 @@ class _RegisterPageState extends State<RegisterPage> {
         if (mounted && !_usePhone && email != null) {
           final needsVerify = response['email_verification_required'] == true;
           if (needsVerify && !otpSendFailed) {
-            await EmailOtpVerificationDialog.show(context, email);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'We sent a verification email to $email. '
+                  'You can verify after profile setup or anytime from Profile.',
+                ),
+                duration: const Duration(seconds: 5),
+              ),
+            );
           }
         }
 

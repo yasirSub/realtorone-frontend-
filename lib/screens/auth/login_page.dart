@@ -9,7 +9,6 @@ import '../../services/google_auth_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
-import '../../widgets/email_otp_verification_dialog.dart';
 import '../../utils/phone_utils.dart';
 
 class LoginPage extends StatefulWidget {
@@ -70,11 +69,14 @@ class _LoginPageState extends State<LoginPage> {
         await ApiClient.clearCache();
 
         if (response['email_verification_required'] == true && mounted) {
-          final userEmail =
-              response['user']?['email']?.toString() ?? _loginIdentifier();
-          if (userEmail.contains('@')) {
-            await EmailOtpVerificationDialog.show(context, userEmail);
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Please verify your email from Profile when you are ready.',
+              ),
+              duration: Duration(seconds: 4),
+            ),
+          );
         }
 
         final profile = await ApiClient.get(
