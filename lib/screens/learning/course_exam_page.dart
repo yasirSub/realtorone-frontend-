@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../api/learning_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -28,6 +29,7 @@ class _CourseExamPageState extends State<CourseExamPage> {
   int? _correct;
   int? _total;
   String? _startedAt;
+  Map<String, dynamic>? _certificate;
 
   @override
   void initState() {
@@ -102,6 +104,7 @@ class _CourseExamPageState extends State<CourseExamPage> {
           _passed = data['passed'] as bool?;
           _correct = data['correct'] as int?;
           _total = data['total'] as int?;
+          _certificate = data['certificate'] as Map<String, dynamic>?;
           _submitted = true;
           _isLoading = false;
         });
@@ -201,8 +204,76 @@ class _CourseExamPageState extends State<CourseExamPage> {
     );
   }
 
+  Future<void> _openUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showReportCard() {
+    final rc = _certificate?['report_card'] as Map<String, dynamic>?;
+    if (rc == null) return;
+    final materials = (rc['materials'] as List<dynamic>?) ?? [];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        minChildSize: 0.35,
+        maxChildSize: 0.9,
+        builder: (_, scroll) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: ListView(
+            controller: scroll,
+            children: [
+              const Text(
+                'Report card',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${rc['course_title'] ?? widget.courseTitle} · ${rc['progress_percent'] ?? 0}% complete',
+                style: const TextStyle(color: Color(0xFF64748B)),
+              ),
+              if (rc['final_score_percent'] != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Exam score: ${rc['final_score_percent']}%',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text('Materials', style: TextStyle(fontWeight: FontWeight.w800)),
+              ...materials.map((m) {
+                final map = m as Map<String, dynamic>;
+                final done = map['completed'] == true;
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    done ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                    color: done ? const Color(0xFF10B981) : Colors.grey,
+                    size: 22,
+                  ),
+                  title: Text(map['title']?.toString() ?? 'Material'),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildResult() {
     final passed = _passed ?? false;
+    final cert = _certificate;
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -240,9 +311,42 @@ class _CourseExamPageState extends State<CourseExamPage> {
               ),
             ),
 
+            if (passed && cert != null) ...[
+              const SizedBox(height: 20),
+              Text(
+                'Certificate #${cert['certificate_number'] ?? ''}',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (cert['pdf_url'] != null)
+                    OutlinedButton.icon(
+                      onPressed: () => _openUrl(cert['pdf_url'] as String?),
+                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                      label: const Text('Download PDF'),
+                    ),
+                  if (cert['html_url'] != null)
+                    OutlinedButton.icon(
+                      onPressed: () => _openUrl(cert['html_url'] as String?),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                      label: const Text('View certificate'),
+                    ),
+                  if (cert['report_card'] != null)
+                    OutlinedButton.icon(
+                      onPressed: _showReportCard,
+                      icon: const Icon(Icons.assignment_rounded, size: 20),
+                      label: const Text('Report card'),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, passed),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
                 foregroundColor: Colors.white,

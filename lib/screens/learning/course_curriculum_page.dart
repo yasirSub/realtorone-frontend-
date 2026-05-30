@@ -34,6 +34,26 @@ class CourseCurriculumPage extends StatefulWidget {
   State<CourseCurriculumPage> createState() => _CourseCurriculumPageState();
 }
 
+class _CourseProgressStats {
+  final int completionPercent;
+  final int unlockedModules;
+  final int totalModules;
+  final int completedLessons;
+  final int totalLessons;
+
+  const _CourseProgressStats({
+    required this.completionPercent,
+    required this.unlockedModules,
+    required this.totalModules,
+    required this.completedLessons,
+    required this.totalLessons,
+  });
+
+  int get unlockPercent => totalModules > 0
+      ? ((unlockedModules / totalModules) * 100).round()
+      : 0;
+}
+
 class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   bool _isLoading = true;
   CourseModel? _course;
@@ -51,11 +71,64 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   final Map<int, double> _downloadProgress = {};
   final Map<int, String> _localFiles = {}; // materialId -> localPath
 
+  Map<String, dynamic>? _certificate;
+
   @override
   void initState() {
     super.initState();
     _loadLocalContentInfo();
     _loadCourseDetails();
+    _loadCertificate();
+  }
+
+  Future<void> _loadCertificate() async {
+    try {
+      final res = await LearningApi.getCourseCertificate(widget.courseId);
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] != null) {
+        setState(() => _certificate = res['data'] as Map<String, dynamic>);
+      } else {
+        setState(() => _certificate = null);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _certificate = null);
+    }
+  }
+
+  Future<void> _openCertificateUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openCertificationExam() async {
+    if (!_isCourseCompleted()) {
+      final progressPercent = _getCourseProgressPercent();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Complete all modules ($progressPercent% done) to unlock the certification test.',
+          ),
+          backgroundColor: const Color(0xFF6366F1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    final refreshed = await Navigator.pushNamed(
+      context,
+      AppRoutes.courseExam,
+      arguments: {
+        'courseId': widget.courseId,
+        'courseTitle': widget.courseTitle,
+      },
+    );
+    if (refreshed == true && mounted) {
+      await _loadCertificate();
+      await _loadCourseDetails();
+    }
   }
 
   Future<void> _loadLocalContentInfo() async {
@@ -117,6 +190,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
             );
           } catch (_) {}
         }
+        if (mounted) await _loadCertificate();
       }
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
@@ -149,9 +223,10 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
                   child: CustomScrollView(
                     slivers: [
                       _buildAppBar(),
-                      _buildTakeExamBanner(),
+                      _buildCourseProgressCard(),
                       _buildCurriculumList(),
-                      const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                      _buildCertificateSection(),
+                      const SliverToBoxAdapter(child: SizedBox(height: 120)),
                     ],
                   ),
                 ),
@@ -411,161 +486,459 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   static const int _pointsPerModule = 10;
 
   int _getCourseProgressPercent() {
-    final modules = _course?.modules ?? [];
-    if (modules.isEmpty) return 0;
-    int completed = 0;
-    for (var i = 0; i < modules.length; i++) {
-      if (_isModuleCompleted(i)) completed++;
-    }
-    return ((completed / modules.length) * 100).round();
+    return _getCourseProgressStats().completionPercent;
   }
 
-  Widget _buildTakeExamBanner() {
+  _CourseProgressStats _getCourseProgressStats() {
+    final modules = _course?.modules ?? [];
+    if (modules.isEmpty) {
+      return const _CourseProgressStats(
+        completionPercent: 0,
+        unlockedModules: 0,
+        totalModules: 0,
+        completedLessons: 0,
+        totalLessons: 0,
+      );
+    }
+
+    int unlockedModules = 0;
+    for (var i = 0; i < modules.length; i++) {
+      if (!_isModuleLocked(i)) unlockedModules++;
+    }
+
+    int totalLessons = 0;
+    int completedLessons = 0;
+    double completionUnits = 0;
+    double totalUnits = 0;
+
+    for (final module in modules) {
+      for (final lesson in module.lessons) {
+        for (final material in lesson.materials) {
+          final type = material.type.toLowerCase();
+          if (type != 'video' && type != 'pdf') continue;
+
+          totalLessons++;
+          totalUnits += 1;
+          if (material.isCompleted) {
+            completedLessons++;
+            completionUnits += 1;
+          } else if (type == 'video' && material.progressSeconds > 0) {
+            // Partial credit while watching (caps at 90% until marked complete)
+            final partial = (material.progressSeconds / 600).clamp(0.05, 0.9);
+            completionUnits += partial;
+          }
+        }
+      }
+    }
+
+    int completionPercent;
+    if (totalUnits > 0) {
+      completionPercent = ((completionUnits / totalUnits) * 100).round().clamp(0, 100);
+    } else {
+      int modulesDone = 0;
+      for (var i = 0; i < modules.length; i++) {
+        if (_isModuleCompleted(i)) modulesDone++;
+      }
+      completionPercent = ((modulesDone / modules.length) * 100).round();
+    }
+
+    if (_isCourseCompleted()) completionPercent = 100;
+
+    return _CourseProgressStats(
+      completionPercent: completionPercent,
+      unlockedModules: unlockedModules,
+      totalModules: modules.length,
+      completedLessons: completedLessons,
+      totalLessons: totalLessons,
+    );
+  }
+
+  Widget _buildCourseProgressCard() {
+    if (_playingMaterial != null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    final stats = _getCourseProgressStats();
     final isComplete = _isCourseCompleted();
-    final progressPercent = _getCourseProgressPercent();
+    final completionValue = stats.completionPercent / 100;
+    final unlockValue = stats.unlockPercent / 100;
 
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: isComplete
-                  ? LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        const Color(0xFF6366F1).withOpacity(0.08),
-                        const Color(0xFF8B5CF6).withOpacity(0.06),
-                      ],
-                    )
-                  : null,
-              color: isComplete ? null : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isComplete
-                    ? const Color(0xFF6366F1).withOpacity(0.2)
-                    : Colors.grey.shade200,
-                width: 1,
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: isComplete
-                      ? const Color(0xFF6366F1).withOpacity(0.06)
-                      : Colors.black.withOpacity(0.03),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Your course progress',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: Colors.grey.shade900,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${stats.completionPercent}%',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                      color: Color(0xFF6366F1),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isComplete
+                    ? 'Course complete — certification test is unlocked'
+                    : '${stats.unlockedModules} of ${stats.totalModules} modules unlocked · ${stats.completedLessons}/${stats.totalLessons} lessons done',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Completion',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: completionValue.clamp(0.0, 1.0),
+                  minHeight: 10,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isComplete ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Modules unlocked',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.grey.shade500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: unlockValue.clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFE2E8F0),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${stats.unlockPercent}% of course path accessible',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCertificateSection() {
+    final isComplete = _isCourseCompleted();
+    final stats = _getCourseProgressStats();
+    final progressPercent = stats.completionPercent;
+    final cert = _certificate;
+    final hasCert = cert != null;
+
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.workspace_premium_rounded, color: Color(0xFF6366F1), size: 22),
+                SizedBox(width: 8),
+                Text(
+                  'Certificate',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                    color: Color(0xFF1E293B),
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ],
             ),
-            child: InkWell(
-              onTap: () {
-                if (!isComplete) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Complete all modules ($progressPercent% done) to unlock your certification exam.',
-                      ),
-                      backgroundColor: const Color(0xFF6366F1),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  return;
-                }
-                Navigator.pushNamed(
-                  context,
-                  AppRoutes.courseExam,
-                  arguments: {
-                    'courseId': widget.courseId,
-                    'courseTitle': widget.courseTitle,
-                  },
-                );
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
+            const SizedBox(height: 6),
+            Text(
+              'Finish lessons, pass the test, then download your certificate.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            _buildCompactProgressSummary(stats, isComplete),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: hasCert
+                      ? const Color(0xFF10B981).withOpacity(0.35)
+                      : const Color(0xFF6366F1).withOpacity(0.2),
                 ),
-                child: Row(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(11),
-                      decoration: BoxDecoration(
-                        color: isComplete
-                            ? const Color(0xFF6366F1).withOpacity(0.15)
-                            : Colors.grey.withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        isComplete
-                            ? Icons.verified_user_rounded
-                            : Icons.lock_outline_rounded,
-                        color: isComplete
-                            ? const Color(0xFF6366F1)
-                            : Colors.grey.shade600,
-                        size: 26,
-                      ),
+                    _certStepRow(
+                      done: isComplete,
+                      title: '1. Complete course',
+                      subtitle: isComplete
+                          ? 'All modules finished'
+                          : '$progressPercent% complete — finish all videos/lessons',
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(height: 12),
+                    _certStepRow(
+                      done: hasCert,
+                      title: '2. Pass certification test',
+                      subtitle: hasCert
+                          ? 'Exam passed'
+                          : isComplete
+                              ? 'Tap below to start the test'
+                              : 'Unlocks when the course is 100% done',
+                    ),
+                    const SizedBox(height: 12),
+                    _certStepRow(
+                      done: hasCert,
+                      title: '3. Download certificate',
+                      subtitle: hasCert
+                          ? 'Your certificate is ready'
+                          : 'Available after you pass the test',
+                    ),
+                    const SizedBox(height: 18),
+                    if (hasCert) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Certificate #${cert['certificate_number'] ?? ''}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Color(0xFF047857),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
                         children: [
-                          Text(
-                            isComplete
-                                ? 'Ready to certify'
-                                : 'Certification exam',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 15,
-                              letterSpacing: -0.2,
-                              color: isComplete
-                                  ? const Color(0xFF1E293B)
-                                  : Colors.grey.shade700,
+                          if (cert['pdf_url'] != null)
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () => _openCertificateUrl(cert['pdf_url'] as String?),
+                                icon: const Icon(Icons.download_rounded, size: 20),
+                                label: const Text('Download PDF'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF10B981),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            isComplete
-                                ? 'Prove your mastery — take the certification exam.'
-                                : '$progressPercent% done — complete all modules to unlock.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.35,
-                              color: Colors.grey.shade600,
+                          if (cert['pdf_url'] != null && cert['html_url'] != null)
+                            const SizedBox(width: 10),
+                          if (cert['html_url'] != null)
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _openCertificateUrl(cert['html_url'] as String?),
+                                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                                label: const Text('View'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF6366F1),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  side: const BorderSide(color: Color(0xFF6366F1)),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                    ),
-                    if (isComplete)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 18,
-                          color: Color(0xFF6366F1),
-                        ),
-                      )
-                    else
-                      Icon(
-                        Icons.lock_outline_rounded,
-                        size: 20,
-                        color: Colors.grey.shade400,
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: () => _openCertificationExam(),
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Retake test'),
                       ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _openCertificationExam,
+                          icon: Icon(
+                            isComplete ? Icons.quiz_rounded : Icons.lock_outline_rounded,
+                            size: 22,
+                          ),
+                          label: Text(
+                            isComplete ? 'Take certification test' : 'Complete course to unlock test',
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isComplete
+                                ? const Color(0xFF6366F1)
+                                : Colors.grey.shade400,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCompactProgressSummary(_CourseProgressStats stats, bool isComplete) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${stats.completionPercent}% toward certificate',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              ),
+              Text(
+                '${stats.unlockedModules}/${stats.totalModules} modules',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: (stats.completionPercent / 100).clamp(0.0, 1.0),
+              minHeight: 8,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                isComplete ? const Color(0xFF10B981) : const Color(0xFF6366F1),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _certStepRow({
+    required bool done,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: done
+                ? const Color(0xFF10B981).withOpacity(0.15)
+                : Colors.grey.withOpacity(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            done ? Icons.check_rounded : Icons.circle_outlined,
+            size: 18,
+            color: done ? const Color(0xFF10B981) : Colors.grey.shade500,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: done ? const Color(0xFF1E293B) : Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

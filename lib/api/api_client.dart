@@ -476,6 +476,11 @@ class ApiClient {
   }
 
   static void _triggerServiceUnavailable(int statusCode, String endpoint) {
+    // Only hijack the whole app for startup config / gateway failures — not every 404 route.
+    final isStartupConfig = endpoint.contains('app-config');
+    if (statusCode == 404 && !isStartupConfig) {
+      return;
+    }
     if (_handlingServiceUnavailable) return;
     final handler = onServiceUnavailable;
     if (handler == null) return;

@@ -28,6 +28,7 @@ class _LearningPageState extends State<LearningPage>
   int _currentStreak = 0;
   List<ModuleModel> _modules = [];
   List<EbookModel> _ebooks = [];
+  List<Map<String, dynamic>> _certificates = [];
 
   @override
   void initState() {
@@ -61,6 +62,15 @@ class _LearningPageState extends State<LearningPage>
       );
       if (progressRes['success'] == true) {
         _currentStreak = progressRes['data']['current_streak'] ?? 0;
+      }
+
+      final certRes = await LearningApi.getMyCertificates();
+      if (certRes['success'] == true && certRes['data'] is List) {
+        _certificates = (certRes['data'] as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      } else {
+        _certificates = [];
       }
 
       // Simulate real API latency
@@ -115,7 +125,7 @@ class _LearningPageState extends State<LearningPage>
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: const Color(0xFF0F172A),
         body: NestedScrollView(
@@ -216,6 +226,7 @@ class _LearningPageState extends State<LearningPage>
                   ),
                   tabs: const [
                     Tab(text: 'COURSES'),
+                    Tab(text: 'CERTIFICATES'),
                     Tab(text: 'E-BOOKS'),
                   ],
                 ),
@@ -233,6 +244,14 @@ class _LearningPageState extends State<LearningPage>
                   child: _isLoading
                       ? const Center(child: EliteLoader())
                       : _buildTieredList(),
+                ),
+                // CERTIFICATES TAB
+                RefreshIndicator(
+                  onRefresh: _loadData,
+                  color: const Color(0xFF6366F1),
+                  child: _isLoading
+                      ? const Center(child: EliteLoader())
+                      : _buildCertificatesList(),
                 ),
                 // E-BOOKS TAB
                 RefreshIndicator(
@@ -934,6 +953,192 @@ class _LearningPageState extends State<LearningPage>
           letterSpacing: 1,
         ),
       ),
+    );
+  }
+
+  Future<void> _openCertificateUrl(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _buildCertificatesList() {
+    if (_certificates.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(32),
+        children: [
+          Icon(
+            Icons.workspace_premium_outlined,
+            size: 64,
+            color: Colors.grey.withOpacity(0.35),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'NO CERTIFICATES YET',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF64748B),
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Open a course, complete all lessons, pass the certification test, then download your certificate from the bottom of the course page.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 24),
+          TextButton(
+            onPressed: () {
+              DefaultTabController.of(context).animateTo(0);
+            },
+            child: const Text(
+              'Go to Courses',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF6366F1),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+      itemCount: _certificates.length,
+      itemBuilder: (context, index) {
+        final c = _certificates[index];
+        final title = c['course_title']?.toString() ?? 'Course';
+        final courseId = c['course_id'] as int?;
+        final pdfUrl = c['pdf_url'] as String?;
+        final htmlUrl = c['html_url'] as String?;
+        final certNo = c['certificate_number']?.toString() ?? '';
+        final score = c['score_percent'];
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF6366F1).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Color(0xFF6366F1),
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        if (certNo.isNotEmpty)
+                          Text(
+                            certNo,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        if (score != null)
+                          Text(
+                            'Score: $score%',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF6366F1),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  if (pdfUrl != null)
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openCertificateUrl(pdfUrl),
+                        icon: const Icon(Icons.download_rounded, size: 20),
+                        label: const Text('Download'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  if (pdfUrl != null && htmlUrl != null) const SizedBox(width: 8),
+                  if (htmlUrl != null)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => _openCertificateUrl(htmlUrl),
+                        child: const Text('View'),
+                      ),
+                    ),
+                ],
+              ),
+              if (courseId != null) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.courseCurriculum,
+                      arguments: {
+                        'courseId': courseId,
+                        'courseTitle': title,
+                      },
+                    );
+                  },
+                  child: const Text('Open course'),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 

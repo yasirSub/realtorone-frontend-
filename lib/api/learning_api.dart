@@ -93,7 +93,18 @@ class LearningApi {
   }) async {
     return await ApiClient.post(ApiEndpoints.courseExamSubmit(courseId), {
       'answers': answers,
-      'started_at': ?startedAt,
+      if (startedAt != null) 'started_at': startedAt,
     }, requiresAuth: true);
+  }
+
+  static Future<Map<String, dynamic>> getMyCertificates() async {
+    return await ApiClient.get('/certificates', requiresAuth: true);
+  }
+
+  static Future<Map<String, dynamic>> getCourseCertificate(int courseId) async {
+    return await ApiClient.get(
+      '/courses/$courseId/certificate',
+      requiresAuth: true,
+    );
   }
 }
