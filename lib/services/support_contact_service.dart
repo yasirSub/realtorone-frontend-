@@ -86,12 +86,15 @@ class SupportContactService {
     );
   }
 
+  /// [kind]: `maintenance` (planned downtime) or `unavailable` (API / network error).
   static Future<Map<String, String>> maintenanceRouteArgs({
     String? message,
+    String kind = 'maintenance',
   }) async {
     final contact = await loadCached();
     return {
       if (message != null && message.isNotEmpty) 'message': message,
+      'kind': kind,
       ...contact.toRouteArgs(),
     };
   }

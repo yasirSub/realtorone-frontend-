@@ -7,15 +7,48 @@ import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../services/support_contact_service.dart';
 
+/// Why the user landed on this screen (from route `kind`).
+enum MaintenancePageKind {
+  maintenance,
+  unavailable,
+}
+
 class MaintenancePage extends StatelessWidget {
   const MaintenancePage({
     super.key,
     required this.message,
     this.contact = SupportContact.defaults,
+    this.kind = MaintenancePageKind.maintenance,
   });
 
   final String message;
   final SupportContact contact;
+  final MaintenancePageKind kind;
+
+  static MaintenancePageKind kindFromRoute(Object? raw) {
+    final value = (raw is String ? raw : raw?.toString() ?? '').toLowerCase();
+    if (value == 'unavailable' ||
+        value == 'error' ||
+        value == 'offline' ||
+        value == 'service') {
+      return MaintenancePageKind.unavailable;
+    }
+    return MaintenancePageKind.maintenance;
+  }
+
+  bool get _isMaintenance => kind == MaintenancePageKind.maintenance;
+
+  Color get _accent =>
+      _isMaintenance ? const Color(0xFFF59E0B) : const Color(0xFFEF4444);
+
+  String get _statusLabel =>
+      _isMaintenance ? 'MAINTENANCE MODE' : 'SERVICE UNAVAILABLE';
+
+  String get _statusSub =>
+      _isMaintenance ? 'System upgrade in progress' : 'Please wait and retry';
+
+  IconData get _statusIcon =>
+      _isMaintenance ? Icons.engineering_rounded : Icons.cloud_off_rounded;
 
   Future<void> _launch(Uri uri) async {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -36,80 +69,94 @@ class MaintenancePage extends StatelessWidget {
           backgroundColor: const Color(0xFF020617),
           body: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Spacer(),
-                  Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              const Color(0xFF6366F1),
-                              const Color(0xFF6366F1).withValues(alpha: 0.7),
-                            ],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(
-                                0xFF6366F1,
-                              ).withValues(alpha: 0.4),
-                              blurRadius: 40,
-                              spreadRadius: 8,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.settings_suggest_rounded,
-                          size: 64,
-                          color: Colors.white,
-                        ),
-                      )
-                      .animate(onPlay: (controller) => controller.repeat())
-                      .fade(duration: const Duration(milliseconds: 800))
+                  const Spacer(flex: 1),
+                  Image.asset(
+                    'assets/images/logo.png',
+                    width: 96,
+                    height: 96,
+                    fit: BoxFit.contain,
+                  )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
                       .scale(
-                        duration: const Duration(milliseconds: 800),
-                        begin: const Offset(0.8, 0.8),
-                      )
-                      .shimmer(
-                        duration: const Duration(seconds: 3),
-                        color: Colors.white24,
+                        duration: const Duration(milliseconds: 2200),
+                        begin: const Offset(0.96, 0.96),
+                        end: const Offset(1.0, 1.0),
+                        curve: Curves.easeInOut,
                       ),
-                  const SizedBox(height: 48),
-                  const Text(
-                    'SYSTEM OPTIMIZATION',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF6366F1),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
+                  const SizedBox(height: 28),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: _accent.withValues(alpha: 0.45)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_statusIcon, size: 16, color: _accent),
+                        const SizedBox(width: 8),
+                        Text(
+                          _statusLabel,
+                          style: TextStyle(
+                            color: _accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
+                  Text(
+                    _statusSub,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (_isMaintenance) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: 36,
+                      height: 36,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: _accent.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
                   Text(
                     l10n.maintenanceTitle,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 26,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
                       height: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: _accent.withValues(alpha: 0.25),
                       ),
                     ),
                     child: Text(
@@ -118,13 +165,13 @@ class MaintenancePage extends StatelessWidget {
                       style: const TextStyle(
                         color: Color(0xFFCBD5F1),
                         fontSize: 15,
-                        height: 1.6,
+                        height: 1.55,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
                   if (contact.hasAny) ...[
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
@@ -174,14 +221,15 @@ class MaintenancePage extends StatelessWidget {
                             _ContactRow(
                               icon: Icons.language_rounded,
                               label: 'Visit support page',
-                              onTap: () => _launch(Uri.parse(contact.contactUrl)),
+                              onTap: () =>
+                                  _launch(Uri.parse(contact.contactUrl)),
                             ),
                           ],
                         ],
                       ),
                     ),
                   ],
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacementNamed(
@@ -189,33 +237,40 @@ class MaintenancePage extends StatelessWidget {
                         AppRoutes.initial,
                       );
                     },
-                    style:
-                        ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6366F1),
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size.fromHeight(60),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ).copyWith(
-                          overlayColor: WidgetStateProperty.all(
-                            Colors.white.withValues(alpha: 0.1),
-                          ),
-                        ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isMaintenance
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(56),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                     child: Text(
                       l10n.maintenanceRetry.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
+                        letterSpacing: 1.0,
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  if (version.isNotEmpty)
+                  const Spacer(flex: 2),
+                  Text(
+                    'RealtorOne',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  if (version.isNotEmpty) ...[
+                    const SizedBox(height: 6),
                     Opacity(
-                      opacity: 0.6,
+                      opacity: 0.5,
                       child: Text(
                         l10n.maintenanceVersionLabel(version),
                         style: const TextStyle(
@@ -224,6 +279,7 @@ class MaintenancePage extends StatelessWidget {
                         ),
                       ),
                     ),
+                  ],
                 ],
               ),
             ),

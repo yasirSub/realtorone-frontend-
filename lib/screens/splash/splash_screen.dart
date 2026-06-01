@@ -104,6 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint('Splash: maintenance enabled, redirecting');
         final args = await SupportContactService.maintenanceRouteArgs(
           message: config.maintenanceMessage,
+          kind: 'maintenance',
         );
         if (!mounted) return;
         Navigator.pushReplacementNamed(
@@ -119,6 +120,7 @@ class _SplashScreenState extends State<SplashScreen>
         final args = await SupportContactService.maintenanceRouteArgs(
           message:
               'We could not reach the RealtorOne service. Please try again shortly or contact support below.',
+          kind: 'unavailable',
         );
         if (!mounted) return;
         Navigator.pushReplacementNamed(

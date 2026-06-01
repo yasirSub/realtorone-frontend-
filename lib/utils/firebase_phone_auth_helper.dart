@@ -28,6 +28,8 @@ class FirebasePhoneAuthHelper {
       case 'too-many-requests':
       case 'quota-exceeded':
         return 'SMS limit reached. Link billing in Google Cloud (Firebase project realtor-one) or use a test number in Firebase Console.';
+      case 'billing-not-enabled':
+        return 'Firebase SMS billing is not enabled. Link a billing account to project realtor-one in Google Cloud, or use server SMS (Brevo) by fixing BREVO_SMS_SENDER on the API server.';
       case 'missing-client-identifier':
       case 'app-not-authorized':
         return 'This app build is not authorized for SMS. Add SHA-1 and SHA-256 in Firebase → Project settings → Android app.';
@@ -36,8 +38,11 @@ class FirebasePhoneAuthHelper {
       case 'network-request-failed':
         return 'Network error. Check your internet connection and try again.';
       default:
-        final msg = e.message?.trim();
-        if (msg != null && msg.isNotEmpty) {
+        final msg = e.message?.trim() ?? '';
+        if (msg.toUpperCase().contains('BILLING_NOT_ENABLED')) {
+          return 'Firebase phone SMS needs billing on Google Cloud (project realtor-one). Enable billing or fix Brevo SMS on the server.';
+        }
+        if (msg.isNotEmpty) {
           return '$msg (${e.code})';
         }
         return 'Failed to send SMS code (${e.code}).';

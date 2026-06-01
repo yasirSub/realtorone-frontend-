@@ -30,6 +30,7 @@ Future<void> main() async {
         : 'RealtorOne is temporarily unavailable. Please try again in a few minutes.';
     final args = await SupportContactService.maintenanceRouteArgs(
       message: message,
+      kind: 'unavailable',
     );
     navigator.pushNamedAndRemoveUntil(
       AppRoutes.maintenance,

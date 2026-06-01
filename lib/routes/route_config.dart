@@ -99,6 +99,7 @@ class RouteConfig {
         return MaintenancePage(
           message: (args['message'] as String?) ?? '',
           contact: SupportContact.fromRouteArgs(args),
+          kind: MaintenancePage.kindFromRoute(args['kind']),
         );
       },
       AppRoutes.updateRequired: (context) {

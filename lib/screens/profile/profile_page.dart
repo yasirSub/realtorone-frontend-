@@ -1095,6 +1095,12 @@ class _ProfilePageState extends State<ProfilePage> {
         return;
       }
 
+      if (smsResponse['status'] == 'error') {
+        final brevoMsg = smsResponse['message']?.toString() ??
+            'Server SMS failed. Trying Firebase…';
+        _showSnackBar(brevoMsg, Colors.orange);
+      }
+
       await _sendFirebasePhoneOtp(email: email, phone: phone);
     } catch (e) {
       if (!mounted) return;
