@@ -14,6 +14,7 @@ import '../screens/belief_rewiring/belief_rewiring_page.dart';
 import '../screens/profile/edit_profile_page.dart';
 import '../screens/profile/settings_page.dart';
 import '../screens/profile/app_version_page.dart';
+import '../screens/profile/admin_manage_subscription_page.dart';
 import '../screens/reports/reports_page.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/subscription/subscription_plans_page.dart';
@@ -79,6 +80,8 @@ class RouteConfig {
       AppRoutes.beliefRewiring: (context) => const BeliefRewiringPage(),
       AppRoutes.reports: (context) => const ReportsPage(),
       AppRoutes.settings: (context) => const SettingsPage(),
+      AppRoutes.adminManageSubscription: (context) =>
+          const AdminManageSubscriptionPage(),
       AppRoutes.appVersion: (context) => const AppVersionPage(),
       AppRoutes.dashboard: (context) => const DashboardPage(), // Legacy
       AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),

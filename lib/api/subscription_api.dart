@@ -19,11 +19,15 @@ class SubscriptionApi {
   /// Validate a coupon code for the selected subscription length (months).
   static Future<Map<String, dynamic>> validateCoupon(
     String code, {
-    int? months,
+    required int months,
+    int? packageId,
+    String? tierName,
   }) async {
     return await ApiClient.post(ApiEndpoints.validateCoupon, {
       'code': code.trim().toUpperCase(),
-      if (months != null) 'months': months,
+      'months': months,
+      if (packageId != null) 'package_id': packageId,
+      if (tierName != null) 'tier_name': tierName,
     }, requiresAuth: true);
   }
 

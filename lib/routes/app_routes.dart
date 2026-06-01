@@ -28,4 +28,5 @@ class AppRoutes {
   static const String verifyOtp = '/verify-otp';
   static const String maintenance = '/maintenance';
   static const String updateRequired = '/update-required';
+  static const String adminManageSubscription = '/admin-manage-subscription';
 }

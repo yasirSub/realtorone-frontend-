@@ -444,14 +444,18 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       final res = await SubscriptionApi.validateCoupon(
         code,
         months: _selectedMonths,
+        packageId: _selectedPackageId,
       );
       if (!mounted) return;
 
       if (res['success'] == true && res['data'] != null) {
+        final preview = res['preview'] as Map<String, dynamic>?;
+        final saved = preview?['discount_amount'];
         setState(() {
           _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
-          _couponMessage =
-              '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+          _couponMessage = saved != null
+              ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
+              : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
         });
       } else {
         setState(() {
@@ -489,13 +493,17 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       final res = await SubscriptionApi.validateCoupon(
         code,
         months: _selectedMonths,
+        packageId: _selectedPackageId,
       );
       if (!mounted) return;
       if (res['success'] == true && res['data'] != null) {
+        final preview = res['preview'] as Map<String, dynamic>?;
+        final saved = preview?['discount_amount'];
         setState(() {
           _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
-          _couponMessage =
-              '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+          _couponMessage = saved != null
+              ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
+              : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
         });
       } else {
         setState(() {

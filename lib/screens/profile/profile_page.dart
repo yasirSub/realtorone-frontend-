@@ -523,6 +523,17 @@ class _ProfilePageState extends State<ProfilePage> {
                           onTap: () =>
                               Navigator.pushNamed(context, AppRoutes.settings),
                         ),
+                        if (_userData?['is_admin'] == true)
+                          _MenuItem(
+                            icon: Icons.admin_panel_settings_outlined,
+                            title: 'Manage user subscriptions',
+                            subtitle:
+                                'Change tier manually (recorded as admin)',
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.adminManageSubscription,
+                            ),
+                          ),
                       ], isDark),
                       const SizedBox(height: 48),
                       SizedBox(
