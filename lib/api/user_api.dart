@@ -258,10 +258,18 @@ class UserApi {
     );
   }
 
-  static Future<Map<String, dynamic>> verifyPhoneOtp(String email, String token) async {
+  static Future<Map<String, dynamic>> verifyPhoneOtp(
+    String email,
+    String token, {
+    String? mobile,
+  }) async {
     final result = await ApiClient.post(
       ApiEndpoints.verifyPhoneOtp,
-      {'email': email, 'token': token},
+      {
+        'email': email,
+        'token': token,
+        if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
+      },
       requiresAuth: true,
     );
     if (result['status'] == 'ok' || result['success'] == true) {

@@ -13,6 +13,7 @@ import '../../widgets/realtor_one_dialog_scaffold.dart';
 import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
+import '../../utils/firebase_phone_auth_helper.dart';
 import '../../widgets/app_version_details_sheet.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -1074,38 +1075,27 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = true);
     try {
-      await _firebaseAuth.verifyPhoneNumber(
-        phoneNumber: phone,
-        verificationCompleted: (credential) async {
-          await _verifyPhoneWithFirebaseCredential(
-            credential: credential,
-            email: email,
-            mobile: phone,
-          );
-        },
-        verificationFailed: (e) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          _showSnackBar(
-            e.message ?? 'Failed to send Firebase OTP. Please try again.',
-            Colors.red,
-          );
-        },
-        codeSent: (verificationId, resendToken) {
-          if (!mounted) return;
-          setState(() => _isLoading = false);
-          _showOtpVerifyDialog(
-            email: email,
-            isEmail: false,
-            phone: phone,
-            firebaseVerificationId: verificationId,
-            usesFirebasePhone: true,
-          );
-        },
-        codeAutoRetrievalTimeout: (verificationId) {
-          // User can still verify manually with OTP.
-        },
-      );
+      // Prefer server SMS (Brevo) — works without Firebase billing quota.
+      final smsResponse = await UserApi.sendPhoneOtp(email, phone);
+      if (!mounted) return;
+
+      if (smsResponse['status'] == 'ok' && smsResponse['provider'] == 'brevo') {
+        setState(() => _isLoading = false);
+        _showSnackBar(
+          smsResponse['message']?.toString() ??
+              'Verification code sent to your phone.',
+          Colors.green,
+        );
+        _showOtpVerifyDialog(
+          email: email,
+          isEmail: false,
+          phone: phone,
+          usesFirebasePhone: false,
+        );
+        return;
+      }
+
+      await _sendFirebasePhoneOtp(email: email, phone: phone);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -1114,6 +1104,50 @@ class _ProfilePageState extends State<ProfilePage> {
         Colors.red,
       );
     }
+  }
+
+  Future<void> _sendFirebasePhoneOtp({
+    required String email,
+    required String phone,
+  }) async {
+    final ready = await FirebasePhoneAuthHelper.ensureInitialized();
+    if (!ready) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        'SMS is unavailable. Configure BREVO on the server or Firebase billing for phone OTP.',
+        Colors.red,
+      );
+      return;
+    }
+
+    await _firebaseAuth.verifyPhoneNumber(
+      phoneNumber: phone,
+      verificationCompleted: (credential) async {
+        await _verifyPhoneWithFirebaseCredential(
+          credential: credential,
+          email: email,
+          mobile: phone,
+        );
+      },
+      verificationFailed: (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
+      },
+      codeSent: (verificationId, resendToken) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        _showOtpVerifyDialog(
+          email: email,
+          isEmail: false,
+          phone: phone,
+          firebaseVerificationId: verificationId,
+          usesFirebasePhone: true,
+        );
+      },
+      codeAutoRetrievalTimeout: (verificationId) {},
+    );
   }
 
   void _showSnackBar(String message, Color backgroundColor) {
@@ -1180,7 +1214,11 @@ class _ProfilePageState extends State<ProfilePage> {
                                 showSuccessSnackBar: false,
                               );
                             } else {
-                              response = await UserApi.verifyPhoneOtp(email, otp);
+                              response = await UserApi.verifyPhoneOtp(
+                                email,
+                                otp,
+                                mobile: phone,
+                              );
                             }
 
                             if (response['status'] == 'ok' ||
