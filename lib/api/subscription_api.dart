@@ -16,10 +16,14 @@ class SubscriptionApi {
     return await ApiClient.get(ApiEndpoints.mySubscription, requiresAuth: true);
   }
 
-  /// Validate a coupon code
-  static Future<Map<String, dynamic>> validateCoupon(String code) async {
+  /// Validate a coupon code for the selected subscription length (months).
+  static Future<Map<String, dynamic>> validateCoupon(
+    String code, {
+    int? months,
+  }) async {
     return await ApiClient.post(ApiEndpoints.validateCoupon, {
-      'code': code,
+      'code': code.trim().toUpperCase(),
+      if (months != null) 'months': months,
     }, requiresAuth: true);
   }
 
@@ -50,6 +54,7 @@ class SubscriptionApi {
     String? receipt,
     String? productId,
     String? platform,
+    int? couponId,
   }) async {
     return await ApiClient.post(ApiEndpoints.purchaseSubscription, {
       'tier_name': tierName,
@@ -58,6 +63,7 @@ class SubscriptionApi {
       if (receipt != null && receipt.isNotEmpty) 'receipt': receipt,
       'product_id': ?productId,
       'platform': ?platform,
+      ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
 }

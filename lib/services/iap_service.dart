@@ -22,6 +22,9 @@ class IapService {
 
   String? _lastBackendError;
 
+  /// Set from subscription UI before checkout; sent to backend after IAP succeeds.
+  int? pendingCouponId;
+
   /// Maps backend tier names to Apple/Google product ID prefixes.
   static const Map<String, String> _tierProductPrefix = {
     'consultant': 'consultant',
@@ -306,6 +309,7 @@ class IapService {
 
     if (tierMonthsMap != null) {
       try {
+        final couponId = pendingCouponId;
         final res = await SubscriptionApi.purchaseSubscriptionByTier(
           tierName: tierMonthsMap['tier'] as String,
           months: tierMonthsMap['months'] as int,
@@ -315,9 +319,10 @@ class IapService {
               : null,
           productId: productId,
           platform: Platform.isIOS ? 'ios' : 'android',
+          couponId: couponId,
         );
-
         if (res['success'] == true) {
+          pendingCouponId = null;
           debugPrint('Subscription activated on server for $productId');
           return true;
         }
@@ -347,15 +352,18 @@ class IapService {
         final monthsStr = parts[2].replaceAll('m', '');
         final months = int.parse(monthsStr);
 
+        final couponId = pendingCouponId;
         final res = await SubscriptionApi.purchaseSubscription(
           packageId: packageId,
           months: months,
           paymentId: paymentId,
           productId: productId,
           platform: Platform.isIOS ? 'ios' : 'android',
+          couponId: couponId,
         );
 
         if (res['success'] == true) {
+          pendingCouponId = null;
           return true;
         }
         _lastBackendError =

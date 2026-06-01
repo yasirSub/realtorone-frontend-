@@ -31,7 +31,24 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   int _selectedMonths = 1;
   bool _isPurchasing = false;
 
+  final TextEditingController _couponController = TextEditingController();
+  Map<String, dynamic>? _appliedCoupon;
+  String? _couponMessage;
+  bool _isValidatingCoupon = false;
+
   bool get _isIos => Theme.of(context).platform == TargetPlatform.iOS;
+
+  int? get _appliedCouponId {
+    final id = _appliedCoupon?['id'];
+    if (id is int) return id;
+    return int.tryParse(id?.toString() ?? '');
+  }
+
+  int get _appliedCouponDiscountPercent {
+    final v = _appliedCoupon?['discount_percentage'];
+    if (v is int) return v;
+    return int.tryParse(v?.toString() ?? '') ?? 0;
+  }
 
   // Tier config
   static const _tierIcons = {
@@ -83,8 +100,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   }
 
   @override
-  // ignore: unnecessary_overrides
   void dispose() {
+    _couponController.dispose();
     super.dispose();
   }
 
@@ -183,6 +200,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             }
           }
         };
+        IapService().pendingCouponId = _appliedCouponId;
         await IapService().buyByTier(
           tierName,
           _selectedMonths,
@@ -407,6 +425,96 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
   }
 
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _couponMessage = 'Enter a coupon code';
+        _appliedCoupon = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isValidatingCoupon = true;
+      _couponMessage = null;
+    });
+
+    try {
+      final res = await SubscriptionApi.validateCoupon(
+        code,
+        months: _selectedMonths,
+      );
+      if (!mounted) return;
+
+      if (res['success'] == true && res['data'] != null) {
+        setState(() {
+          _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
+          _couponMessage =
+              '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+        });
+      } else {
+        setState(() {
+          _appliedCoupon = null;
+          _couponMessage =
+              res['message']?.toString() ?? 'Invalid or expired coupon';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _appliedCoupon = null;
+        _couponMessage = 'Could not validate coupon. Try again.';
+      });
+    } finally {
+      if (mounted) setState(() => _isValidatingCoupon = false);
+    }
+  }
+
+  void _clearCoupon() {
+    setState(() {
+      _appliedCoupon = null;
+      _couponMessage = null;
+      _couponController.clear();
+    });
+    IapService().pendingCouponId = null;
+  }
+
+  Future<void> _revalidateCouponForSelectedDuration() async {
+    if (_appliedCoupon == null) return;
+    final code = _appliedCoupon?['code']?.toString() ?? _couponController.text;
+    if (code.trim().isEmpty) return;
+
+    try {
+      final res = await SubscriptionApi.validateCoupon(
+        code,
+        months: _selectedMonths,
+      );
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] != null) {
+        setState(() {
+          _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
+          _couponMessage =
+              '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+        });
+      } else {
+        setState(() {
+          _appliedCoupon = null;
+          _couponMessage =
+              res['message']?.toString() ??
+              'Coupon is not valid for this subscription length';
+        });
+      }
+    } catch (_) {
+      // Keep previous coupon on transient errors.
+    }
+  }
+
+  void _onDurationSelected(int months) {
+    setState(() => _selectedMonths = months);
+    _revalidateCouponForSelectedDuration();
+  }
+
   double _calculatePrice(Map<String, dynamic> pkg) {
     final baseMonthly =
         (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0);
@@ -432,6 +540,16 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return price;
   }
 
+  double _calculatePriceAfterCoupon(Map<String, dynamic> pkg) {
+    final total = _calculatePrice(pkg);
+    if (_appliedCoupon == null || _appliedCouponDiscountPercent <= 0) {
+      return total;
+    }
+    return double.parse(
+      (total * (1 - _appliedCouponDiscountPercent / 100)).toStringAsFixed(2),
+    );
+  }
+
   String _getStorePrice(Map<String, dynamic> pkg) {
     final name = pkg['name']?.toString() ?? '';
     final isFree = (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
@@ -440,10 +558,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final iapProduct = IapService().findProductForTier(name, _selectedMonths);
     final aedTotal = _calculatePrice(pkg);
 
+    final displayAed = _appliedCoupon != null
+        ? _calculatePriceAfterCoupon(pkg)
+        : aedTotal;
+
     return SubscriptionPricing.displayPrice(
       tierName: name,
       selectedMonths: _selectedMonths,
-      aedTotal: aedTotal,
+      aedTotal: displayAed,
       storeProduct: iapProduct,
     );
   }
@@ -673,6 +795,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   ),
                 ),
               ),
+              if (_selectedPackageId != null)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: ResponsiveHelper.contentPadding(context, top: 16),
+                    child: ResponsiveHelper.constrainWidth(
+                      child: _buildCouponSection(isDark),
+                    ),
+                  ),
+                ),
               // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
               SliverPadding(
                 padding: ResponsiveHelper.contentPadding(context, top: 16),
@@ -886,7 +1017,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
           return Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _selectedMonths = m),
+              onTap: () => _onDurationSelected(m),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
@@ -1442,6 +1573,111 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
   }
 
+  Widget _buildCouponSection(bool isDark) {
+    final pkg = _packages.firstWhere(
+      (p) =>
+          (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
+      orElse: () => <String, dynamic>{},
+    );
+    final isFree = pkg.isNotEmpty &&
+        (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
+    if (isFree) return const SizedBox.shrink();
+
+    final borderColor = isDark
+        ? Colors.white.withOpacity(0.08)
+        : const Color(0xFFE2E8F0);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Have a coupon?',
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _couponController,
+                  enabled: !_isValidatingCoupon && _appliedCoupon == null,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: 'Enter code',
+                    filled: true,
+                    fillColor: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                  ),
+                  onSubmitted: (_) => _applyCoupon(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (_appliedCoupon != null)
+                TextButton(
+                  onPressed: _clearCoupon,
+                  child: const Text('Remove'),
+                )
+              else
+                FilledButton(
+                  onPressed: _isValidatingCoupon ? null : _applyCoupon,
+                  child: _isValidatingCoupon
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Apply'),
+                ),
+            ],
+          ),
+          if (_couponMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _couponMessage!,
+              style: TextStyle(
+                color: _appliedCoupon != null
+                    ? const Color(0xFF10B981)
+                    : Colors.redAccent,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          if (_appliedCoupon != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'App Store / Play billing may still show the full price; your discount is recorded when the subscription activates.',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildPurchaseBarSummary({
     required bool isDark,
     required String name,
@@ -1449,6 +1685,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     required bool isComingSoon,
     required Map<String, dynamic> pkg,
   }) {
+    final hasCoupon = _appliedCoupon != null && !isComingSoon;
+    final originalAed = _calculatePrice(pkg);
+    final discountedAed = _calculatePriceAfterCoupon(pkg);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -1464,8 +1704,25 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           ),
         ),
         const SizedBox(height: 4),
+        if (hasCoupon) ...[
+          _fittedSingleLineText(
+            SubscriptionPricing.formatAedTotal(originalAed),
+            alignment: Alignment.centerLeft,
+            style: TextStyle(
+              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          const SizedBox(height: 2),
+        ],
         _fittedSingleLineText(
-          isComingSoon ? 'Coming Soon' : _getStorePrice(pkg),
+          isComingSoon
+              ? 'Coming Soon'
+              : (hasCoupon
+                    ? SubscriptionPricing.formatAedTotal(discountedAed)
+                    : _getStorePrice(pkg)),
           alignment: Alignment.centerLeft,
           style: TextStyle(
             color: isDark ? Colors.white : const Color(0xFF1E293B),
@@ -1473,6 +1730,18 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             fontWeight: FontWeight.w900,
           ),
         ),
+        if (hasCoupon)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '${_appliedCouponDiscountPercent}% coupon applied',
+              style: const TextStyle(
+                color: Color(0xFF10B981),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
       ],
     );
   }
