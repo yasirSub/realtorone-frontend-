@@ -349,6 +349,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return _tierGlow['Consultant'] ?? defaultGlow;
   }
 
+  /// True when at least one paid tier exists (coupon applies to paid plans only).
+  bool get _showCouponSection {
+    return _packages.any((p) {
+      final price =
+          double.tryParse(p['price_monthly']?.toString() ?? '0') ?? 0;
+      return price > 0;
+    });
+  }
+
   /// Filter packages to avoid duplicate tier cards. When subscribed, prefer the package matching current tier.
   List<dynamic> get _displayPackages {
     final byTier = <String, dynamic>{};
@@ -430,6 +439,29 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     if (code.isEmpty) {
       setState(() {
         _couponMessage = 'Enter a coupon code';
+        _appliedCoupon = null;
+      });
+      return;
+    }
+
+    if (_selectedPackageId == null) {
+      setState(() {
+        _couponMessage = 'Select Rainmaker or Titan above, then tap Apply';
+        _appliedCoupon = null;
+      });
+      return;
+    }
+
+    final selectedPkg = _packages.firstWhere(
+      (p) =>
+          (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
+      orElse: () => <String, dynamic>{},
+    );
+    final selectedPrice =
+        double.tryParse(selectedPkg['price_monthly']?.toString() ?? '0') ?? 0;
+    if (selectedPrice <= 0) {
+      setState(() {
+        _couponMessage = 'Coupons apply to Rainmaker and Titan plans only';
         _appliedCoupon = null;
       });
       return;
@@ -803,15 +835,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   ),
                 ),
               ),
-              if (_selectedPackageId != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: ResponsiveHelper.contentPadding(context, top: 16),
-                    child: ResponsiveHelper.constrainWidth(
-                      child: _buildCouponSection(isDark),
-                    ),
-                  ),
-                ),
               // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
               SliverPadding(
                 padding: ResponsiveHelper.contentPadding(context, top: 16),
@@ -830,6 +853,16 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   }, childCount: _displayPackages.length),
                 ),
               ),
+
+              if (_showCouponSection)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: ResponsiveHelper.contentPadding(context, top: 16),
+                    child: ResponsiveHelper.constrainWidth(
+                      child: _buildCouponSection(isDark),
+                    ),
+                  ),
+                ),
 
               // Legal footer with required subscription info
               SliverToBoxAdapter(
@@ -1582,14 +1615,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   }
 
   Widget _buildCouponSection(bool isDark) {
-    final pkg = _packages.firstWhere(
-      (p) =>
-          (int.tryParse(p['id']?.toString() ?? '') ?? 0) == _selectedPackageId,
-      orElse: () => <String, dynamic>{},
-    );
-    final isFree = pkg.isNotEmpty &&
+    Map<String, dynamic> pkg = {};
+    if (_selectedPackageId != null) {
+      pkg = Map<String, dynamic>.from(
+        _packages.firstWhere(
+          (p) =>
+              (int.tryParse(p['id']?.toString() ?? '') ?? 0) ==
+              _selectedPackageId,
+          orElse: () => <String, dynamic>{},
+        ),
+      );
+    }
+    final isFreeSelected = pkg.isNotEmpty &&
         (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
-    if (isFree) return const SizedBox.shrink();
+    final needsPlanSelection = _selectedPackageId == null || pkg.isEmpty;
 
     final borderColor = isDark
         ? Colors.white.withOpacity(0.08)
@@ -1613,13 +1652,34 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               fontSize: 13,
             ),
           ),
+          if (needsPlanSelection) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Select Rainmaker or Titan above, then enter your code.',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                fontSize: 12,
+              ),
+            ),
+          ] else if (isFreeSelected) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Coupons apply to Rainmaker and Titan plans only.',
+              style: TextStyle(
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                fontSize: 12,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _couponController,
-                  enabled: !_isValidatingCoupon && _appliedCoupon == null,
+                  enabled: !_isValidatingCoupon &&
+                      _appliedCoupon == null &&
+                      !isFreeSelected,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
                     hintText: 'Enter code',
