@@ -25,6 +25,10 @@ class IapService {
   /// Set from subscription UI before checkout; sent to backend after IAP succeeds.
   int? pendingCouponId;
 
+  /// Pricing breakdown from the last successful server activation (for success UI).
+  Map<String, dynamic>? lastActivationPricing;
+  bool lastActivationCouponApplied = false;
+
   /// Maps backend tier names to Apple/Google product ID prefixes.
   static const Map<String, String> _tierProductPrefix = {
     'consultant': 'consultant',
@@ -322,6 +326,7 @@ class IapService {
           couponId: couponId,
         );
         if (res['success'] == true) {
+          _captureActivationPricing(res);
           pendingCouponId = null;
           debugPrint('Subscription activated on server for $productId');
           return true;
@@ -363,6 +368,7 @@ class IapService {
         );
 
         if (res['success'] == true) {
+          _captureActivationPricing(res);
           pendingCouponId = null;
           return true;
         }
@@ -377,6 +383,16 @@ class IapService {
 
     _lastBackendError = 'Unknown product ID: $productId';
     return false;
+  }
+
+  void _captureActivationPricing(Map<String, dynamic> res) {
+    final pricing = res['pricing'];
+    if (pricing is Map) {
+      lastActivationPricing = Map<String, dynamic>.from(pricing);
+    } else {
+      lastActivationPricing = null;
+    }
+    lastActivationCouponApplied = res['coupon_applied'] == true;
   }
 
   String _resolvePaymentId(PurchaseDetails purchase) {

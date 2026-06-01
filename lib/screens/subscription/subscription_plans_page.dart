@@ -50,6 +50,98 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return int.tryParse(v?.toString() ?? '') ?? 0;
   }
 
+  bool get _isMobileIap {
+    final platform = Theme.of(context).platform;
+    return platform == TargetPlatform.iOS ||
+        platform == TargetPlatform.android;
+  }
+
+  String get _mobileStoreName =>
+      _isIos ? 'App Store' : 'Google Play';
+
+  String? _storeListedPrice(Map<String, dynamic> pkg) {
+    final tierName = _normalizeTierName(pkg['name']?.toString() ?? '');
+    return IapService()
+        .findProductForTier(tierName, _selectedMonths)
+        ?.price;
+  }
+
+  bool _looksLikeSandboxTestBilling(String? storePriceLabel) {
+    if (storePriceLabel == null) return false;
+    final lower = storePriceLabel.toLowerCase();
+    return lower.contains('5 min') || lower.contains('/min');
+  }
+
+  Future<bool> _confirmBeforeMobilePurchase(Map<String, dynamic> pkg) async {
+    if (!_isMobileIap) return true;
+
+    final storePrice = _storeListedPrice(pkg) ??
+        SubscriptionPricing.formatAedTotal(_calculatePrice(pkg));
+    final hasCoupon = _appliedCoupon != null;
+    final sandboxTest = _looksLikeSandboxTestBilling(storePrice);
+
+    if (!hasCoupon && !sandboxTest) return true;
+
+    final ledgerAfter = SubscriptionPricing.formatAedTotal(
+      _calculatePriceAfterCoupon(pkg),
+    );
+
+    final buffer = StringBuffer();
+    if (hasCoupon) {
+      buffer.writeln(
+        'Your $_appliedCouponDiscountPercent% coupon is applied when RealtorOne activates your subscription after payment.',
+      );
+      buffer.writeln();
+      buffer.writeln('• $_mobileStoreName charge today: $storePrice');
+      buffer.writeln('• Recorded plan value after coupon: $ledgerAfter');
+      buffer.writeln();
+      buffer.writeln(
+        '$_mobileStoreName always shows the full product price in its payment sheet. '
+        'Custom coupon discounts cannot appear there unless we configure matching promotional offers in the store console.',
+      );
+    }
+    if (sandboxTest) {
+      if (buffer.isNotEmpty) buffer.writeln();
+      buffer.writeln(
+        'Test subscription: "/5 min" is a Google Play sandbox renewal interval (renews every 5 minutes for testing). '
+        'Production plans bill monthly or per your selected term. Test purchases are not charged real money.',
+      );
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: Text(
+          hasCoupon ? 'Before you subscribe' : 'Test subscription',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            buffer.toString().trim(),
+            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.45),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(hasCoupon ? 'Continue to $_mobileStoreName' : 'Continue'),
+          ),
+        ],
+      ),
+    );
+
+    return confirmed == true;
+  }
+
   // Tier config
   static const _tierIcons = {
     'Consultant': Icons.star_border_rounded,
@@ -164,6 +256,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         Theme.of(context).platform == TargetPlatform.android;
 
     if (isMobile) {
+      if (!await _confirmBeforeMobilePurchase(pkg)) return;
+
       setState(() => _isPurchasing = true);
       try {
         IapService().onPurchaseResult = (success, message) async {
@@ -282,6 +376,19 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 'Welcome to the $_currentTier tier!',
                 style: const TextStyle(color: Colors.white60, fontSize: 14),
               ),
+              if (IapService().lastActivationCouponApplied) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _activationSuccessCouponLine(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF10B981),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
@@ -312,6 +419,19 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ),
       ),
     );
+  }
+
+  String _activationSuccessCouponLine() {
+    final pricing = IapService().lastActivationPricing;
+    if (pricing == null) {
+      return 'Your coupon was recorded on your subscription.';
+    }
+    final discount = pricing['discount_amount'] ?? pricing['coupon_discount_amount'];
+    final amountPaid = pricing['amount_paid'];
+    if (discount != null && (double.tryParse(discount.toString()) ?? 0) > 0) {
+      return 'Coupon recorded: AED $discount off (ledger amount AED $amountPaid).';
+    }
+    return 'Your coupon was recorded on your subscription.';
   }
 
   /// Normalize tier name for deduplication (Titan, Titan-GOLD, Titan - GOLD → Titan)
@@ -598,9 +718,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final iapProduct = IapService().findProductForTier(name, _selectedMonths);
     final aedTotal = _calculatePrice(pkg);
 
-    final displayAed = _appliedCoupon != null
-        ? _calculatePriceAfterCoupon(pkg)
-        : aedTotal;
+    // Mobile stores always charge the SKU list price; coupon affects server ledger only.
+    final displayAed =
+        (_appliedCoupon != null && !_isMobileIap)
+            ? _calculatePriceAfterCoupon(pkg)
+            : aedTotal;
 
     return SubscriptionPricing.displayPrice(
       tierName: name,
@@ -1731,13 +1853,40 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ),
             ),
           ],
-          if (_appliedCoupon != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              'App Store / Play billing may still show the full price; your discount is recorded when the subscription activates.',
-              style: TextStyle(
-                color: isDark ? Colors.white54 : const Color(0xFF94A3B8),
-                fontSize: 11,
+          if (_appliedCoupon != null && _isMobileIap) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFF59E0B).withOpacity(0.35),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFF59E0B),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$_mobileStoreName will charge the full listed price at checkout. '
+                      'Your $_appliedCouponDiscountPercent% coupon is applied on RealtorOne when the subscription activates (you will see the discounted amount in your account).',
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : const Color(0xFF475569),
+                        fontSize: 11,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1754,8 +1903,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     required Map<String, dynamic> pkg,
   }) {
     final hasCoupon = _appliedCoupon != null && !isComingSoon;
+    final storePrice = _storeListedPrice(pkg);
     final originalAed = _calculatePrice(pkg);
     final discountedAed = _calculatePriceAfterCoupon(pkg);
+    final showIapCouponSplit = hasCoupon && _isMobileIap && storePrice != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1772,44 +1923,83 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           ),
         ),
         const SizedBox(height: 4),
-        if (hasCoupon) ...[
+        if (showIapCouponSplit) ...[
           _fittedSingleLineText(
-            SubscriptionPricing.formatAedTotal(originalAed),
+            storePrice,
             alignment: Alignment.centerLeft,
             style: TextStyle(
-              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.lineThrough,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 2),
-        ],
-        _fittedSingleLineText(
-          isComingSoon
-              ? 'Coming Soon'
-              : (hasCoupon
-                    ? SubscriptionPricing.formatAedTotal(discountedAed)
-                    : _getStorePrice(pkg)),
-          alignment: Alignment.centerLeft,
-          style: TextStyle(
-            color: isDark ? Colors.white : const Color(0xFF1E293B),
-            fontSize: isComingSoon ? 18 : 22,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        if (hasCoupon)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              '${_appliedCouponDiscountPercent}% coupon applied',
-              style: const TextStyle(
-                color: Color(0xFF10B981),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+          Text(
+            '$_mobileStoreName charge',
+            style: TextStyle(
+              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 6),
+          _fittedSingleLineText(
+            SubscriptionPricing.formatAedTotal(discountedAed),
+            alignment: Alignment.centerLeft,
+            style: const TextStyle(
+              color: Color(0xFF10B981),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            'After $_appliedCouponDiscountPercent% coupon (on activation)',
+            style: TextStyle(
+              color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ] else ...[
+          if (hasCoupon) ...[
+            _fittedSingleLineText(
+              SubscriptionPricing.formatAedTotal(originalAed),
+              alignment: Alignment.centerLeft,
+              style: TextStyle(
+                color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
+            const SizedBox(height: 2),
+          ],
+          _fittedSingleLineText(
+            isComingSoon
+                ? 'Coming Soon'
+                : (hasCoupon
+                      ? SubscriptionPricing.formatAedTotal(discountedAed)
+                      : _getStorePrice(pkg)),
+            alignment: Alignment.centerLeft,
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+              fontSize: isComingSoon ? 18 : 22,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (hasCoupon)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                '${_appliedCouponDiscountPercent}% coupon applied',
+                style: const TextStyle(
+                  color: Color(0xFF10B981),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -1832,7 +2022,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           child: Text(
             '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
             '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
-            '• Price: As displayed above for the selected tier and duration\n\n'
+            '• Price: Google Play / App Store shows the product list price. Coupons adjust your RealtorOne subscription ledger after activation.\n'
+            '• Test builds: Play may show "/5 min" — that is a sandbox renewal interval, not production billing.\n\n'
             'Payment will be charged to your iTunes Account (for iOS) or Google Play Account (for Android) at confirmation of purchase. '
             'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
             'Account will be charged for renewal within 24-hours prior to the end of the current period. '
