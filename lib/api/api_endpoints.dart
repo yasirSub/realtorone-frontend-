@@ -29,6 +29,7 @@ class ApiEndpoints {
   // User endpoints
   static const String userProfile = '/user/profile';
   static const String updateProfile = '/user/profile';
+  static const String userAppOpen = '/user/app-open';
   static const String profileSetup = '/user/profile/setup';
   static const String changePassword = '/user/change-password';
   static const String uploadPhoto = '/user/photo';

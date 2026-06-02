@@ -1,11 +1,13 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
+import 'api/api_endpoints.dart';
 import 'api/api_client.dart';
 import 'services/support_contact_service.dart';
 import 'services/push_notification_service.dart';
@@ -43,6 +45,23 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   }
   PushNotificationService.attachNavigatorKey(appNavigatorKey);
+
+  // Daily app-open tracking for streak display (runs once per app launch).
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  if (token != null && token.isNotEmpty) {
+    await ApiClient.setToken(token);
+    final res = await ApiClient.post(
+      ApiEndpoints.userAppOpen,
+      const {},
+      requiresAuth: true,
+    );
+    final ok = res['success'] == true || res['status'] == 'ok';
+    if (ok) {
+      await ApiClient.clearCache();
+    }
+  }
+
   await DeepLinkService.initialize(appNavigatorKey);
   IapService().initialize();
   runApp(

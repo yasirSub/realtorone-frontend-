@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
 import '../routes/app_routes.dart';
 import '../services/push_notification_service.dart';
 
@@ -18,6 +19,12 @@ class AuthSession {
 
     await ApiClient.setToken(token);
     await PushNotificationService.syncTokenWithBackend();
+    // Record daily app-open streak server-side (safe to call multiple times).
+    await ApiClient.post(
+      ApiEndpoints.userAppOpen,
+      const {},
+      requiresAuth: true,
+    );
     await ApiClient.clearCache();
 
     final user = response['user'];

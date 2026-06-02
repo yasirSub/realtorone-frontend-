@@ -13,6 +13,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../widgets/app_version_details_sheet.dart';
+import '../../services/app_preferences_service.dart';
+import '../../theme/realtorone_brand.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -33,6 +35,15 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _loadProfile();
     _loadVersionLabel();
+    _loadAppPreferences();
+  }
+
+  Future<void> _loadAppPreferences() async {
+    await AppPreferencesService.ensureLoaded();
+    if (!mounted) return;
+    setState(() {
+      _emailUpdates = AppPreferencesService.weeklyReportsEnabled.value;
+    });
   }
 
   Future<void> _loadVersionLabel() async {
@@ -80,7 +91,13 @@ class _SettingsPageState extends State<SettingsPage> {
                 Navigator.pop(d);
                 Navigator.pushNamed(context, AppRoutes.forgotPassword);
               },
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF667eea)),
+              style: FilledButton.styleFrom(
+                backgroundColor: RealtorOneBrand.seed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               child: const Text('Verify Now'),
             ),
           ],
@@ -180,8 +197,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     }
                   },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF667eea),
+                    backgroundColor: RealtorOneBrand.seed,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('Update'),
                 ),
@@ -299,6 +319,9 @@ class _SettingsPageState extends State<SettingsPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: const Text('Request deletion'),
             ),
@@ -509,7 +532,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: l10n.settingsWeeklyReportsTitle,
                   subtitle: l10n.settingsWeeklyReportsSubtitle,
                   value: _emailUpdates,
-                  onChanged: (v) => setState(() => _emailUpdates = v),
+                  onChanged: (v) async {
+                    setState(() => _emailUpdates = v);
+                    await AppPreferencesService.setWeeklyReportsEnabled(v);
+                  },
                   isDark: isDark,
                 ),
                 _buildSwitchItem(
@@ -568,8 +594,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: TextButton.icon(
                   onPressed: _isLoading ? null : _logout,
                   style: TextButton.styleFrom(
-                    foregroundColor: Colors.red[700],
-                    backgroundColor: Colors.red[50],
+                    foregroundColor: isDark ? Colors.red[200] : Colors.red[700],
+                    backgroundColor: isDark
+                        ? const Color(0xFF3F1D1D)
+                        : Colors.red[50],
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -626,11 +654,13 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.only(left: 4, bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF94A3B8),
-          letterSpacing: 1.5,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white70
+              : const Color(0xFF475569),
+          letterSpacing: 0.2,
         ),
       ),
     );

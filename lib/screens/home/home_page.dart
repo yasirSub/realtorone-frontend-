@@ -14,6 +14,7 @@ import 'home_webinar_carousel.dart';
 import '../../utils/responsive_helper.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../widgets/marquee_text.dart';
+import '../../services/app_preferences_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onOpenActivitiesTab});
@@ -29,6 +30,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  int _homeStreak = 0;
   String? _homeBannerMessage;
   String _homeBannerType = 'info';
   int _todayTotal = 0;
@@ -36,12 +38,40 @@ class _HomePageState extends State<HomePage> {
   int _hotLeads = 0;
   int _atRiskFour = 0;
   int _nurtureCount = 0;
+  bool _weeklyReportsEnabled = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadAppPreferences();
+    AppPreferencesService.weeklyReportsEnabled.addListener(
+      _onWeeklyReportsPreferenceChanged,
+    );
     PushNotificationService.markAllAsRead();
+  }
+
+  @override
+  void dispose() {
+    AppPreferencesService.weeklyReportsEnabled.removeListener(
+      _onWeeklyReportsPreferenceChanged,
+    );
+    super.dispose();
+  }
+
+  Future<void> _loadAppPreferences() async {
+    await AppPreferencesService.ensureLoaded();
+    if (!mounted) return;
+    setState(() {
+      _weeklyReportsEnabled = AppPreferencesService.weeklyReportsEnabled.value;
+    });
+  }
+
+  void _onWeeklyReportsPreferenceChanged() {
+    if (!mounted) return;
+    final enabled = AppPreferencesService.weeklyReportsEnabled.value;
+    if (_weeklyReportsEnabled == enabled) return;
+    setState(() => _weeklyReportsEnabled = enabled);
   }
 
   Future<void> _loadUserData() async {
@@ -50,9 +80,9 @@ class _HomePageState extends State<HomePage> {
         ApiClient.get(
           '/user/profile',
           requiresAuth: true,
-          useCache: true,
-          cacheMaxAge: const Duration(minutes: 15),
+          useCache: false,
         ),
+        ApiClient.get('/activities/progress', requiresAuth: true, useCache: false),
         ApiClient.get(
           '/tasks/today',
           requiresAuth: true,
@@ -64,9 +94,10 @@ class _HomePageState extends State<HomePage> {
       ]);
 
       final response = results[0];
-      final tasksRes = results[1];
-      final hotLeadRes = results[2];
-      final configRes = results[3];
+      final progressRes = results[1];
+      final tasksRes = results[2];
+      final hotLeadRes = results[3];
+      final configRes = results[4];
 
       String? bannerMessage;
       String bannerType = 'info';
@@ -85,6 +116,12 @@ class _HomePageState extends State<HomePage> {
         setState(() {
           if (response['success'] == true) {
             _userData = response['data'];
+            _homeStreak = _resolveHomeStreak(
+              profile: response['data'],
+              progress: progressRes['data'],
+            );
+          } else {
+            _homeStreak = 0;
           }
           _homeBannerMessage = bannerMessage;
           _homeBannerType = bannerType;
@@ -95,6 +132,26 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  int _resolveHomeStreak({dynamic profile, dynamic progress}) {
+    int? parse(dynamic value) {
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value.trim());
+      return null;
+    }
+
+    int? fromMap(dynamic m, String key) {
+      if (m is! Map) return null;
+      return parse(m[key]);
+    }
+
+    final streak = fromMap(profile, 'app_open_streak') ??
+        fromMap(progress, 'app_open_streak') ??
+        fromMap(progress, 'current_streak') ??
+        fromMap(profile, 'current_streak') ??
+        0;
+    return streak < 0 ? 0 : streak;
   }
 
   void _applyTaskStats(Map<String, dynamic> res) {
@@ -241,6 +298,14 @@ class _HomePageState extends State<HomePage> {
               onPressed: widget.onOpenActivitiesTab != null
                   ? () => widget.onOpenActivitiesTab!(0)
                   : () => Navigator.pushNamed(context, AppRoutes.activities),
+              style: FilledButton.styleFrom(
+                backgroundColor: RealtorOneBrand.seed,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
               child: Text(l10n.homeOpenTasks),
             ),
           ),
@@ -250,15 +315,48 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildPerformanceSection(AppLocalizations l10n, bool isDark) {
+    if (!_weeklyReportsEnabled && widget.onOpenActivitiesTab == null) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const GrowthReportWidget(),
+        if (_weeklyReportsEnabled) const GrowthReportWidget(),
         if (widget.onOpenActivitiesTab != null) ...[
           const SizedBox(height: 12),
           _buildFocusShortcut(l10n, isDark),
         ],
       ],
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: isDark ? Colors.white70 : const Color(0xFF475569),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -386,6 +484,8 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l10n = AppLocalizations.of(context)!;
+    final showPerformanceSection =
+        _weeklyReportsEnabled || widget.onOpenActivitiesTab != null;
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF020617)
@@ -409,11 +509,7 @@ class _HomePageState extends State<HomePage> {
                       : const Color(0xFF1E293B),
                   elevation: 0,
                   centerTitle: false,
-                  title: Image.asset(
-                    'assets/images/logo.png',
-                    height: 32,
-                    fit: BoxFit.contain,
-                  ),
+                  title: const SizedBox.shrink(),
                   actions: [
                     ValueListenableBuilder<int>(
                       valueListenable: PushNotificationService.unreadCount,
@@ -489,77 +585,68 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ),
                         ),
-                        Opacity(
-                          opacity: 0.1,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              image: DecorationImage(
-                                image: const AssetImage(
-                                  'assets/images/welcome.png',
-                                ),
-                                fit: BoxFit.cover,
-                                colorFilter: ColorFilter.mode(
-                                  Colors.white.withValues(alpha: 0.1),
-                                  BlendMode.dstIn,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: -40,
-                          top: 36,
-                          child:
-                              Opacity(
-                                    opacity: 0.05,
-                                    child: const Icon(
-                                      Icons.rocket_launch_rounded,
-                                      size: 220,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                  .animate()
-                                  .fadeIn(duration: 1500.ms)
-                                  .scale(begin: const Offset(0.8, 0.8)),
-                        ),
                         Align(
                           alignment: Alignment.topLeft,
                           child: SafeArea(
                             bottom: false,
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 38, 20, 8),
+                              padding: const EdgeInsets.fromLTRB(20, 42, 20, 10),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    l10n.homeWelcomeBack,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.55),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  )
-                                      .animate()
-                                      .fadeIn(delay: 400.ms)
-                                      .slideY(begin: 0.1),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    _userData?['name']?.toString().toUpperCase() ??
-                                        l10n.homeGuestName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -1.5,
-                                      height: 1,
-                                    ),
-                                  )
-                                      .animate()
-                                      .fadeIn(delay: 500.ms)
-                                      .slideY(begin: 0.1),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        width: 28,
+                                        height: 28,
+                                        child: Image.asset(
+                                          'assets/images/logo.png',
+                                          fit: BoxFit.contain,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                _userData?['name']?.toString() ??
+                                                    l10n.homeGuestName,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 23,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: -0.4,
+                                                  height: 1.1,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Icon(
+                                              Icons.local_fire_department_rounded,
+                                              size: 14,
+                                              color: Color(0xFFF59E0B),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '${_homeStreak < 0 ? 0 : _homeStreak}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                                  const SizedBox(height: 8),
                                   if (_homeBannerMessage != null) ...[
                                     const SizedBox(height: 5),
                                     _buildCompactHomeAnnouncement(),
@@ -604,12 +691,26 @@ class _HomePageState extends State<HomePage> {
                                 .animate()
                                 .fadeIn(delay: 260.ms)
                                 .slideY(begin: 0.1),
-                            const SizedBox(height: 20),
-                            _buildPerformanceSection(l10n, isDark)
-                                .animate()
-                                .fadeIn(delay: 300.ms)
-                                .slideY(begin: 0.1),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 18),
+                            if (showPerformanceSection) ...[
+                              _buildSectionHeader(
+                                icon: Icons.auto_graph_rounded,
+                                title: _weeklyReportsEnabled
+                                    ? l10n.growthPotential
+                                    : l10n.homeOpenPipeline,
+                                isDark: isDark,
+                              ),
+                              _buildPerformanceSection(l10n, isDark)
+                                  .animate()
+                                  .fadeIn(delay: 300.ms)
+                                  .slideY(begin: 0.1),
+                              const SizedBox(height: 18),
+                            ],
+                            _buildSectionHeader(
+                              icon: Icons.bolt_rounded,
+                              title: l10n.activityLogTitle,
+                              isDark: isDark,
+                            ),
                             HomeActivityLogWidget(
                               onOpenActivities: widget.onOpenActivitiesTab != null
                                   ? () => widget.onOpenActivitiesTab!(0)
@@ -618,10 +719,29 @@ class _HomePageState extends State<HomePage> {
                                 .animate()
                                 .fadeIn(delay: 420.ms)
                                 .slideY(begin: 0.1),
-                            const SizedBox(height: 20),
-                            _overviewCard(
-                              l10n,
-                              isDark,
+                            const SizedBox(height: 18),
+                            _buildSectionHeader(
+                              icon: Icons.insights_rounded,
+                              title: l10n.homeTodayFocus,
+                              isDark: isDark,
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: isDark ? 0.14 : 0.035,
+                                    ),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: _overviewCard(
+                                l10n,
+                                isDark,
+                              ),
                             ).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
                           ],
                         ),

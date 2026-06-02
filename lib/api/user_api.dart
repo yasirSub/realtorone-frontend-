@@ -15,6 +15,15 @@ class UserApi {
     );
   }
 
+  /// Records an app-open for the current user (once per day, server-side).
+  static Future<Map<String, dynamic>> recordAppOpen() async {
+    return await ApiClient.post(
+      ApiEndpoints.userAppOpen,
+      const {},
+      requiresAuth: true,
+    );
+  }
+
   static Future<Map<String, dynamic>> updateProfile({
     String? name,
     String? email,

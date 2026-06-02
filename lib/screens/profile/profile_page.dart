@@ -15,6 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
 import '../../widgets/app_version_details_sheet.dart';
+import '../../theme/realtorone_brand.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -964,8 +965,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     Navigator.pop(dCtx, e164);
                   },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF667eea),
+                    backgroundColor: RealtorOneBrand.seed,
                     foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('SUBMIT'),
                 ),
@@ -975,7 +979,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'Select country code and enter your phone number to receive OTP.',
+                    'Select country code and enter your phone number. A verification code will be sent via Firebase SMS.',
                     style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
                   ),
                   const SizedBox(height: 16),
@@ -1073,17 +1077,40 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final phone = newPhone;
 
+    if (!PhoneUtils.isValidE164(phone)) {
+      _showSnackBar(
+        'Invalid number. For India choose +91 and enter 8271819813 (10 digits).',
+        Colors.red,
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
+    _showSnackBar('Sending OTP via Firebase…', const Color(0xFF667eea));
     try {
-      // Prefer server SMS (Brevo) — works without Firebase billing quota.
+      await _sendFirebasePhoneOtp(email: email, phone: phone);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        'Could not start phone verification. Please try again.',
+        Colors.red,
+      );
+    }
+  }
+
+  /// Server SMS when Firebase returns BILLING_NOT_ENABLED (GCP billing ≠ Firebase Blaze).
+  Future<void> _tryBrevoPhoneOtp({
+    required String email,
+    required String phone,
+  }) async {
+    try {
       final smsResponse = await UserApi.sendPhoneOtp(email, phone);
       if (!mounted) return;
-
       if (smsResponse['status'] == 'ok' && smsResponse['provider'] == 'brevo') {
         setState(() => _isLoading = false);
         _showSnackBar(
-          smsResponse['message']?.toString() ??
-              'Verification code sent to your phone.',
+          'Firebase billing is not active yet. OTP sent via server SMS instead.',
           Colors.green,
         );
         _showOtpVerifyDialog(
@@ -1094,19 +1121,17 @@ class _ProfilePageState extends State<ProfilePage> {
         );
         return;
       }
-
-      if (smsResponse['status'] == 'error') {
-        final brevoMsg = smsResponse['message']?.toString() ??
-            'Server SMS failed. Trying Firebase…';
-        _showSnackBar(brevoMsg, Colors.orange);
-      }
-
-      await _sendFirebasePhoneOtp(email: email, phone: phone);
-    } catch (e) {
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        smsResponse['message']?.toString() ??
+            'Firebase billing off and server SMS failed. Enable Firebase Blaze for realtor-one.',
+        Colors.red,
+      );
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar(
-        'Could not start phone verification. Please try again.',
+        'Enable Firebase Blaze (project realtor-one) or fix BREVO on the API server.',
         Colors.red,
       );
     }
@@ -1121,38 +1146,101 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       _showSnackBar(
-        'SMS is unavailable. Configure BREVO on the server or Firebase billing for phone OTP.',
+        'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.',
         Colors.red,
       );
       return;
     }
 
-    await _firebaseAuth.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (credential) async {
-        await _verifyPhoneWithFirebaseCredential(
-          credential: credential,
-          email: email,
-          mobile: phone,
-        );
-      },
-      verificationFailed: (e) {
-        if (!mounted) return;
+    final result = await FirebasePhoneAuthHelper.sendOtp(
+      auth: _firebaseAuth,
+      phoneE164: phone,
+    );
+
+    if (!mounted) return;
+
+    if (!result.ok) {
+      final msg = result.errorMessage ?? '';
+      final upper = msg.toUpperCase();
+
+      // Firebase device/number temporary block (too-many-requests / unusual activity).
+      final firebaseBlocked = upper.contains('TOO MANY REQUESTS') ||
+          upper.contains('TOO-MANY-REQUESTS') ||
+          upper.contains('TOO_MANY_REQUESTS') ||
+          upper.contains('UNUSUAL ACTIVITY') ||
+          upper.contains('17010');
+
+      if (result.billingBlocked) {
+        _showSnackBar(msg, Colors.orange);
+        await _tryBrevoPhoneOtp(email: email, phone: phone);
+        return;
+      }
+
+      if (firebaseBlocked) {
         setState(() => _isLoading = false);
-        _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
-      },
-      codeSent: (verificationId, resendToken) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        _showOtpVerifyDialog(
-          email: email,
-          isEmail: false,
-          phone: phone,
-          firebaseVerificationId: verificationId,
-          usesFirebasePhone: true,
+        await RealtorOneDialogScaffold.show<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dCtx) {
+            return RealtorOneDialogScaffold(
+              title: 'Try again later',
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.pop(dCtx),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: RealtorOneBrand.seed,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text('OK'),
+                ),
+              ],
+              child: Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  msg.isNotEmpty
+                      ? msg
+                      : 'Too many OTP requests. Firebase temporarily blocked this device/number. Try again later.',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+            );
+          },
         );
-      },
-      codeAutoRetrievalTimeout: (verificationId) {},
+        return;
+      }
+
+      setState(() => _isLoading = false);
+      _showSnackBar(
+        msg.isNotEmpty ? msg : 'Firebase could not send SMS.',
+        Colors.red,
+      );
+      return;
+    }
+
+    if (result.autoCredential != null) {
+      await _verifyPhoneWithFirebaseCredential(
+        credential: result.autoCredential!,
+        email: email,
+        mobile: phone,
+      );
+      return;
+    }
+
+    setState(() => _isLoading = false);
+    _showSnackBar('OTP sent via Firebase SMS.', Colors.green);
+    _showOtpVerifyDialog(
+      email: email,
+      isEmail: false,
+      phone: phone,
+      firebaseVerificationId: result.verificationId,
+      usesFirebasePhone: true,
     );
   }
 
@@ -1260,10 +1348,13 @@ class _ProfilePageState extends State<ProfilePage> {
                           }
                         },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF667eea),
+                    backgroundColor: RealtorOneBrand.seed,
                     foregroundColor: Colors.white,
                     disabledBackgroundColor: const Color(0xFFD1D5DB),
                     disabledForegroundColor: const Color(0xFF9CA3AF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text('VERIFY'),
                 ),
@@ -1386,15 +1477,29 @@ class _ProfilePageState extends State<ProfilePage> {
         }
         _loadUserData();
       } else if (mounted) {
+        // Show backend reason (most common: user not found / invalid firebase token).
+        final msg = (response['message'] ?? response['error'] ?? '').toString().trim();
+        if (msg.isNotEmpty) {
+          _showSnackBar(msg, Colors.red);
+        } else {
+          _showSnackBar('Phone verification failed. Please try again.', Colors.red);
+        }
+      } else if (mounted) {
         setState(() => _isLoading = false);
       }
 
       await _firebaseAuth.signOut();
       return response;
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
+      }
+      return {'status': 'error', 'message': '${e.code}: ${e.message ?? ''}'.trim()};
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showSnackBar('Invalid OTP or Firebase verification failed.', Colors.red);
+        _showSnackBar(e.toString(), Colors.red);
       }
       return {'status': 'error', 'message': e.toString()};
     }
@@ -1551,10 +1656,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   ],
                 ),
               )
-            : ElevatedButton(
+            : FilledButton(
                 onPressed: onVerify,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF667eea),
+                style: FilledButton.styleFrom(
+                  backgroundColor: RealtorOneBrand.seed,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
