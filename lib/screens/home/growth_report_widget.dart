@@ -102,7 +102,7 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
               true,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 10),
           Expanded(
             child: _buildMetricCard(
               l10n.executionRate,
@@ -128,10 +128,10 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
     final delta = isGrowth ? _deltaLabel() : null;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : Colors.white,
           width: 2,
@@ -151,29 +151,29 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 16),
+                child: Icon(icon, color: color, size: 15),
               ),
               if (delta != null)
                 Text(
                   delta,
                   style: TextStyle(
                     color: color,
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             value,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: isDark ? Colors.white : const Color(0xFF1E293B),
               letterSpacing: -1,
@@ -183,14 +183,14 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
             title,
             style: TextStyle(
               color: isDark ? Colors.white60 : const Color(0xFF64748B),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           SizedBox(
-            height: 30,
+            height: 24,
             width: double.infinity,
             child: LineChart(
               LineChartData(

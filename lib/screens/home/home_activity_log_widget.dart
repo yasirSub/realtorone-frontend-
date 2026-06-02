@@ -76,6 +76,14 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
     }
   }
 
+  void _openActivities() {
+    if (widget.onOpenActivities != null) {
+      widget.onOpenActivities!();
+      return;
+    }
+    Navigator.pushNamed(context, AppRoutes.activities);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -84,8 +92,11 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
     final borderColor = isDark
         ? const Color(0xFF334155)
         : const Color(0xFFE2E8F0);
-    final titleColor = isDark ? Colors.white : const Color(0xFF1E293B);
     final bodyColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+    final ctaAccent = isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+    final ctaSurface = ctaAccent.withValues(alpha: isDark ? 0.2 : 0.1);
+    final ctaBorder = ctaAccent.withValues(alpha: isDark ? 0.42 : 0.25);
+    final ctaText = isDark ? const Color(0xFFEDE9FE) : ctaAccent;
     final visibleActivities = _todayActivities.take(3).toList();
 
     return Container(
@@ -106,87 +117,76 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      child: const Icon(
-                        Icons.local_fire_department_rounded,
-                        size: 18,
-                        color: Color(0xFFF59E0B),
-                      ),
+                    _buildStatChip(
+                      label: l10n.activityLogStreak,
+                      value: '$_currentStreak',
+                      color: const Color(0xFFF59E0B),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.activityLogTitle,
-                            style: TextStyle(
-                              color: titleColor,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            l10n.activityLogSubtitle,
-                            style: TextStyle(
-                              color: bodyColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _buildStatChip(
+                      label: l10n.activityLogPoints,
+                      value: '$_todayPoints',
+                      color: const Color(0xFF10B981),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: widget.onOpenActivities ??
-                    () => Navigator.pushNamed(context, AppRoutes.activities),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              const SizedBox(width: 10),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _openActivities,
+                  borderRadius: BorderRadius.circular(999),
+                  child: Ink(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ctaSurface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: ctaBorder),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.activityLogOpen,
+                          style: TextStyle(
+                            color: ctaText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.15,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          width: 18,
+                          height: 18,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: ctaAccent.withValues(alpha: isDark ? 0.3 : 0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 12,
+                            color: ctaText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Text(l10n.activityLogOpen),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              _buildStatChip(
-                label: l10n.activityLogStreak,
-                value: '$_currentStreak',
-                color: const Color(0xFFF59E0B),
-              ),
-              _buildStatChip(
-                label: l10n.activityLogPoints,
-                value: '$_todayPoints',
-                color: const Color(0xFF10B981),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           if (_isLoading)
             const SizedBox(height: 84, child: Center(child: EliteLoader()))
           else if (visibleActivities.isEmpty)
@@ -229,8 +229,9 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
     required String value,
     required Color color,
   }) {
+    final compactLabel = label.length > 8 ? '${label.substring(0, 8)}.' : label;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -240,20 +241,20 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            label,
+            compactLabel,
             style: TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w900,
-              letterSpacing: 0.8,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Text(
             value,
             style: TextStyle(
               color: color,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -267,7 +268,11 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         activity['is_completed'] == true || activity['is_completed'] == 1;
     final title = (activity['title'] ?? activity['type'] ?? 'Activity')
         .toString();
-    final subtitle = (activity['category'] ?? 'Progress update').toString();
+    final subtitle = (activity['category'] ?? '').toString();
+    final showSubtitle =
+        subtitle.trim().isNotEmpty &&
+        subtitle.trim().toLowerCase() != 'activity' &&
+        subtitle.trim().toLowerCase() != title.trim().toLowerCase();
     final points = (activity['points'] ?? 0).toString();
 
     return Container(
@@ -315,15 +320,17 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                if (showSubtitle) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),

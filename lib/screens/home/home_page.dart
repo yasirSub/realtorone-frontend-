@@ -226,6 +226,16 @@ class _HomePageState extends State<HomePage> {
     final pct = _todayTotal == 0
         ? 0
         : ((_todayDone / _todayTotal) * 100).round();
+    final progressValue = _todayTotal == 0 ? 0.0 : (_todayDone / _todayTotal);
+    final onOpenTasks = widget.onOpenActivitiesTab != null
+        ? () => widget.onOpenActivitiesTab!(0)
+        : () => Navigator.pushNamed(context, AppRoutes.activities);
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final mutedColor = isDark ? Colors.white70 : const Color(0xFF64748B);
+    final ctaSurface = isDark
+        ? RealtorOneBrand.seed.withValues(alpha: 0.14)
+        : const Color(0xFFEEF2FF);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -238,14 +248,43 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.homeTodayFocus,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.1,
-              color: isDark ? Colors.white70 : const Color(0xFF64748B),
-            ),
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: RealtorOneBrand.seed.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(
+                  Icons.checklist_rounded,
+                  size: 16,
+                  color: RealtorOneBrand.seed,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  l10n.homeTodayFocus,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.1,
+                    color: mutedColor,
+                  ),
+                ),
+              ),
+              Text(
+                '$pct%',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: titleColor,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           Text(
@@ -253,12 +292,22 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              color: titleColor,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
+          Text(
+            l10n.homeOpenFocusHint,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+              color: mutedColor,
+            ),
+          ),
+          const SizedBox(height: 10),
           LinearProgressIndicator(
-            value: _todayTotal == 0 ? 0 : (_todayDone / _todayTotal),
+            value: progressValue,
             minHeight: 7,
             borderRadius: BorderRadius.circular(8),
             backgroundColor: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
@@ -291,22 +340,62 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: widget.onOpenActivitiesTab != null
-                  ? () => widget.onOpenActivitiesTab!(0)
-                  : () => Navigator.pushNamed(context, AppRoutes.activities),
-              style: FilledButton.styleFrom(
-                backgroundColor: RealtorOneBrand.seed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
+          const SizedBox(height: 12),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onOpenTasks,
+              borderRadius: BorderRadius.circular(14),
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: ctaSurface,
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: RealtorOneBrand.seed.withValues(alpha: 0.25),
+                  ),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.homeOpenTasks,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.1,
+                            color: titleColor,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: RealtorOneBrand.seed,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: RealtorOneBrand.seed.withValues(
+                                alpha: isDark ? 0.22 : 0.18,
+                              ),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              child: Text(l10n.homeOpenTasks),
             ),
           ),
         ],
