@@ -327,12 +327,14 @@ class PushNotificationService {
     }
 
     try {
-      if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
-        debugPrint('PushNotificationService: requesting permission');
-        await _messaging.requestPermission(alert: true, badge: true, sound: true).timeout(
-          const Duration(seconds: 3),
-          onTimeout: () => throw Exception('requestPermission timeout'),
-        );
+      if (!kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
+        debugPrint('PushNotificationService: requesting notification permission');
+        await _messaging
+            .requestPermission(alert: true, badge: true, sound: true)
+            .timeout(
+              const Duration(seconds: 8),
+              onTimeout: () => throw Exception('requestPermission timeout'),
+            );
       }
 
       debugPrint('PushNotificationService: ensuring foreground listener');
@@ -353,7 +355,7 @@ class PushNotificationService {
       debugPrint('PushNotificationService: getting token');
       // Add timeout to prevent hanging on iOS simulators without APNs config
       final token = await _messaging.getToken().timeout(
-        const Duration(seconds: 3),
+        const Duration(seconds: 8),
         onTimeout: () {
           debugPrint('PushNotificationService: getToken() timed out.');
           return null;
