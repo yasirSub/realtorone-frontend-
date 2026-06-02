@@ -670,14 +670,14 @@ class _HomePageState extends State<HomePage> {
                                         CrossAxisAlignment.center,
                                     children: [
                                       SizedBox(
-                                        width: 28,
-                                        height: 28,
+                                        width: 38,
+                                        height: 38,
                                         child: Image.asset(
                                           'assets/images/logo.png',
                                           fit: BoxFit.contain,
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
+                                      const SizedBox(width: 12),
                                       Expanded(
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -691,18 +691,18 @@ class _HomePageState extends State<HomePage> {
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 23,
+                                                  fontSize: 31,
                                                   fontWeight: FontWeight.w800,
                                                   letterSpacing: -0.4,
                                                   height: 1.1,
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 10),
                                             const Icon(
                                               Icons
                                                   .local_fire_department_rounded,
-                                              size: 14,
+                                              size: 18,
                                               color: Color(0xFFF59E0B),
                                             ),
                                             const SizedBox(width: 4),
@@ -710,7 +710,7 @@ class _HomePageState extends State<HomePage> {
                                               '${_homeStreak < 0 ? 0 : _homeStreak}',
                                               style: const TextStyle(
                                                 color: Colors.white,
-                                                fontSize: 12,
+                                                fontSize: 24,
                                                 fontWeight: FontWeight.w800,
                                               ),
                                             ),
