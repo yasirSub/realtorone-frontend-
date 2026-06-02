@@ -44,6 +44,7 @@ class PushNotificationService {
   static final ValueNotifier<bool> notificationsEnabled = ValueNotifier<bool>(true);
 
   static const String _storeKey = 'notification_history_v1';
+  static const String _globalTopic = 'all_users';
 
   static bool _firebaseReady = false;
   // Tracks whether initializeApp() was ever called, regardless of success.
@@ -369,11 +370,21 @@ class PushNotificationService {
       debugPrint('PushNotificationService: syncing token to backend');
       final platform = (!kIsWeb && Platform.isIOS) ? 'ios' : 'android';
       await ApiClient.post('/user/push-token', {'token': token, 'platform': platform}, requiresAuth: true);
+      try {
+        await _messaging.subscribeToTopic(_globalTopic);
+      } catch (e) {
+        debugPrint('PushNotificationService: subscribe topic failed: $e');
+      }
 
       if (!_tokenRefreshListening) {
         _tokenRefreshListening = true;
         FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
           await ApiClient.post('/user/push-token', {'token': newToken, 'platform': platform}, requiresAuth: true);
+          try {
+            await _messaging.subscribeToTopic(_globalTopic);
+          } catch (e) {
+            debugPrint('PushNotificationService: topic resubscribe failed: $e');
+          }
         });
       }
       debugPrint('PushNotificationService: syncTokenWithBackend done');
@@ -386,6 +397,9 @@ class PushNotificationService {
     if (!_firebaseReady) return;
     try {
       await ApiClient.delete('/user/push-token', requiresAuth: true);
+      try {
+        await _messaging.unsubscribeFromTopic(_globalTopic);
+      } catch (_) {}
       await _messaging.deleteToken();
     } catch (_) {}
   }
