@@ -29,6 +29,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _currentIncomeController = TextEditingController();
   final _targetIncomeController = TextEditingController();
   String _selectedDialCode = '+971';
+  bool _isEmailVerified = false;
+  bool _isPhoneVerified = false;
 
   final List<String> _dubaiCities = [
     'Dubai Marina',
@@ -69,6 +71,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
 
         _emailController.text = userData['email'] ?? '';
+        _isEmailVerified = userData['email_verified_at'] != null;
+        _isPhoneVerified = userData['mobile_verified_at'] != null;
         final storedMobile =
             (userData['mobile'] ?? userData['phone_number'] ?? '').toString();
         final parsed = PhoneUtils.parseStored(storedMobile);
@@ -212,6 +216,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     label: 'EMAIL ADDRESS',
                     hint: 'agent@example.com',
                     icon: Icons.alternate_email_rounded,
+                    isVerified: _isEmailVerified,
                     keyboardType: TextInputType.emailAddress,
                     validator: (v) =>
                         (v == null || !v.contains('@')) ? 'Invalid' : null,
@@ -319,16 +324,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            'PHONE NUMBER',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.8,
-            ),
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Row(
+            children: [
+              const Text(
+                'PHONE NUMBER',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.8,
+                ),
+              ),
+              if (_isPhoneVerified) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green,
+                ),
+              ],
+            ],
           ),
         ),
         Row(
@@ -434,20 +451,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
     String? prefix,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    bool isVerified = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.8,
-            ),
+          child: Row(
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.8,
+                ),
+              ),
+              if (isVerified) ...[
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.check_circle_rounded,
+                  size: 14,
+                  color: Colors.green,
+                ),
+              ],
+            ],
           ),
         ),
         TextFormField(
