@@ -21,7 +21,7 @@ class HomePage extends StatefulWidget {
 
   /// Switches bottom nav to Activities and opens BELIEF (0) or FOCUS (1).
   final void Function(int activitiesTabIndex, {int? revenueSubTab})?
-      onOpenActivitiesTab;
+  onOpenActivitiesTab;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -77,12 +77,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadUserData() async {
     try {
       final results = await Future.wait([
+        ApiClient.get('/user/profile', requiresAuth: true, useCache: false),
         ApiClient.get(
-          '/user/profile',
+          '/activities/progress',
           requiresAuth: true,
           useCache: false,
         ),
-        ApiClient.get('/activities/progress', requiresAuth: true, useCache: false),
         ApiClient.get(
           '/tasks/today',
           requiresAuth: true,
@@ -104,7 +104,8 @@ class _HomePageState extends State<HomePage> {
       final configData = configRes['data'] is Map
           ? Map<String, dynamic>.from(configRes['data'] as Map)
           : null;
-      if (configData != null && _configFlagEnabled(configData['home_banner_enabled'])) {
+      if (configData != null &&
+          _configFlagEnabled(configData['home_banner_enabled'])) {
         final raw = configData['home_banner_message']?.toString().trim();
         if (raw != null && raw.isNotEmpty) {
           bannerMessage = raw;
@@ -146,7 +147,8 @@ class _HomePageState extends State<HomePage> {
       return parse(m[key]);
     }
 
-    final streak = fromMap(profile, 'app_open_streak') ??
+    final streak =
+        fromMap(profile, 'app_open_streak') ??
         fromMap(progress, 'app_open_streak') ??
         fromMap(progress, 'current_streak') ??
         fromMap(profile, 'current_streak') ??
@@ -262,26 +264,6 @@ class _HomePageState extends State<HomePage> {
                   Icons.checklist_rounded,
                   size: 16,
                   color: RealtorOneBrand.seed,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  l10n.homeTodayFocus,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.1,
-                    color: mutedColor,
-                  ),
-                ),
-              ),
-              Text(
-                '$pct%',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w900,
-                  color: titleColor,
                 ),
               ),
             ],
@@ -455,8 +437,7 @@ class _HomePageState extends State<HomePage> {
     final surface = isDark ? RealtorOneBrand.surfaceDark : Colors.white;
     final border = isDark ? const Color(0xFF334155) : Colors.white;
     final titleColor = isDark ? Colors.white : const Color(0xFF1E293B);
-    final subtitleColor =
-        isDark ? Colors.white60 : const Color(0xFF64748B);
+    final subtitleColor = isDark ? Colors.white60 : const Color(0xFF64748B);
 
     return Material(
       color: Colors.transparent,
@@ -488,11 +469,7 @@ class _HomePageState extends State<HomePage> {
                     color: accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
-                    Icons.hub_rounded,
-                    color: accent,
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.hub_rounded, color: accent, size: 22),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -589,8 +566,7 @@ class _HomePageState extends State<HomePage> {
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverAppBar(
-                  expandedHeight:
-                      _homeBannerMessage != null ? 178 : 154,
+                  expandedHeight: _homeBannerMessage != null ? 178 : 154,
                   pinned: true,
                   stretch: false,
                   backgroundColor: isDark
@@ -679,13 +655,19 @@ class _HomePageState extends State<HomePage> {
                           child: SafeArea(
                             bottom: false,
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 42, 20, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                42,
+                                20,
+                                10,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       SizedBox(
                                         width: 28,
@@ -702,7 +684,8 @@ class _HomePageState extends State<HomePage> {
                                           children: [
                                             Flexible(
                                               child: Text(
-                                                _userData?['name']?.toString() ??
+                                                _userData?['name']
+                                                        ?.toString() ??
                                                     l10n.homeGuestName,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
@@ -717,7 +700,8 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                             const SizedBox(width: 8),
                                             const Icon(
-                                              Icons.local_fire_department_rounded,
+                                              Icons
+                                                  .local_fire_department_rounded,
                                               size: 14,
                                               color: Color(0xFFF59E0B),
                                             ),
@@ -742,16 +726,18 @@ class _HomePageState extends State<HomePage> {
                                   ] else ...[
                                     const SizedBox(height: 5),
                                     Text(
-                                      l10n.homePerformanceReady,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.7),
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        height: 1.3,
-                                      ),
-                                    )
+                                          l10n.homePerformanceReady,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            height: 1.3,
+                                          ),
+                                        )
                                         .animate()
                                         .fadeIn(delay: 550.ms)
                                         .slideY(begin: 0.1),
@@ -801,10 +787,11 @@ class _HomePageState extends State<HomePage> {
                               isDark: isDark,
                             ),
                             HomeActivityLogWidget(
-                              onOpenActivities: widget.onOpenActivitiesTab != null
-                                  ? () => widget.onOpenActivitiesTab!(0)
-                                  : null,
-                            )
+                                  onOpenActivities:
+                                      widget.onOpenActivitiesTab != null
+                                      ? () => widget.onOpenActivitiesTab!(0)
+                                      : null,
+                                )
                                 .animate()
                                 .fadeIn(delay: 420.ms)
                                 .slideY(begin: 0.1),
@@ -815,23 +802,23 @@ class _HomePageState extends State<HomePage> {
                               isDark: isDark,
                             ),
                             Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(
-                                      alpha: isDark ? 0.14 : 0.035,
-                                    ),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(24),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: isDark ? 0.14 : 0.035,
+                                        ),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                              child: _overviewCard(
-                                l10n,
-                                isDark,
-                              ),
-                            ).animate().fadeIn(delay: 520.ms).slideY(begin: 0.1),
+                                  child: _overviewCard(l10n, isDark),
+                                )
+                                .animate()
+                                .fadeIn(delay: 520.ms)
+                                .slideY(begin: 0.1),
                           ],
                         ),
                       ),
@@ -906,7 +893,10 @@ class _HomePageState extends State<HomePage> {
       decoration: BoxDecoration(
         color: visual.fill.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: visual.accent.withValues(alpha: 0.85), width: 1),
+        border: Border.all(
+          color: visual.accent.withValues(alpha: 0.85),
+          width: 1,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,

@@ -41,7 +41,8 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
         }
 
         setState(() {
-          _growthScore = int.tryParse(
+          _growthScore =
+              int.tryParse(
                 '${response['growth_potential'] ?? response['growth_score'] ?? 0}',
               ) ??
               0;
@@ -102,7 +103,7 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
               true,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: _buildMetricCard(
               l10n.executionRate,
@@ -128,19 +129,19 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
     final delta = isGrowth ? _deltaLabel() : null;
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isDark ? const Color(0xFF334155) : Colors.white,
-          width: 2,
+          width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: isDark ? 0.05 : 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -151,29 +152,29 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(7),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 15),
+                child: Icon(icon, color: color, size: 13),
               ),
               if (delta != null)
                 Text(
                   delta,
                   style: TextStyle(
                     color: color,
-                    fontSize: 9,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           Text(
             value,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.w900,
               color: isDark ? Colors.white : const Color(0xFF1E293B),
               letterSpacing: -1,
@@ -183,14 +184,14 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
             title,
             style: TextStyle(
               color: isDark ? Colors.white60 : const Color(0xFF64748B),
-              fontSize: 9.5,
+              fontSize: 9,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.3,
+              letterSpacing: 0.2,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 7),
           SizedBox(
-            height: 24,
+            height: 20,
             width: double.infinity,
             child: LineChart(
               LineChartData(
@@ -204,7 +205,7 @@ class _GrowthReportWidgetState extends State<GrowthReportWidget> {
                     spots: _chartSpots(color),
                     isCurved: true,
                     color: color,
-                    barWidth: 2,
+                    barWidth: 1.7,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(

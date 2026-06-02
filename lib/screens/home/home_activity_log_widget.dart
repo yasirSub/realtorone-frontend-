@@ -93,7 +93,9 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         ? const Color(0xFF334155)
         : const Color(0xFFE2E8F0);
     final bodyColor = isDark ? Colors.white60 : const Color(0xFF64748B);
-    final ctaAccent = isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+    final ctaAccent = isDark
+        ? const Color(0xFFA78BFA)
+        : const Color(0xFF7C3AED);
     final ctaSurface = ctaAccent.withValues(alpha: isDark ? 0.2 : 0.1);
     final ctaBorder = ctaAccent.withValues(alpha: isDark ? 0.42 : 0.25);
     final ctaText = isDark ? const Color(0xFFEDE9FE) : ctaAccent;
@@ -170,7 +172,9 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                           height: 18,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: ctaAccent.withValues(alpha: isDark ? 0.3 : 0.18),
+                            color: ctaAccent.withValues(
+                              alpha: isDark ? 0.3 : 0.18,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
