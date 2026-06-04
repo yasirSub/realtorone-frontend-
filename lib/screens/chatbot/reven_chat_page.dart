@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../api/api_client.dart';
+import '../../theme/realtorone_brand.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/chat_api.dart';
 import '../../routes/app_routes.dart';
@@ -66,41 +68,97 @@ class RevenChatPage extends StatefulWidget {
   State<RevenChatPage> createState() => _RevenChatPageState();
 }
 
-class _RevenChatPageState extends State<RevenChatPage> {
+class _RevenChatPageState extends State<RevenChatPage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isExpanded = false;
   bool _isLoading = false;
   bool _humanHandoffActive = false;
   bool _voiceInAiChatEnabled = false;
+  bool _voiceAutoSend = true;
+  bool _voiceReadAloud = true;
   bool _speechInitialized = false;
+  bool _ttsReady = false;
   bool _isListening = false;
+  bool _isSpeaking = false;
+  bool _lastTurnWasVoice = false;
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
   final List<_RevenMessage> _messages = [];
   final stt.SpeechToText _speech = stt.SpeechToText();
-  String _listenBaseText = '';
+  final FlutterTts _tts = FlutterTts();
+  String _voiceTranscript = '';
+  late final AnimationController _micPulseController;
 
   @override
   void initState() {
     super.initState();
-    _loadVoiceSetting();
+    _micPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _loadVoiceSettings();
     _initSpeech();
+    _initTts();
     _loadHistory();
   }
 
-  Future<void> _loadVoiceSetting() async {
+  static bool _configFlag(dynamic v, {bool defaultValue = true}) {
+    if (v == null) return defaultValue;
+    if (v == false || v == 0) return false;
+    return v.toString().toLowerCase() != 'false';
+  }
+
+  Future<void> _loadVoiceSettings() async {
     try {
       final res = await ApiClient.getPublic('/app-config');
       final data = (res['data'] as Map?) ?? <String, dynamic>{};
-      final enabled = data['voice_in_ai_chat'] != false &&
-          data['voice_in_ai_chat'] != 0 &&
-          data['voice_in_ai_chat']?.toString() != 'false';
-      if (mounted) {
-        setState(() => _voiceInAiChatEnabled = enabled);
-      }
+      if (!mounted) return;
+      setState(() {
+        _voiceInAiChatEnabled = _configFlag(data['voice_in_ai_chat']);
+        _voiceAutoSend = _configFlag(data['voice_auto_send']);
+        _voiceReadAloud = _configFlag(data['voice_read_aloud']);
+      });
     } catch (_) {}
+  }
+
+  Future<void> _initTts() async {
+    try {
+      await _tts.setSpeechRate(0.48);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+      _tts.setCompletionHandler(() {
+        if (mounted) setState(() => _isSpeaking = false);
+      });
+      _tts.setCancelHandler(() {
+        if (mounted) setState(() => _isSpeaking = false);
+      });
+      if (mounted) setState(() => _ttsReady = true);
+    } catch (_) {}
+  }
+
+  Future<void> _stopTts() async {
+    try {
+      await _tts.stop();
+    } catch (_) {}
+    if (mounted) setState(() => _isSpeaking = false);
+  }
+
+  Future<void> _speakReply(String text) async {
+    final spoken = text.trim();
+    if (spoken.isEmpty || !_voiceReadAloud || !_ttsReady || _humanHandoffActive) {
+      return;
+    }
+    await _stopTts();
+    if (!mounted) return;
+    setState(() => _isSpeaking = true);
+    try {
+      await _tts.speak(spoken);
+    } catch (_) {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
   }
 
   Future<void> _initSpeech() async {
@@ -108,17 +166,37 @@ class _RevenChatPageState extends State<RevenChatPage> {
       final ok = await _speech.initialize(
         onStatus: (status) {
           if (status == 'done' || status == 'notListening') {
-            if (mounted && _isListening) {
-              setState(() => _isListening = false);
+            if (_isListening) {
+              _finishVoiceSession();
             }
           }
         },
         onError: (_) {
           if (mounted) setState(() => _isListening = false);
+          _micPulseController.stop();
         },
       );
       if (mounted) setState(() => _speechInitialized = ok);
     } catch (_) {}
+  }
+
+  Future<void> _toggleVoiceInput() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isListening) {
+      await _finishVoiceSession();
+      return;
+    }
+    await _stopTts();
+    await _startVoiceInput();
+  }
+
+  Future<void> _cancelVoiceInput() async {
+    if (!_isListening) return;
+    await _speech.cancel();
+    _voiceTranscript = '';
+    if (!mounted) return;
+    setState(() => _isListening = false);
+    _micPulseController.stop();
   }
 
   Future<void> _startVoiceInput() async {
@@ -140,40 +218,54 @@ class _RevenChatPageState extends State<RevenChatPage> {
       if (!_speechInitialized) return;
     }
 
-    _listenBaseText = _messageController.text.trim();
-    if (_listenBaseText.isNotEmpty) {
-      _listenBaseText = '$_listenBaseText ';
-    }
+    _voiceTranscript = '';
 
     final locales = await _speech.locales();
     final localeId = locales.isNotEmpty ? locales.first.localeId : null;
 
     if (!mounted) return;
     setState(() => _isListening = true);
+    _micPulseController.repeat(reverse: true);
 
     await _speech.listen(
       onResult: (result) {
         if (!mounted) return;
-        final words = result.recognizedWords;
-        _messageController.text = '$_listenBaseText$words';
-        _messageController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _messageController.text.length),
-        );
+        final words = result.recognizedWords.trim();
+        if (words.isNotEmpty) {
+          setState(() => _voiceTranscript = words);
+        }
         if (result.finalResult) {
-          setState(() => _isListening = false);
+          _finishVoiceSession();
         }
       },
       localeId: localeId,
-      listenMode: stt.ListenMode.dictation,
+      listenMode: stt.ListenMode.confirmation,
       cancelOnError: true,
       partialResults: true,
+      pauseFor: const Duration(seconds: 2),
+      listenFor: const Duration(seconds: 30),
     );
   }
 
-  Future<void> _stopVoiceInput() async {
+  Future<void> _finishVoiceSession() async {
     if (!_isListening) return;
     await _speech.stop();
-    if (mounted) setState(() => _isListening = false);
+    _micPulseController.stop();
+    final text = _voiceTranscript.trim();
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+      _voiceTranscript = '';
+    });
+    if (text.isEmpty) return;
+    if (_voiceAutoSend) {
+      await _sendToApi(text, fromVoice: true);
+    } else {
+      _messageController.text = text;
+      _messageController.selection = TextSelection.fromPosition(
+        TextPosition(offset: text.length),
+      );
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchSessions() async {
@@ -557,10 +649,12 @@ class _RevenChatPageState extends State<RevenChatPage> {
 
   @override
   void dispose() {
+    _micPulseController.dispose();
     if (_isListening) {
       _speech.stop();
     }
     _speech.cancel();
+    _tts.stop();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -647,8 +741,14 @@ class _RevenChatPageState extends State<RevenChatPage> {
     });
   }
 
-  Future<void> _sendToApi(String text) async {
+  Future<void> _sendToApi(String text, {bool fromVoice = false}) async {
     if (_isLoading) return;
+    await _stopTts();
+    if (fromVoice) {
+      _lastTurnWasVoice = true;
+    } else {
+      _lastTurnWasVoice = false;
+    }
     final now = DateTime.now();
     setState(() {
       _messages.add(_RevenMessage(text: text, isUser: true, createdAt: now));
@@ -662,6 +762,8 @@ class _RevenChatPageState extends State<RevenChatPage> {
     final res = await ChatApi.sendMessage(text, sessionId: _sessionId);
 
     if (!mounted) return;
+    String? ttsReply;
+    final shouldSpeak = _lastTurnWasVoice;
     setState(() {
       _messages.removeLast();
       _isLoading = false;
@@ -770,6 +872,11 @@ class _RevenChatPageState extends State<RevenChatPage> {
           _sessionId = sid is int ? sid : int.tryParse(sid.toString());
           _fetchSessions();
         }
+
+        if (shouldSpeak && replyText.trim().isNotEmpty) {
+          ttsReply = replyText;
+        }
+        _lastTurnWasVoice = false;
       } else {
         _messages.add(
           _RevenMessage(
@@ -782,6 +889,9 @@ class _RevenChatPageState extends State<RevenChatPage> {
       }
     });
     _scrollToBottom();
+    if (ttsReply != null) {
+      await _speakReply(ttsReply!);
+    }
   }
 
   Future<void> _autoFetchClientsForLastMessage() async {
@@ -1087,24 +1197,13 @@ class _RevenChatPageState extends State<RevenChatPage> {
                           ),
                         ),
 
-                      if (_humanHandoffActive)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 8,
-                          ),
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                          child: Text(
-                            'A team member is helping you. AI replies are paused for now.',
-                            style: TextStyle(
-                              color: isDark
-                                  ? const Color(0xFFFDE68A)
-                                  : const Color(0xFFB45309),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                      if (_voiceInAiChatEnabled && (_isListening || _isSpeaking))
+                        _VoiceStatusBanner(
+                          isListening: _isListening,
+                          isSpeaking: _isSpeaking,
+                          transcript: _voiceTranscript,
+                          onCancel: _isListening ? _cancelVoiceInput : _stopTts,
+                          isDark: isDark,
                         ),
 
                       // ── Messages ──────────────────────────────────────
@@ -1182,36 +1281,16 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                 ),
                               ),
                             ),
-                            if (_voiceInAiChatEnabled) ...[
+                            if (_voiceInAiChatEnabled && !_humanHandoffActive) ...[
                               const SizedBox(width: 8),
-                              GestureDetector(
-                                onLongPressStart: (_) => _startVoiceInput(),
-                                onLongPressEnd: (_) => _stopVoiceInput(),
-                                onLongPressCancel: _stopVoiceInput,
-                                child: Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: BoxDecoration(
-                                    color: _isListening
-                                        ? const Color(0xFFEF4444)
-                                        : backgroundColor,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: _isListening
-                                          ? const Color(0xFFEF4444)
-                                          : borderColor,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    _isListening
-                                        ? Icons.mic_rounded
-                                        : Icons.mic_none_rounded,
-                                    color: _isListening
-                                        ? Colors.white
-                                        : subtitleColor,
-                                    size: 22,
-                                  ),
-                                ),
+                              _VoiceMicButton(
+                                isListening: _isListening,
+                                isSpeaking: _isSpeaking,
+                                pulse: _micPulseController,
+                                backgroundColor: backgroundColor,
+                                borderColor: borderColor,
+                                subtitleColor: subtitleColor,
+                                onTap: _toggleVoiceInput,
                               ),
                             ],
                             const SizedBox(width: 8),
@@ -1249,6 +1328,233 @@ class _RevenChatPageState extends State<RevenChatPage> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+// ── Voice UI ─────────────────────────────────────────────────────────────
+
+class _VoiceStatusBanner extends StatelessWidget {
+  const _VoiceStatusBanner({
+    required this.isListening,
+    required this.isSpeaking,
+    required this.transcript,
+    required this.onCancel,
+    required this.isDark,
+  });
+
+  final bool isListening;
+  final bool isSpeaking;
+  final String transcript;
+  final VoidCallback onCancel;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = isListening
+        ? 'Listening…'
+        : 'Speaking…';
+    final sub = isListening && transcript.isNotEmpty
+        ? transcript
+        : (isListening
+            ? 'Tap mic again or pause to send'
+            : 'Tap mic to stop');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            RealtorOneBrand.accentIndigo.withValues(alpha: isDark ? 0.28 : 0.14),
+            RealtorOneBrand.accentIndigo.withValues(alpha: isDark ? 0.12 : 0.06),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: RealtorOneBrand.accentIndigo.withValues(alpha: 0.35),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          _VoiceWaveBars(active: isListening || isSpeaking),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onCancel,
+            style: TextButton.styleFrom(
+              foregroundColor: RealtorOneBrand.accentIndigo,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(isListening ? 'Cancel' : 'Stop'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoiceWaveBars extends StatefulWidget {
+  const _VoiceWaveBars({required this.active});
+
+  final bool active;
+
+  @override
+  State<_VoiceWaveBars> createState() => _VoiceWaveBarsState();
+}
+
+class _VoiceWaveBarsState extends State<_VoiceWaveBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    if (widget.active) _controller.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant _VoiceWaveBars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active && !_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    } else if (!widget.active) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final phase = (_controller.value + i * 0.25) % 1.0;
+            final h = 8.0 + (phase * 10.0);
+            return Container(
+              width: 3,
+              height: h,
+              margin: const EdgeInsets.symmetric(horizontal: 1.5),
+              decoration: BoxDecoration(
+                color: RealtorOneBrand.accentIndigo,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
+class _VoiceMicButton extends StatelessWidget {
+  const _VoiceMicButton({
+    required this.isListening,
+    required this.isSpeaking,
+    required this.pulse,
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.subtitleColor,
+    required this.onTap,
+  });
+
+  final bool isListening;
+  final bool isSpeaking;
+  final AnimationController pulse;
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color subtitleColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = isListening || isSpeaking;
+    final fill = isListening
+        ? const Color(0xFFEF4444)
+        : isSpeaking
+            ? RealtorOneBrand.accentIndigo
+            : backgroundColor;
+    final border = active
+        ? (isListening ? const Color(0xFFEF4444) : RealtorOneBrand.accentIndigo)
+        : borderColor;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedBuilder(
+        animation: pulse,
+        builder: (_, child) {
+          final scale = isListening ? 1.0 + (pulse.value * 0.08) : 1.0;
+          return Transform.scale(scale: scale, child: child);
+        },
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: border, width: active ? 1.6 : 1),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: (isListening
+                              ? const Color(0xFFEF4444)
+                              : RealtorOneBrand.accentIndigo)
+                          .withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Icon(
+            active ? Icons.mic_rounded : Icons.mic_none_rounded,
+            color: active ? Colors.white : subtitleColor,
+            size: 22,
+          ),
         ),
       ),
     );
