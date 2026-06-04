@@ -10,6 +10,7 @@ import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
+import '../../widgets/otp_pin_input_row.dart';
 import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
@@ -1261,20 +1262,226 @@ class _ProfilePageState extends State<ProfilePage> {
     String? firebaseVerificationId,
     bool usesFirebasePhone = false,
   }) {
-    final controllers = List.generate(6, (_) => TextEditingController());
-    final focusNodes = List.generate(6, (_) => FocusNode());
+    final otpInputKey = GlobalKey<OtpPinInputRowState>();
+    var currentOtp = '';
+    var visualState = OtpPinVisualState.idle;
+    var errorMessage = '';
+    var isVerifying = false;
+    var isResending = false;
+    var currentFirebaseVerificationId = firebaseVerificationId ?? '';
+    var currentUsesFirebase = usesFirebasePhone;
+
     RealtorOneDialogScaffold.show<void>(
       context: context,
       barrierDismissible: false,
       builder: (dCtx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final otp = controllers.map((c) => c.text).join();
+            Future<void> handleVerify() async {
+              final otp = currentOtp.replaceAll(RegExp(r'\D'), '');
+              if (otp.length < 6 || isVerifying) return;
+
+              setDialogState(() {
+                isVerifying = true;
+                errorMessage = '';
+                visualState = OtpPinVisualState.idle;
+              });
+
+              try {
+                Map<String, dynamic> response;
+                if (isEmail) {
+                  response = await UserApi.verifyEmailOtp(email, otp);
+                } else if (currentUsesFirebase &&
+                    currentFirebaseVerificationId.isNotEmpty) {
+                  final credential = PhoneAuthProvider.credential(
+                    verificationId: currentFirebaseVerificationId,
+                    smsCode: otp,
+                  );
+                  response = await _verifyPhoneWithFirebaseCredential(
+                    credential: credential,
+                    email: email,
+                    mobile: phone ?? '',
+                    showSnackBarFeedback: false,
+                  );
+                } else {
+                  response = await UserApi.verifyPhoneOtp(
+                    email,
+                    otp,
+                    mobile: phone,
+                  );
+                }
+
+                if (response['status'] == 'ok' || response['success'] == true) {
+                  setDialogState(() {
+                    visualState = OtpPinVisualState.success;
+                    isVerifying = false;
+                  });
+                  if (mounted) {
+                    setState(() {
+                      _userData ??= {};
+                      if (isEmail) {
+                        _userData!['email_verified_at'] =
+                            response['email_verified_at'] ??
+                            DateTime.now().toIso8601String();
+                      } else {
+                        _userData!['mobile_verified_at'] =
+                            response['mobile_verified_at'] ??
+                            DateTime.now().toIso8601String();
+                        if (phone != null && phone.isNotEmpty) {
+                          _userData!['mobile'] = phone;
+                        }
+                      }
+                    });
+                  }
+                  await Future<void>.delayed(const Duration(milliseconds: 450));
+                  if (dCtx.mounted) Navigator.pop(dCtx);
+                  _showSnackBar(
+                    isEmail
+                        ? 'Email verified successfully!'
+                        : 'Phone number verified successfully!',
+                    Colors.green,
+                  );
+                  await _loadUserData();
+                } else {
+                  setDialogState(() {
+                    isVerifying = false;
+                    visualState = OtpPinVisualState.error;
+                    errorMessage =
+                        (response['message'] ?? 'Invalid code. Try again.')
+                            .toString();
+                  });
+                  otpInputKey.currentState?.clear();
+                }
+              } catch (e) {
+                setDialogState(() {
+                  isVerifying = false;
+                  visualState = OtpPinVisualState.error;
+                  errorMessage = 'Connection error. Please try again.';
+                });
+                otpInputKey.currentState?.clear();
+              }
+            }
+
+            Future<void> handleResend() async {
+              if (isResending) return;
+              setDialogState(() {
+                isResending = true;
+                errorMessage = '';
+                visualState = OtpPinVisualState.idle;
+              });
+              otpInputKey.currentState?.clear();
+              currentOtp = '';
+
+              try {
+                if (isEmail) {
+                  final response = await UserApi.sendEmailOtp(email);
+                  if (!dCtx.mounted) return;
+                  if (response['status'] == 'ok' || response['success'] == true) {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = '';
+                    });
+                    _showSnackBar('Verification code resent.', Colors.green);
+                  } else {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage =
+                          (response['message'] ?? 'Could not resend code.')
+                              .toString();
+                    });
+                  }
+                  return;
+                }
+
+                if (phone == null || phone.isEmpty) {
+                  setDialogState(() {
+                    isResending = false;
+                    errorMessage = 'Phone number missing. Close and try again.';
+                  });
+                  return;
+                }
+
+                if (currentUsesFirebase) {
+                  final ready = await FirebasePhoneAuthHelper.ensureInitialized();
+                  if (!ready) {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = 'Firebase is not ready. Try again later.';
+                    });
+                    return;
+                  }
+                  final result = await FirebasePhoneAuthHelper.sendOtp(
+                    auth: _firebaseAuth,
+                    phoneE164: phone,
+                  );
+                  if (!dCtx.mounted) return;
+                  if (result.ok && result.verificationId != null) {
+                    currentFirebaseVerificationId = result.verificationId!;
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = '';
+                    });
+                    _showSnackBar('New code sent via SMS.', Colors.green);
+                  } else {
+                    final smsResponse = await UserApi.sendPhoneOtp(email, phone);
+                    if (!dCtx.mounted) return;
+                    if (smsResponse['status'] == 'ok') {
+                      currentUsesFirebase = false;
+                      setDialogState(() {
+                        isResending = false;
+                        errorMessage = '';
+                      });
+                      _showSnackBar('New code sent via SMS.', Colors.green);
+                    } else {
+                      setDialogState(() {
+                        isResending = false;
+                        errorMessage =
+                            (result.errorMessage ??
+                                    smsResponse['message'] ??
+                                    'Could not resend code.')
+                                .toString();
+                      });
+                    }
+                  }
+                } else {
+                  final smsResponse = await UserApi.sendPhoneOtp(email, phone);
+                  if (!dCtx.mounted) return;
+                  if (smsResponse['status'] == 'ok' || smsResponse['success'] == true) {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = '';
+                    });
+                    _showSnackBar('New code sent via SMS.', Colors.green);
+                  } else {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage =
+                          (smsResponse['message'] ?? 'Could not resend code.')
+                              .toString();
+                    });
+                  }
+                }
+              } catch (_) {
+                if (!dCtx.mounted) return;
+                setDialogState(() {
+                  isResending = false;
+                  errorMessage = 'Could not resend code. Try again.';
+                });
+              }
+            }
+
+            final canVerify =
+                currentOtp.length == 6 &&
+                !isVerifying &&
+                visualState != OtpPinVisualState.success;
+
             return RealtorOneDialogScaffold(
               title: isEmail ? 'Verify Email' : 'Verify Phone Number',
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dCtx),
+                  onPressed: isVerifying
+                      ? null
+                      : () => Navigator.pop(dCtx),
                   child: const Text(
                     'CANCEL',
                     style: TextStyle(
@@ -1284,78 +1491,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
                 FilledButton(
-                  onPressed: otp.length < 6
-                      ? null
-                      : () async {
-                          Navigator.pop(dCtx); // Close dialog first
-                          setState(() => _isLoading = true);
-
-                          try {
-                            Map<String, dynamic> response;
-                            if (isEmail) {
-                              response = await UserApi.verifyEmailOtp(email, otp);
-                            } else if (usesFirebasePhone &&
-                                firebaseVerificationId != null &&
-                                firebaseVerificationId.isNotEmpty) {
-                              final credential = PhoneAuthProvider.credential(
-                                verificationId: firebaseVerificationId,
-                                smsCode: otp,
-                              );
-                              response = await _verifyPhoneWithFirebaseCredential(
-                                credential: credential,
-                                email: email,
-                                mobile: phone ?? '',
-                                showSuccessSnackBar: false,
-                              );
-                            } else {
-                              response = await UserApi.verifyPhoneOtp(
-                                email,
-                                otp,
-                                mobile: phone,
-                              );
-                            }
-
-                            if (response['status'] == 'ok' ||
-                                response['success'] == true) {
-                              if (mounted) {
-                                setState(() {
-                                  _userData ??= {};
-                                  if (isEmail) {
-                                    _userData!['email_verified_at'] =
-                                        response['email_verified_at'] ??
-                                        DateTime.now().toIso8601String();
-                                  } else {
-                                    _userData!['mobile_verified_at'] =
-                                        response['mobile_verified_at'] ??
-                                        DateTime.now().toIso8601String();
-                                    if (phone != null && phone.isNotEmpty) {
-                                      _userData!['mobile'] = phone;
-                                    }
-                                  }
-                                });
-                              }
-                              _showSnackBar(
-                                isEmail
-                                    ? 'Email verified successfully!'
-                                    : 'Phone number verified successfully!',
-                                Colors.green,
-                              );
-                              await _loadUserData();
-                            } else {
-                              setState(() => _isLoading = false);
-                              _showSnackBar(
-                                response['message'] ?? 'Invalid code',
-                                Colors.red,
-                              );
-                            }
-                          } catch (e) {
-                            setState(() => _isLoading = false);
-                            _showSnackBar(
-                              'Connection error. Please try again.',
-                              Colors.red,
-                            );
-                          }
-                        },
+                  onPressed: canVerify ? handleVerify : null,
                   style: FilledButton.styleFrom(
                     backgroundColor: RealtorOneBrand.seed,
                     foregroundColor: Colors.white,
@@ -1365,7 +1501,16 @@ class _ProfilePageState extends State<ProfilePage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('VERIFY'),
+                  child: isVerifying
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('VERIFY'),
                 ),
               ],
               child: Column(
@@ -1383,63 +1528,87 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(6, (index) {
-                      return SizedBox(
-                        width: 42,
-                        height: 52,
-                        child: TextFormField(
-                          controller: controllers[index],
-                          focusNode: focusNodes[index],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          maxLength: 1,
-                          cursorColor: Colors.black,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: EdgeInsets.zero,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: Color(0xFF667eea),
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          onChanged: (value) {
-                            final clean = value.replaceAll(RegExp(r'\D'), '');
-                            if (clean.isNotEmpty) {
-                              controllers[index].text = clean[0];
-                              if (index < 5) {
-                                focusNodes[index + 1].requestFocus();
-                              } else {
-                                focusNodes[index].unfocus();
-                              }
-                            } else if (index > 0) {
-                              focusNodes[index - 1].requestFocus();
-                            }
-                            setDialogState(() {});
-                          },
+                  OtpPinInputRow(
+                    key: otpInputKey,
+                    visualState: visualState,
+                    onChanged: (otp) {
+                      setDialogState(() => currentOtp = otp);
+                    },
+                    onCompleted: handleVerify,
+                  ),
+                  if (errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Text(
+                        errorMessage,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFB91C1C),
+                          height: 1.35,
                         ),
-                      );
-                    }),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                  if (visualState == OtpPinVisualState.success) ...[
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Verified!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF047857),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton(
+                        onPressed: (isResending || isVerifying) ? null : handleResend,
+                        child: Text(
+                          isResending ? 'Sending…' : 'Resend code',
+                          style: const TextStyle(
+                            color: Color(0xFF667eea),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      if (visualState == OtpPinVisualState.error) ...[
+                        const Text(
+                          '·',
+                          style: TextStyle(color: Color(0xFF94A3B8)),
+                        ),
+                        TextButton(
+                          onPressed: isVerifying
+                              ? null
+                              : () {
+                                  otpInputKey.currentState?.clear();
+                                  setDialogState(() {
+                                    currentOtp = '';
+                                    errorMessage = '';
+                                    visualState = OtpPinVisualState.idle;
+                                  });
+                                },
+                          child: const Text(
+                            'Enter again',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -1447,21 +1616,14 @@ class _ProfilePageState extends State<ProfilePage> {
           },
         );
       },
-    ).whenComplete(() {
-      for (final c in controllers) {
-        c.dispose();
-      }
-      for (final n in focusNodes) {
-        n.dispose();
-      }
-    });
+    );
   }
 
   Future<Map<String, dynamic>> _verifyPhoneWithFirebaseCredential({
     required PhoneAuthCredential credential,
     required String email,
     required String mobile,
-    bool showSuccessSnackBar = true,
+    bool showSnackBarFeedback = true,
   }) async {
     try {
       final authResult = await _firebaseAuth.signInWithCredential(credential);
@@ -1469,7 +1631,9 @@ class _ProfilePageState extends State<ProfilePage> {
       if (idToken == null || idToken.isEmpty) {
         if (mounted) {
           setState(() => _isLoading = false);
-          _showSnackBar('Failed to verify phone with Firebase.', Colors.red);
+          if (showSnackBarFeedback) {
+            _showSnackBar('Failed to verify phone with Firebase.', Colors.red);
+          }
         }
         return {'status': 'error', 'message': 'Missing Firebase id token'};
       }
@@ -1492,20 +1656,24 @@ class _ProfilePageState extends State<ProfilePage> {
             }
           });
         }
-        if (showSuccessSnackBar) {
+        if (showSnackBarFeedback) {
           _showSnackBar('Phone number verified successfully!', Colors.green);
         }
         _loadUserData();
       } else if (mounted) {
-        // Show backend reason (most common: user not found / invalid firebase token).
-        final msg = (response['message'] ?? response['error'] ?? '').toString().trim();
-        if (msg.isNotEmpty) {
-          _showSnackBar(msg, Colors.red);
-        } else {
-          _showSnackBar('Phone verification failed. Please try again.', Colors.red);
-        }
-      } else if (mounted) {
         setState(() => _isLoading = false);
+        if (showSnackBarFeedback) {
+          final msg =
+              (response['message'] ?? response['error'] ?? '').toString().trim();
+          if (msg.isNotEmpty) {
+            _showSnackBar(msg, Colors.red);
+          } else {
+            _showSnackBar(
+              'Phone verification failed. Please try again.',
+              Colors.red,
+            );
+          }
+        }
       }
 
       await _firebaseAuth.signOut();
@@ -1513,13 +1681,17 @@ class _ProfilePageState extends State<ProfilePage> {
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
+        if (showSnackBarFeedback) {
+          _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
+        }
       }
       return {'status': 'error', 'message': '${e.code}: ${e.message ?? ''}'.trim()};
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        _showSnackBar(e.toString(), Colors.red);
+        if (showSnackBarFeedback) {
+          _showSnackBar(e.toString(), Colors.red);
+        }
       }
       return {'status': 'error', 'message': e.toString()};
     }

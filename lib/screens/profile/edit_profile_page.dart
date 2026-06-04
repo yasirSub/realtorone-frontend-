@@ -1,9 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/user_api.dart';
 import '../../utils/phone_utils.dart';
+import '../../utils/profile_contact_verification.dart';
 import '../../widgets/elite_loader.dart';
+import '../../widgets/otp_pin_input_row.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -31,6 +34,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String _selectedDialCode = '+971';
   bool _isEmailVerified = false;
   bool _isPhoneVerified = false;
+  String _originalEmail = '';
+  String _originalPhoneE164 = '';
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   final List<String> _dubaiCities = [
     'Dubai Marina',
@@ -55,7 +61,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _loadProfile() async {
     setState(() => _isLoading = true);
     try {
-      final response = await UserApi.getProfile();
+      final response = await UserApi.getProfile(useCache: false);
       if (mounted &&
           (response['status'] == 'ok' || response['success'] == true)) {
         final userData = response['data'] ?? response['user'] ?? response;
@@ -71,13 +77,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
         }
 
         _emailController.text = userData['email'] ?? '';
-        _isEmailVerified = userData['email_verified_at'] != null;
-        _isPhoneVerified = userData['mobile_verified_at'] != null;
+        _isEmailVerified = isVerifiedTimestamp(userData['email_verified_at']);
+        _isPhoneVerified = isVerifiedTimestamp(userData['mobile_verified_at']);
+        _originalEmail = _emailController.text.trim().toLowerCase();
         final storedMobile =
             (userData['mobile'] ?? userData['phone_number'] ?? '').toString();
         final parsed = PhoneUtils.parseStored(storedMobile);
         _selectedDialCode = parsed.dialCode;
         _mobileController.text = parsed.localDigits;
+        _originalPhoneE164 = PhoneUtils.composeE164(
+          _selectedDialCode,
+          _mobileController.text,
+        );
         _cityController.text = userData['city'] ?? 'Dubai Marina';
         _brokerageController.text = userData['brokerage'] ?? '';
         _instagramController.text = userData['instagram'] ?? '';
@@ -104,6 +115,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final newEmail = _emailController.text.trim().toLowerCase();
+    final newPhoneE164 = PhoneUtils.composeE164(
+      _selectedDialCode,
+      _mobileController.text,
+    );
+    final emailChanged = newEmail != _originalEmail;
+    final phoneChanged = newPhoneE164 != _originalPhoneE164;
+
     setState(() => _isSaving = true);
 
     try {
@@ -111,11 +131,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         name:
             '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
                 .trim(),
-        email: _emailController.text.trim(),
-        mobile: PhoneUtils.composeE164(
-          _selectedDialCode,
-          _mobileController.text,
-        ),
+        email: newEmail,
+        mobile: newPhoneE164,
         city: _cityController.text.trim(),
         brokerage: _brokerageController.text.trim(),
         instagram: _instagramController.text.trim(),
@@ -125,8 +142,80 @@ class _EditProfilePageState extends State<EditProfilePage> {
         targetMonthlyIncome: double.tryParse(_targetIncomeController.text),
       );
 
-      if (mounted) {
-        if (response['success'] == true || response['status'] == 'ok') {
+      if (!mounted) return;
+
+      final ok = response['success'] == true || response['status'] == 'ok';
+      if (ok) {
+        final data = response['data'];
+        if (data is Map<String, dynamic>) {
+          _isEmailVerified = isVerifiedTimestamp(data['email_verified_at']);
+          _isPhoneVerified = isVerifiedTimestamp(data['mobile_verified_at']);
+        } else {
+          if (emailChanged) _isEmailVerified = false;
+          if (phoneChanged) _isPhoneVerified = false;
+        }
+
+        final verifier = ProfileContactVerification(
+          context: context,
+          firebaseAuth: _firebaseAuth,
+        );
+
+        var pendingMessage = '';
+
+        if (emailChanged) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response['otp_send_failed'] == true
+                    ? 'Profile saved. Tap resend if you did not get the email code.'
+                    : 'Profile saved. Enter the code sent to your new email.',
+              ),
+              backgroundColor: Colors.green[600],
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          final emailOk = await verifier.verifyEmail(
+            newEmail,
+            sendOtpIfNeeded: response['otp_send_failed'] == true,
+          );
+          if (emailOk) {
+            _isEmailVerified = true;
+            _originalEmail = newEmail;
+          } else {
+            pendingMessage = 'New email is not verified yet.';
+          }
+        }
+
+        if (phoneChanged && mounted) {
+          if (!emailChanged) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Profile saved. Enter the code sent to your new phone number.',
+                ),
+                backgroundColor: Color(0xFF059669),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          final phoneOk = await verifier.verifyPhone(
+            accountEmail: newEmail,
+            phoneE164: newPhoneE164,
+          );
+          if (phoneOk) {
+            _isPhoneVerified = true;
+            _originalPhoneE164 = newPhoneE164;
+          } else {
+            pendingMessage = pendingMessage.isEmpty
+                ? 'New phone number is not verified yet.'
+                : '$pendingMessage New phone is not verified yet.';
+          }
+        }
+
+        if (!mounted) return;
+
+        if (!emailChanged && !phoneChanged) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Profile updated successfully!'),
@@ -137,10 +226,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             ),
           );
-          Navigator.pop(context, true);
-        } else {
-          _showError(response['message'] ?? 'Failed to update profile');
+        } else if (pendingMessage.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(pendingMessage),
+              backgroundColor: Colors.orange[800],
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
+
+        Navigator.pop(context, true);
+      } else {
+        _showError(
+          response['message']?.toString() ?? 'Failed to update profile',
+        );
       }
     } catch (e) {
       if (mounted) _showError('Connection error: $e');
@@ -339,11 +439,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               if (_isPhoneVerified) ...[
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.check_circle_rounded,
-                  size: 14,
-                  color: Colors.green,
-                ),
+                _verifiedBadge(),
               ],
             ],
           ),
@@ -471,11 +567,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               if (isVerified) ...[
                 const SizedBox(width: 8),
-                const Icon(
-                  Icons.check_circle_rounded,
-                  size: 14,
-                  color: Colors.green,
-                ),
+                _verifiedBadge(),
               ],
             ],
           ),
@@ -536,6 +628,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
           validator: validator,
         ),
       ],
+    );
+  }
+
+  Widget _verifiedBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF6EE7B7)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.verified_rounded, size: 12, color: Color(0xFF047857)),
+          SizedBox(width: 4),
+          Text(
+            'VERIFIED',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF047857),
+              letterSpacing: 0.6,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
