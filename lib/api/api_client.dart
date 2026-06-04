@@ -17,6 +17,8 @@ class ApiClient {
   static Future<void> Function(int statusCode, String endpoint)? onServiceUnavailable;
   static bool _handlingSessionExpiry = false;
   static bool _handlingServiceUnavailable = false;
+  /// Suppress full-app maintenance navigation during silent cache refresh.
+  static int _backgroundFetchDepth = 0;
   static const Set<String> _preservedLocalKeys = {
     'hasSeenOnboarding',
     'hasSeenAppTourV2',
@@ -186,12 +188,22 @@ class ApiClient {
     required bool requiresAuth,
     required String cacheKey,
   }) async {
+    _backgroundFetchDepth++;
     try {
       final data = await _fetchGet(endpoint, requiresAuth: requiresAuth);
       if (_isCacheableSuccess(data)) {
         await _saveToCache(cacheKey, data);
       }
     } catch (_) {}
+    finally {
+      if (_backgroundFetchDepth > 0) _backgroundFetchDepth--;
+    }
+  }
+
+  /// Only startup-critical routes should replace the whole app with maintenance UI.
+  static bool _isBootstrapEndpoint(String endpoint) {
+    final path = endpoint.split('?').first.toLowerCase();
+    return path.contains('app-config') || path.endsWith('/health');
   }
 
   /// Public GET (e.g. app-config). Cached on device to reduce server reads.
@@ -476,9 +488,9 @@ class ApiClient {
   }
 
   static void _triggerServiceUnavailable(int statusCode, String endpoint) {
-    // Only hijack the whole app for startup config / gateway failures — not every 404 route.
-    final isStartupConfig = endpoint.contains('app-config');
-    if (statusCode == 404 && !isStartupConfig) {
+    if (_backgroundFetchDepth > 0) return;
+    if (!_isBootstrapEndpoint(endpoint)) return;
+    if (statusCode == 404 && !endpoint.contains('app-config')) {
       return;
     }
     if (_handlingServiceUnavailable) return;

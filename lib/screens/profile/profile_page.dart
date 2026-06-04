@@ -992,11 +992,12 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        Material(
+          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: items
                 .asMap()

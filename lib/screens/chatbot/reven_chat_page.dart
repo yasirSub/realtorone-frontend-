@@ -1425,11 +1425,13 @@ class _RevenChatPageState extends State<RevenChatPage>
         }
         _lastTurnWasVoice = false;
       } else {
+        final unavailable = res['service_unavailable'] == true;
         _messages.add(
           _RevenMessage(
-            text:
-                res['message'] as String? ??
-                'Something went wrong. Please try again.',
+            text: unavailable
+                ? 'Reven is temporarily unreachable (server busy or updating). Please try again in a minute.'
+                : (res['message'] as String? ??
+                    'Something went wrong. Please try again.'),
             isUser: false,
           ),
         );
