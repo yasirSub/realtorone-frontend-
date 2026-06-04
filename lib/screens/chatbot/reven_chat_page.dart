@@ -1447,6 +1447,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                 ? 400.0
                 : (windowWidth - 80).clamp(180.0, 310.0);
 
+            final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
             return AnimatedPadding(
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeOutCubic,
@@ -1454,8 +1455,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                 _isExpanded ? 0 : 20,
                 _isExpanded ? 0 : 14,
                 _isExpanded ? 0 : 24,
-                MediaQuery.of(context).viewInsets.bottom +
-                    (_isExpanded ? 0 : 185),
+                keyboardInset + (_isExpanded ? 0 : 185),
               ),
               child: Align(
                 alignment: Alignment.bottomRight,
@@ -1680,89 +1680,20 @@ class _RevenChatPageState extends State<RevenChatPage>
                           onSendText: _sendMessage,
                         )
                       else
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-                          decoration: BoxDecoration(
-                            color: surfaceColor,
-                            border: Border(top: BorderSide(color: borderColor)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 11,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: backgroundColor,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: borderColor),
-                                  ),
-                                  child: TextField(
-                                    controller: _messageController,
-                                    minLines: 1,
-                                    maxLines: 4,
-                                    textInputAction: TextInputAction.send,
-                                    onSubmitted: (_) => _sendMessage(),
-                                    decoration: InputDecoration(
-                                      hintText: 'Message Reven...',
-                                      hintStyle:
-                                          TextStyle(color: subtitleColor),
-                                      border: InputBorder.none,
-                                      isCollapsed: true,
-                                    ),
-                                    style: TextStyle(
-                                      color: titleColor,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (_voiceInAiChatEnabled &&
-                                  !_humanHandoffActive) ...[
-                                const SizedBox(width: 8),
-                                _VoiceMicButton(
-                                  isListening: _isListening,
-                                  isSpeaking: _isSpeaking,
-                                  voiceModeActive: false,
-                                  pulse: _micPulseController,
-                                  backgroundColor: backgroundColor,
-                                  borderColor: borderColor,
-                                  subtitleColor: subtitleColor,
-                                  onTap: _toggleVoiceInput,
-                                ),
-                              ],
-                              const SizedBox(width: 8),
-                              GestureDetector(
-                                onTap: _sendMessage,
-                                child: Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4F7CFF),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF4F7CFF,
-                                        ).withValues(alpha: 0.35),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(
-                                    Icons.send_rounded,
-                                    color: Colors.white,
-                                    size: 19,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        _RevenTextComposer(
+                          messageController: _messageController,
+                          backgroundColor: backgroundColor,
+                          surfaceColor: surfaceColor,
+                          borderColor: borderColor,
+                          titleColor: titleColor,
+                          subtitleColor: subtitleColor,
+                          showMic: _voiceInAiChatEnabled && !_humanHandoffActive,
+                          isListening: _isListening,
+                          isSpeaking: _isSpeaking,
+                          micPulse: _micPulseController,
+                          onMicTap: _toggleVoiceInput,
+                          onSend: _sendMessage,
+                          onFieldTap: _scrollToBottom,
                         ),
                     ],
                   ),
@@ -1771,6 +1702,173 @@ class _RevenChatPageState extends State<RevenChatPage>
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+// ── Composers ─────────────────────────────────────────────────────────────
+
+const double _kComposerBtnSize = 40;
+const double _kComposerBarMinHeight = 50;
+
+/// Text-mode input: one pill bar with text + mic + send (iMessage-style).
+class _RevenTextComposer extends StatelessWidget {
+  const _RevenTextComposer({
+    required this.messageController,
+    required this.backgroundColor,
+    required this.surfaceColor,
+    required this.borderColor,
+    required this.titleColor,
+    required this.subtitleColor,
+    required this.showMic,
+    required this.isListening,
+    required this.isSpeaking,
+    required this.micPulse,
+    required this.onMicTap,
+    required this.onSend,
+    this.onFieldTap,
+  });
+
+  final TextEditingController messageController;
+  final Color backgroundColor;
+  final Color surfaceColor;
+  final Color borderColor;
+  final Color titleColor;
+  final Color subtitleColor;
+  final bool showMic;
+  final bool isListening;
+  final bool isSpeaking;
+  final AnimationController micPulse;
+  final VoidCallback onMicTap;
+  final VoidCallback onSend;
+  final VoidCallback? onFieldTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: surfaceColor,
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: _kComposerBarMinHeight),
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: messageController,
+                  minLines: 1,
+                  maxLines: 5,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.send,
+                  textAlignVertical: TextAlignVertical.center,
+                  onTap: () {
+                    onFieldTap?.call();
+                    Future<void>.delayed(const Duration(milliseconds: 280), () {
+                      onFieldTap?.call();
+                    });
+                  },
+                  onSubmitted: (_) => onSend(),
+                  decoration: InputDecoration(
+                    hintText: 'Message Reven...',
+                    hintStyle: TextStyle(
+                      color: subtitleColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+                  ),
+                  style: TextStyle(
+                    color: titleColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              if (showMic) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: _VoiceMicButton(
+                    isListening: isListening,
+                    isSpeaking: isSpeaking,
+                    voiceModeActive: false,
+                    pulse: micPulse,
+                    backgroundColor: surfaceColor,
+                    borderColor: borderColor,
+                    subtitleColor: subtitleColor,
+                    onTap: onMicTap,
+                    compact: true,
+                  ),
+                ),
+              ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
+                child: _RevenComposerCircleButton(
+                  icon: Icons.send_rounded,
+                  backgroundColor: const Color(0xFF4F7CFF),
+                  iconColor: Colors.white,
+                  onTap: onSend,
+                  shadowColor: const Color(0xFF4F7CFF),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RevenComposerCircleButton extends StatelessWidget {
+  const _RevenComposerCircleButton({
+    required this.icon,
+    required this.backgroundColor,
+    required this.iconColor,
+    required this.onTap,
+    this.borderColor,
+    this.shadowColor,
+  });
+
+  final IconData icon;
+  final Color backgroundColor;
+  final Color iconColor;
+  final VoidCallback onTap;
+  final Color? borderColor;
+  final Color? shadowColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: _kComposerBtnSize,
+        height: _kComposerBtnSize,
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: BoxShape.circle,
+          border: borderColor != null ? Border.all(color: borderColor!) : null,
+          boxShadow: shadowColor != null
+              ? [
+                  BoxShadow(
+                    color: shadowColor!.withValues(alpha: 0.32),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Icon(icon, color: iconColor, size: 20),
       ),
     );
   }
@@ -1895,104 +1993,114 @@ class _RevenVoiceComposer extends StatelessWidget {
             ),
           ),
 
-          // ── Pill: + · Type · mic · End ─────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 2, 10, 14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: borderColor),
-              ),
-              child: Row(
-                children: [
-                  if (showVoicePicker)
-                    _RoundIconButton(
-                      icon: Icons.tune_rounded,
-                      bg: surfaceColor,
-                      fg: subtitleColor,
-                      tooltip: 'Change voice ($activeVoiceLabel)',
-                      onTap: onVoicePick,
-                    )
-                  else
-                    const SizedBox(width: 4),
-                  Expanded(
-                    child: TextField(
-                      controller: messageController,
-                      minLines: 1,
-                      maxLines: 3,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSendText(),
-                      decoration: InputDecoration(
-                        hintText: 'Type',
-                        hintStyle: TextStyle(color: subtitleColor),
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 10),
-                      ),
-                      style: TextStyle(
-                        color: titleColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+          // ── Pill: tune · Type · mic · End ───────────────────────
+          Material(
+            color: surfaceColor,
+            child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: _kComposerBarMinHeight),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (showVoicePicker)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 5),
+                        child: _RoundIconButton(
+                          icon: Icons.tune_rounded,
+                          bg: surfaceColor,
+                          fg: subtitleColor,
+                          tooltip: 'Change voice ($activeVoiceLabel)',
+                          onTap: onVoicePick,
+                          size: _kComposerBtnSize,
+                        ),
+                      )
+                    else
+                      const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: messageController,
+                        minLines: 1,
+                        maxLines: 3,
+                        textAlignVertical: TextAlignVertical.center,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => onSendText(),
+                        decoration: InputDecoration(
+                          hintText: 'Type',
+                          hintStyle: TextStyle(
+                            color: subtitleColor,
+                            fontSize: 16,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.fromLTRB(8, 12, 4, 12),
+                        ),
+                        style: TextStyle(
+                          color: titleColor,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          height: 1.3,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  // Mic — tap to talk / stop listening
-                  GestureDetector(
-                    onTap: onMicTap,
-                    child: AnimatedBuilder(
-                      animation: pulse,
-                      builder: (_, child) {
-                        final scale =
-                            _micIsListening ? 1.0 + (pulse.value * 0.12) : 1.0;
-                        return Transform.scale(scale: scale, child: child);
-                      },
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _micIsListening
-                              ? const Color(0xFF22C55E)
-                              : surfaceColor,
-                          border: Border.all(
-                            color: _micIsListening
-                                ? const Color(0xFF22C55E)
-                                : borderColor,
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: GestureDetector(
+                        onTap: onMicTap,
+                        child: AnimatedBuilder(
+                          animation: pulse,
+                          builder: (_, child) {
+                            final scale = _micIsListening
+                                ? 1.0 + (pulse.value * 0.1)
+                                : 1.0;
+                            return Transform.scale(scale: scale, child: child);
+                          },
+                          child: Container(
+                            width: _kComposerBtnSize,
+                            height: _kComposerBtnSize,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _micIsListening
+                                  ? const Color(0xFF22C55E)
+                                  : surfaceColor,
+                              border: Border.all(
+                                color: _micIsListening
+                                    ? const Color(0xFF22C55E)
+                                    : borderColor,
+                              ),
+                            ),
+                            child: Icon(
+                              _micIsListening
+                                  ? Icons.mic_rounded
+                                  : Icons.mic_none_rounded,
+                              color:
+                                  _micIsListening ? Colors.white : subtitleColor,
+                              size: 20,
+                            ),
                           ),
                         ),
-                        child: Icon(
-                          _micIsListening
-                              ? Icons.mic_rounded
-                              : Icons.mic_none_rounded,
-                          color: _micIsListening ? Colors.white : subtitleColor,
-                          size: 20,
-                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  // White End button
-                  GestureDetector(
-                    onTap: onExitVoice,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
-                      child: const Icon(
-                        Icons.close_rounded,
-                        color: Color(0xFF0F172A),
-                        size: 22,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
+                      child: _RevenComposerCircleButton(
+                        icon: Icons.close_rounded,
+                        backgroundColor: Colors.white,
+                        iconColor: const Color(0xFF0F172A),
+                        onTap: onExitVoice,
+                        borderColor: borderColor.withValues(alpha: 0.4),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -2009,6 +2117,7 @@ class _RoundIconButton extends StatelessWidget {
     required this.fg,
     required this.onTap,
     this.tooltip,
+    this.size = 40,
   });
 
   final IconData icon;
@@ -2016,14 +2125,15 @@ class _RoundIconButton extends StatelessWidget {
   final Color fg;
   final VoidCallback onTap;
   final String? tooltip;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
     final button = GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: size,
+        height: size,
         decoration: BoxDecoration(shape: BoxShape.circle, color: bg),
         child: Icon(icon, color: fg, size: 20),
       ),
@@ -2191,6 +2301,7 @@ class _VoiceMicButton extends StatelessWidget {
     required this.borderColor,
     required this.subtitleColor,
     required this.onTap,
+    this.compact = false,
   });
 
   final bool isListening;
@@ -2201,6 +2312,7 @@ class _VoiceMicButton extends StatelessWidget {
   final Color borderColor;
   final Color subtitleColor;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -2217,6 +2329,11 @@ class _VoiceMicButton extends StatelessWidget {
         : voiceModeActive
             ? const Color(0xFF22C55E)
             : borderColor;
+    final size = compact ? _kComposerBtnSize : 48.0;
+    final iconSize = compact ? 20.0 : 22.0;
+    final shape = compact
+        ? const BoxDecoration(shape: BoxShape.circle)
+        : BoxDecoration(borderRadius: BorderRadius.circular(14));
 
     return GestureDetector(
       onTap: onTap,
@@ -2227,11 +2344,10 @@ class _VoiceMicButton extends StatelessWidget {
           return Transform.scale(scale: scale, child: child);
         },
         child: Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
+          width: size,
+          height: size,
+          decoration: shape.copyWith(
             color: fill,
-            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: border, width: active ? 1.6 : 1),
             boxShadow: active
                 ? [
@@ -2253,7 +2369,7 @@ class _VoiceMicButton extends StatelessWidget {
                 : voiceModeActive
                     ? const Color(0xFF22C55E)
                     : subtitleColor,
-            size: 22,
+            size: iconSize,
           ),
         ),
       ),
