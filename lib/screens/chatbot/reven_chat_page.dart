@@ -79,6 +79,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _lastTurnWasVoice = false;
   _RevenInteractionMode _interactionMode = _RevenInteractionMode.text;
   String _voiceModelLabel = 'MAI-Voice-2';
+  String _voiceSpeakerFamily = 'Speakers';
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
@@ -90,6 +91,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   static const _prefVoiceKey = 'reven_preferred_voice_id';
   String _voiceTranscript = '';
   String _lastVoiceCaption = '';
+  /// User tapped mic to mute; blocks hands-free auto re-listen until they tap again.
+  bool _voiceMicPausedByUser = false;
   bool _wasExpandedBeforeVoice = false;
   Timer? _voiceUtteranceTimer;
   late final AnimationController _micPulseController;
@@ -241,6 +244,7 @@ class _RevenChatPageState extends State<RevenChatPage>
               opts.add({
                 'id': id,
                 'label': item['label']?.toString() ?? id,
+                'hint': item['hint']?.toString() ?? '',
               });
             }
           }
@@ -262,14 +266,13 @@ class _RevenChatPageState extends State<RevenChatPage>
             'Titan': _configFlag(tierRaw['Titan'], defaultValue: true),
           };
         }
-        final maiModel =
-            data['voice_model']?.toString().contains('mai-voice') == true ||
-                data['voice_provider']?.toString() == 'openrouter';
-        _preferAiVoiceOnly = _effectiveVoiceCloudEnabled && maiModel;
+        _preferAiVoiceOnly = _effectiveVoiceCloudEnabled;
         _voiceAllowUserPick = _configFlag(data['voice_allow_user_pick']);
         _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
         if (opts.isNotEmpty) _voiceOptions = opts;
         _voiceModelLabel = data['voice_model_label']?.toString() ?? 'Voice AI';
+        _voiceSpeakerFamily =
+            data['voice_speaker_family']?.toString() ?? 'Speakers';
       });
     } catch (_) {}
   }
@@ -283,6 +286,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _wasExpandedBeforeVoice = _isExpanded;
       _isExpanded = true; // full-screen call experience
       _interactionMode = _RevenInteractionMode.voice;
+      _voiceMicPausedByUser = false;
     });
     await _loadVoiceSettings();
   }
@@ -297,13 +301,15 @@ class _RevenChatPageState extends State<RevenChatPage>
       _isExpanded = _wasExpandedBeforeVoice;
       _lastVoiceCaption = '';
       _voiceTranscript = '';
+      _voiceMicPausedByUser = false;
     });
   }
 
   Future<void> _scheduleVoiceListenAfterReply() async {
     if (!_isVoiceInteractionMode ||
         _humanHandoffActive ||
-        !_voiceInAiChatEnabled) {
+        !_voiceInAiChatEnabled ||
+        _voiceMicPausedByUser) {
       return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 550));
@@ -326,8 +332,10 @@ class _RevenChatPageState extends State<RevenChatPage>
             ? _preferredVoiceId!.trim()
             : _defaultVoiceId)
         : _defaultVoiceId;
-    if (_voiceOptions.any((v) => v['id'] == id)) {
-      return id;
+    if (_voiceOptions.any((v) => _voiceIdsEqual(v['id'] ?? '', id))) {
+      for (final v in _voiceOptions) {
+        if (_voiceIdsEqual(v['id'] ?? '', id)) return v['id'];
+      }
     }
     return _defaultVoiceId.isNotEmpty ? _defaultVoiceId : null;
   }
@@ -338,8 +346,15 @@ class _RevenChatPageState extends State<RevenChatPage>
     return _voiceCloudTierAllow[tier] == true;
   }
 
-  String get _voicePlaybackLabel =>
-      _effectiveVoiceCloudEnabled ? _voiceModelLabel : 'Device voice';
+  String get _voicePlaybackLabel {
+    if (!_effectiveVoiceCloudEnabled) {
+      return 'Device voice (cloud off)';
+    }
+    return '$_voiceSpeakerFamily · $_voiceModelLabel';
+  }
+
+  bool _voiceIdsEqual(String a, String b) =>
+      a.trim().toLowerCase() == b.trim().toLowerCase();
 
   Future<void> _loadMembershipTier() async {
     try {
@@ -354,7 +369,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   String get _activeVoiceLabel {
     final id = _activeVoiceIdForApi ?? _defaultVoiceId;
     for (final v in _voiceOptions) {
-      if (v['id'] == id) return v['label'] ?? id;
+      if (_voiceIdsEqual(v['id'] ?? '', id)) return v['label'] ?? id;
     }
     return id;
   }
@@ -384,14 +399,16 @@ class _RevenChatPageState extends State<RevenChatPage>
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Choose how Reven sounds when reading replies aloud.',
-                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                Text(
+                  '$_voiceSpeakerFamily — pick a speaker for cloud voice.',
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                 ),
                 const SizedBox(height: 12),
                 ..._voiceOptions.map((v) {
                   final id = v['id'] ?? '';
-                  final selected = (_activeVoiceIdForApi ?? _defaultVoiceId) == id;
+                  final active = _activeVoiceIdForApi ?? _defaultVoiceId;
+                  final selected = _voiceIdsEqual(active, id);
+                  final hint = v['hint']?.trim() ?? '';
                   return ListTile(
                     dense: true,
                     title: Text(
@@ -401,6 +418,15 @@ class _RevenChatPageState extends State<RevenChatPage>
                         fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                       ),
                     ),
+                    subtitle: hint.isNotEmpty
+                        ? Text(
+                            hint,
+                            style: const TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          )
+                        : null,
                     trailing: selected
                         ? const Icon(Icons.check_rounded, color: Color(0xFF4F7CFF))
                         : null,
@@ -446,19 +472,51 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (mounted) setState(() => _isSpeaking = false);
   }
 
+  bool _bytesLookLikeMp3(List<int> bytes) {
+    if (bytes.length < 3) return false;
+    if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) return true;
+    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) return true;
+    return false;
+  }
+
+  bool _bytesLookLikeWav(List<int> bytes) {
+    if (bytes.length < 12) return false;
+    return bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46;
+  }
+
   Future<bool> _speakCloudAudio(String base64, String mime) async {
     final bytes = base64Decode(base64);
     if (bytes.isEmpty) return false;
     await _cloudPlayer.stop();
     if (!mounted) return false;
     setState(() => _isSpeaking = true);
+
+    String playMime = mime;
+    if (_bytesLookLikeMp3(bytes)) {
+      playMime = 'audio/mpeg';
+    } else if (_bytesLookLikeWav(bytes) || mime.contains('wav')) {
+      playMime = 'audio/wav';
+    } else if (!mime.contains('mpeg') && !mime.contains('mp3')) {
+      playMime = 'audio/mpeg';
+    }
+
     try {
-      await _cloudPlayer.play(
-        BytesSource(bytes, mimeType: mime.contains('mpeg') ? 'audio/mpeg' : mime),
-      );
+      await _cloudPlayer.play(BytesSource(bytes, mimeType: playMime));
       await _cloudPlayer.onPlayerComplete.first;
       return true;
     } catch (_) {
+      if (playMime != 'audio/mpeg') {
+        try {
+          await _cloudPlayer.play(
+            BytesSource(bytes, mimeType: 'audio/mpeg'),
+          );
+          await _cloudPlayer.onPlayerComplete.first;
+          return true;
+        } catch (_) {}
+      }
       return false;
     } finally {
       if (mounted) setState(() => _isSpeaking = false);
@@ -483,59 +541,45 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
 
+    // Cloud AI voice disabled → built-in phone TTS only (no OpenRouter audio).
+    if (!_effectiveVoiceCloudEnabled) {
+      final spoke = await _speakDeviceTts(text);
+      if (spoke && _isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+      }
+      return;
+    }
+
     final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
     final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
     final engine = apiRes?['reply_audio_engine']?.toString() ?? '';
-    final useDevice =
-        engine == 'device' || (_isVoiceInteractionMode && !_effectiveVoiceCloudEnabled);
-    final expectCloud = _effectiveVoiceCloudEnabled &&
-        (engine == 'cloud' || (_isVoiceInteractionMode && engine != 'device'));
 
-    if (useDevice) {
-      final spoke = await _speakDeviceTts(text);
-      if (spoke && _isVoiceInteractionMode) {
-        await _scheduleVoiceListenAfterReply();
-      }
-      return;
-    }
-
-    if (audioB64.isNotEmpty && engine == 'cloud') {
+    if (audioB64.isNotEmpty) {
       await _stopTts();
       final spoke = await _speakCloudAudio(audioB64, audioMime);
-      if (!spoke && (_isVoiceInteractionMode || _preferAiVoiceOnly)) {
-        final fallback = await _speakDeviceTts(text);
-        if (fallback && _isVoiceInteractionMode) {
+      if (spoke) {
+        if (_isVoiceInteractionMode) {
           await _scheduleVoiceListenAfterReply();
-          return;
         }
-        _showVoiceSnack(
-          'Could not play AI voice audio. Check connection and try again.',
-        );
-      }
-      if (spoke && _isVoiceInteractionMode) {
-        await _scheduleVoiceListenAfterReply();
-      }
-      return;
-    }
-
-    if (expectCloud && (_isVoiceInteractionMode || _preferAiVoiceOnly)) {
-      final err = apiRes?['reply_audio_error']?.toString();
-      final fallback = await _speakDeviceTts(text);
-      if (fallback && _isVoiceInteractionMode) {
-        await _scheduleVoiceListenAfterReply();
         return;
       }
       _showVoiceSnack(
-        err?.isNotEmpty == true
-            ? err!
-            : 'AI voice ($_voiceModelLabel) was not returned. Enable OpenRouter MAI-Voice-2 in admin and redeploy backend.',
+        'Could not play cloud voice ($_voiceSpeakerFamily). Pick a matching speaker in your profile or admin.',
       );
+      if (_isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+      }
       return;
     }
 
-    if (!_effectiveVoiceCloudEnabled || engine == 'failed') {
-      final spoke = await _speakDeviceTts(text);
-      if (spoke && _isVoiceInteractionMode) {
+    if (engine == 'failed' || _isVoiceInteractionMode || _preferAiVoiceOnly) {
+      final err = apiRes?['reply_audio_error']?.toString();
+      _showVoiceSnack(
+        err?.isNotEmpty == true
+            ? err!
+            : 'Cloud voice ($_voiceModelLabel) unavailable. Enable cloud voice in admin and choose a speaker for this model.',
+      );
+      if (_isVoiceInteractionMode) {
         await _scheduleVoiceListenAfterReply();
       }
     }
@@ -568,6 +612,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (!_isVoiceInteractionMode ||
         _humanHandoffActive ||
         !_voiceInAiChatEnabled ||
+        _voiceMicPausedByUser ||
         _isListening ||
         _isSpeaking ||
         _isLoading) {
@@ -617,11 +662,31 @@ class _RevenChatPageState extends State<RevenChatPage>
       return;
     }
     if (_isListening) {
-      await _finishVoiceSession();
+      await _pauseVoiceInput();
       return;
     }
+    _voiceMicPausedByUser = false;
     await _stopTts();
     await _startVoiceInput();
+  }
+
+  /// Mic tap while listening: stop mic without sending (tap again to resume).
+  Future<void> _pauseVoiceInput() async {
+    _voiceUtteranceTimer?.cancel();
+    if (_isListening) {
+      await _speech.stop();
+    } else {
+      await _speech.cancel();
+    }
+    _micPulseController.stop();
+    final partial = _voiceTranscript.trim();
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+      _voiceMicPausedByUser = true;
+      _voiceTranscript = '';
+      if (partial.isNotEmpty) _lastVoiceCaption = partial;
+    });
   }
 
   Future<void> _cancelVoiceInput() async {
@@ -663,7 +728,10 @@ class _RevenChatPageState extends State<RevenChatPage>
     final localeId = locales.isNotEmpty ? locales.first.localeId : null;
 
     if (!mounted) return;
-    setState(() => _isListening = true);
+    setState(() {
+      _isListening = true;
+      _voiceMicPausedByUser = false;
+    });
     _micPulseController.repeat(reverse: true);
 
     await _speech.listen(
@@ -701,7 +769,9 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (text.isNotEmpty) _lastVoiceCaption = text;
     });
     if (text.isEmpty) {
-      await _restartVoiceListenIfNeeded();
+      if (!_voiceMicPausedByUser) {
+        await _restartVoiceListenIfNeeded();
+      }
       return;
     }
     if (_voiceAutoSend) {
@@ -1213,9 +1283,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
 
-    final requestVoiceAudio =
-        _voiceReadAloud &&
-        (_isVoiceInteractionMode || fromVoice || _voiceCloudEnabled);
+    final requestVoiceAudio = _voiceReadAloud && _effectiveVoiceCloudEnabled;
 
     final res = await ChatApi.sendMessage(
       text,
@@ -1371,8 +1439,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (ttsReply != null) {
       await _speakReply(ttsReply!, apiRes: ttsRes);
     }
-    // Keep the call hands-free: re-open the mic even if no audio played.
-    if (_isVoiceInteractionMode && !_isSpeaking && !_isListening) {
+    // Hands-free: re-open mic after reply unless the user muted it with the mic button.
+    if (_isVoiceInteractionMode &&
+        !_voiceMicPausedByUser &&
+        !_isSpeaking &&
+        !_isListening) {
       await _scheduleVoiceListenAfterReply();
     }
   }
@@ -1739,6 +1810,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           !_humanHandoffActive)
                         _RevenVoiceComposer(
                           status: _voiceCallStatus,
+                          micPaused: _voiceMicPausedByUser,
                           voiceModelLabel: _voicePlaybackLabel,
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
@@ -1961,6 +2033,7 @@ class _RevenComposerCircleButton extends StatelessWidget {
 class _RevenVoiceComposer extends StatelessWidget {
   const _RevenVoiceComposer({
     required this.status,
+    this.micPaused = false,
     required this.voiceModelLabel,
     required this.activeVoiceLabel,
     required this.showVoicePicker,
@@ -1980,6 +2053,7 @@ class _RevenVoiceComposer extends StatelessWidget {
   });
 
   final _VoiceCallStatus status;
+  final bool micPaused;
   final String voiceModelLabel;
   final String activeVoiceLabel;
   final bool showVoicePicker;
@@ -2021,7 +2095,7 @@ class _RevenVoiceComposer extends StatelessWidget {
       case _VoiceCallStatus.speaking:
         return 'Speaking…';
       case _VoiceCallStatus.idle:
-        return 'Tap the mic to talk';
+        return micPaused ? 'Tap the mic to resume' : 'Tap the mic to talk';
     }
   }
 
