@@ -201,6 +201,7 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   void _onNavTap(int index) {
+    RevenChatOverlay.minimizeIfExpanded();
     setState(() => _currentIndex = index);
     _maybeShowTourGuide();
   }
@@ -771,8 +772,6 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
 
           if (_tourVisible) Positioned.fill(child: _buildTourSpotlightLayer()),
-
-          const RevenChatOverlayHost(),
         ],
       ),
     );

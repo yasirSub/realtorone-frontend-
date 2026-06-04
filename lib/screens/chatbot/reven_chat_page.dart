@@ -37,10 +37,7 @@ class RevenChatPage extends StatefulWidget {
   final bool startVoiceOnOpen;
 
   /// Opens Reven overlay. [startVoice] enters voice mode and starts the mic.
-  static Future<void> show(
-    BuildContext context, {
-    bool startVoice = false,
-  }) {
+  static Future<void> show(BuildContext context, {bool startVoice = false}) {
     return RevenChatOverlay.show(context, startVoice: startVoice);
   }
 
@@ -92,21 +89,23 @@ class _RevenChatPageState extends State<RevenChatPage>
   static const _prefVoiceKey = 'reven_preferred_voice_id';
   String _voiceTranscript = '';
   String _lastVoiceCaption = '';
+
   /// Shown on the voice orb while cloud audio loads (text not in transcript yet).
   String _pendingAssistantReply = '';
+
   /// User tapped mic to mute; blocks hands-free auto re-listen until they tap again.
   bool _voiceMicPausedByUser = false;
-  bool _wasExpandedBeforeVoice = false;
   Timer? _voiceUtteranceTimer;
   Timer? _voiceSilenceFinalizeTimer;
   late final AnimationController _micPulseController;
+
   /// Mic dB level from speech_to_text; orb/mic glow when above [_voiceSoundActiveDb].
   double _voiceSoundLevel = 0;
   bool _voiceUserSpeaking = false;
   static const double _voiceSoundActiveDb = -40;
+
   /// How long after mic goes quiet before we send (voice hands-free).
-  static const Duration _voiceSilenceSendDelay =
-      Duration(milliseconds: 450);
+  static const Duration _voiceSilenceSendDelay = Duration(milliseconds: 450);
   bool _voiceFinalizeInProgress = false;
 
   _VoiceCallStatus get _voiceCallStatus {
@@ -137,7 +136,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     _initSpeech();
     _initTts();
     _loadHistory();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartVoiceOnOpen());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybeStartVoiceOnOpen(),
+    );
   }
 
   Future<void> _maybeStartVoiceOnOpen() async {
@@ -207,7 +208,8 @@ class _RevenChatPageState extends State<RevenChatPage>
         }
       }
       if (!mounted) return;
-      final hadNew = parsed.length > _messages.length ||
+      final hadNew =
+          parsed.length > _messages.length ||
           (parsed.isNotEmpty &&
               _messages.isNotEmpty &&
               parsed.last.text != _messages.last.text);
@@ -279,7 +281,10 @@ class _RevenChatPageState extends State<RevenChatPage>
         final tierRaw = data['voice_cloud_tier_allow'];
         if (tierRaw is Map) {
           _voiceCloudTierAllow = {
-            'Consultant': _configFlag(tierRaw['Consultant'], defaultValue: false),
+            'Consultant': _configFlag(
+              tierRaw['Consultant'],
+              defaultValue: false,
+            ),
             'Rainmaker': _configFlag(tierRaw['Rainmaker'], defaultValue: true),
             'Titan': _configFlag(tierRaw['Titan'], defaultValue: true),
           };
@@ -295,32 +300,109 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {}
   }
 
-  Future<void> _enterVoiceMode() async {
-    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    if (_isVoiceInteractionMode) return;
+  void _unfocusComposer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _flushPendingVoiceReplyToMessages() {
+    final pending = _pendingAssistantReply.trim();
+    if (pending.isEmpty) return;
+    final exists = _messages.any(
+      (m) => !m.isUser && !m.isLoading && m.text.trim() == pending,
+    );
+    if (exists) return;
+    _messages.add(
+      _RevenMessage(text: pending, isUser: false, createdAt: DateTime.now()),
+    );
+  }
+
+  /// Stops mic, timers, and playback — safe to call before switching text ↔ voice.
+  Future<void> _stopAllVoiceActivity() async {
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceFinalizeInProgress = false;
+    _resetVoiceSoundActivity();
+    try {
+      if (_isListening) {
+        await _speech.stop();
+      } else {
+        await _speech.cancel();
+      }
+    } catch (_) {}
+    _micPulseController.stop();
     await _stopTts();
     if (!mounted) return;
     setState(() {
-      _wasExpandedBeforeVoice = _isExpanded;
-      _isExpanded = true; // full-screen call experience
+      _isListening = false;
+      _voiceTranscript = '';
+    });
+  }
+
+  Future<void> _enterVoiceMode() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isVoiceInteractionMode) return;
+    _unfocusComposer();
+    await _stopAllVoiceActivity();
+    if (!mounted) return;
+    setState(() {
       _interactionMode = _RevenInteractionMode.voice;
       _voiceMicPausedByUser = false;
+      _lastVoiceCaption = '';
     });
     await _loadVoiceSettings();
+    _syncOverlayCallStatus();
   }
 
   Future<void> _exitVoiceMode() async {
     if (!_isVoiceInteractionMode) return;
-    await _cancelVoiceInput();
-    await _stopTts();
+    _unfocusComposer();
+    await _stopAllVoiceActivity();
     if (!mounted) return;
+    _flushPendingVoiceReplyToMessages();
     setState(() {
       _interactionMode = _RevenInteractionMode.text;
-      _isExpanded = _wasExpandedBeforeVoice;
       _lastVoiceCaption = '';
-      _voiceTranscript = '';
+      _pendingAssistantReply = '';
+      _lastTurnWasVoice = false;
+      _isSpeaking = false;
       _voiceMicPausedByUser = false;
     });
+    _syncOverlayCallStatus();
+    _scrollToBottom();
+  }
+
+  /// Text composer mic — open voice session (ChatGPT waveform flow).
+  Future<void> _openVoiceConversation() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isVoiceInteractionMode) {
+      await _toggleVoiceMicInVoiceMode();
+      return;
+    }
+    await _enterVoiceMode();
+    if (!mounted) return;
+    await _startVoiceInput();
+  }
+
+  /// Voice composer mic — pause, resume, or interrupt playback.
+  Future<void> _toggleVoiceMicInVoiceMode() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (!_isVoiceInteractionMode) return;
+    if (_isSpeaking) {
+      await _stopTts();
+      _flushPendingVoiceReplyToMessages();
+      if (mounted) {
+        setState(() {
+          _pendingAssistantReply = '';
+          _isSpeaking = false;
+        });
+      }
+    }
+    if (_isListening) {
+      await _pauseVoiceInput();
+      return;
+    }
+    _voiceMicPausedByUser = false;
+    await _startVoiceInput();
   }
 
   Future<void> _scheduleVoiceListenAfterReply() async {
@@ -330,7 +412,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceMicPausedByUser) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 550));
+    await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted ||
         !_isVoiceInteractionMode ||
         _isListening ||
@@ -347,8 +429,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   String? get _activeVoiceIdForApi {
     final id = _voiceAllowUserPick
         ? (_preferredVoiceId?.trim().isNotEmpty == true
-            ? _preferredVoiceId!.trim()
-            : _defaultVoiceId)
+              ? _preferredVoiceId!.trim()
+              : _defaultVoiceId)
         : _defaultVoiceId;
     if (_voiceOptions.any((v) => _voiceIdsEqual(v['id'] ?? '', id))) {
       for (final v in _voiceOptions) {
@@ -427,7 +509,10 @@ class _RevenChatPageState extends State<RevenChatPage>
                 const SizedBox(height: 8),
                 Text(
                   '$_voiceSpeakerFamily — pick a speaker for cloud voice.',
-                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 ..._voiceOptions.map((v) {
@@ -440,8 +525,12 @@ class _RevenChatPageState extends State<RevenChatPage>
                     title: Text(
                       v['label'] ?? id,
                       style: TextStyle(
-                        color: selected ? const Color(0xFF4F7CFF) : Colors.white,
-                        fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                        color: selected
+                            ? const Color(0xFF4F7CFF)
+                            : Colors.white,
+                        fontWeight: selected
+                            ? FontWeight.w800
+                            : FontWeight.w500,
                       ),
                     ),
                     subtitle: hint.isNotEmpty
@@ -454,7 +543,10 @@ class _RevenChatPageState extends State<RevenChatPage>
                           )
                         : null,
                     trailing: selected
-                        ? const Icon(Icons.check_rounded, color: Color(0xFF4F7CFF))
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: Color(0xFF4F7CFF),
+                          )
                         : null,
                     onTap: () => Navigator.pop(ctx, id),
                   );
@@ -501,7 +593,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _bytesLookLikeMp3(List<int> bytes) {
     if (bytes.length < 3) return false;
     if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) return true;
-    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) return true;
+    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0)
+      return true;
     return false;
   }
 
@@ -536,9 +629,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {
       if (playMime != 'audio/mpeg') {
         try {
-          await _cloudPlayer.play(
-            BytesSource(bytes, mimeType: 'audio/mpeg'),
-          );
+          await _cloudPlayer.play(BytesSource(bytes, mimeType: 'audio/mpeg'));
           await _cloudPlayer.onPlayerComplete.first;
           return true;
         } catch (_) {}
@@ -615,8 +706,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     }
 
-    final audioMime =
-        voiceRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
+    final audioMime = voiceRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
     final engine = voiceRes?['reply_audio_engine']?.toString() ?? '';
 
     if (audioB64.isNotEmpty) {
@@ -638,7 +728,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     if (engine == 'failed' || _preferAiVoiceOnly) {
-      final err = voiceRes?['reply_audio_error']?.toString() ??
+      final err =
+          voiceRes?['reply_audio_error']?.toString() ??
           voiceRes?['message']?.toString();
       _showVoiceSnack(
         err != null && err.isNotEmpty
@@ -667,10 +758,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   void _showVoiceSnack(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 5),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
     );
   }
 
@@ -796,24 +884,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {}
   }
 
-  Future<void> _toggleVoiceInput() async {
-    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    if (_isLoading && _isVoiceInteractionMode && !_isSpeaking) return;
-    if (!_isVoiceInteractionMode) {
-      await _enterVoiceMode();
-      if (!mounted) return;
-      await _startVoiceInput();
-      return;
-    }
-    if (_isListening) {
-      await _pauseVoiceInput();
-      return;
-    }
-    _voiceMicPausedByUser = false;
-    await _stopTts();
-    await _startVoiceInput();
-  }
-
   /// Mic tap while listening: stop mic without sending (tap again to resume).
   Future<void> _pauseVoiceInput() async {
     _voiceUtteranceTimer?.cancel();
@@ -835,9 +905,17 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _cancelVoiceInput() async {
-    if (!_isListening) return;
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
-    await _speech.cancel();
+    try {
+      if (_isListening) {
+        await _speech.stop();
+      } else {
+        await _speech.cancel();
+      }
+    } catch (_) {}
     _voiceTranscript = '';
     if (!mounted) return;
     setState(() => _isListening = false);
@@ -1474,9 +1552,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     _scrollToBottom();
 
     final voiceTurn = _isVoiceInteractionMode;
-    final inlineCloudVoice = voiceTurn &&
-        _voiceReadAloud &&
-        _effectiveVoiceCloudEnabled;
+    final inlineCloudVoice =
+        voiceTurn && _voiceReadAloud && _effectiveVoiceCloudEnabled;
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
@@ -1489,8 +1566,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     String? ttsReply;
     Map<String, dynamic>? ttsRes;
     String? deferredVoiceReply;
-    final shouldSpeak = _voiceReadAloud &&
-        (voiceTurn || _lastTurnWasVoice);
+    final shouldSpeak = _voiceReadAloud && (voiceTurn || _lastTurnWasVoice);
     _stopWaitElapsedTicker();
     setState(() {
       _messages.removeLast();
@@ -1498,8 +1574,10 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (res['success'] == true && res['awaiting_human'] == true) {
         _humanHandoffActive = res['human_handoff_active'] == true;
         final sid = res['session_id'];
-        if (sid is int) _sessionId = sid;
-        else if (sid != null) _sessionId = int.tryParse(sid.toString());
+        if (sid is int)
+          _sessionId = sid;
+        else if (sid != null)
+          _sessionId = int.tryParse(sid.toString());
         final handoffReply = (res['reply'] as String?)?.trim() ?? '';
         if (handoffReply.isNotEmpty) {
           _messages.add(
@@ -1562,7 +1640,8 @@ class _RevenChatPageState extends State<RevenChatPage>
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
 
-        final holdTextForVoice = voiceTurn &&
+        final holdTextForVoice =
+            voiceTurn &&
             shouldSpeak &&
             inlineCloudVoice &&
             replyText.isNotEmpty;
@@ -1595,52 +1674,52 @@ class _RevenChatPageState extends State<RevenChatPage>
         }
 
         if (!holdTextForVoice) {
-        final lastMsg = _messages.last;
-        final replyLower = lastMsg.text.toLowerCase();
+          final lastMsg = _messages.last;
+          final replyLower = lastMsg.text.toLowerCase();
 
-        final needsClients =
-            (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
-            (replyLower.contains('client') ||
-                replyLower.contains('lead') ||
-                replyLower.contains('deal room') ||
-                replyLower.contains('active clients') ||
-                replyLower.contains('your clients'));
+          final needsClients =
+              (lastMsg.clients == null || lastMsg.clients!.isEmpty) &&
+              (replyLower.contains('client') ||
+                  replyLower.contains('lead') ||
+                  replyLower.contains('deal room') ||
+                  replyLower.contains('active clients') ||
+                  replyLower.contains('your clients'));
 
-        final needsCourses =
-            (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
-            (replyLower.contains('course') ||
-                replyLower.contains('learn') ||
-                replyLower.contains('curriculum') ||
-                replyLower.contains('available courses') ||
-                replyLower.contains('your courses'));
+          final needsCourses =
+              (lastMsg.courses == null || lastMsg.courses!.isEmpty) &&
+              (replyLower.contains('course') ||
+                  replyLower.contains('learn') ||
+                  replyLower.contains('curriculum') ||
+                  replyLower.contains('available courses') ||
+                  replyLower.contains('your courses'));
 
-        final needsRevenue =
-            lastMsg.revenueSummary == null &&
-            (replyLower.contains('revenue') ||
-                replyLower.contains('commission') ||
-                replyLower.contains('performance') ||
-                replyLower.contains('earned') ||
-                replyLower.contains('income'));
+          final needsRevenue =
+              lastMsg.revenueSummary == null &&
+              (replyLower.contains('revenue') ||
+                  replyLower.contains('commission') ||
+                  replyLower.contains('performance') ||
+                  replyLower.contains('earned') ||
+                  replyLower.contains('income'));
 
-        if (needsClients) {
-          _autoFetchClientsForLastMessage();
-        }
-        if (needsCourses) {
-          _autoFetchCoursesForLastMessage();
-        }
-        if (needsRevenue) {
-          _autoFetchRevenueForLastMessage();
-        }
+          if (needsClients) {
+            _autoFetchClientsForLastMessage();
+          }
+          if (needsCourses) {
+            _autoFetchCoursesForLastMessage();
+          }
+          if (needsRevenue) {
+            _autoFetchRevenueForLastMessage();
+          }
 
-        final sid = res['session_id'];
-        if (sid != null) {
-          _sessionId = sid is int ? sid : int.tryParse(sid.toString());
-          _fetchSessions();
-        }
+          final sid = res['session_id'];
+          if (sid != null) {
+            _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+            _fetchSessions();
+          }
 
-        if (!voiceTurn) {
-          _lastTurnWasVoice = false;
-        }
+          if (!voiceTurn) {
+            _lastTurnWasVoice = false;
+          }
         }
       } else {
         final unavailable = res['service_unavailable'] == true;
@@ -1650,16 +1729,16 @@ class _RevenChatPageState extends State<RevenChatPage>
             text: unavailable
                 ? 'Reven is temporarily unreachable (server busy or updating). Please try again in a minute.'
                 : (errMsg != null && errMsg.isNotEmpty
-                    ? errMsg
-                    : 'Something went wrong. Please try again.'),
+                      ? errMsg
+                      : 'Something went wrong. Please try again.'),
             isUser: false,
           ),
         );
       }
     });
     if (res['success'] == true) {
-      var speakText = deferredVoiceReply ??
-          (res['reply'] as String? ?? '').trim();
+      var speakText =
+          deferredVoiceReply ?? (res['reply'] as String? ?? '').trim();
       if (voiceTurn && deferredVoiceReply == null) {
         speakText = speakText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
       }
@@ -1799,7 +1878,53 @@ class _RevenChatPageState extends State<RevenChatPage>
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     _messageController.clear();
-    _sendToApi(text);
+    _unfocusComposer();
+    _sendToApi(text, fromVoice: _isVoiceInteractionMode);
+  }
+
+  Widget _buildChatMessageList({
+    required double bubbleMaxWidth,
+    required Color surfaceColor,
+    required Color borderColor,
+    required Color titleColor,
+    required Color subtitleColor,
+    required bool showQuickPrompts,
+  }) {
+    return ListView.separated(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      itemCount: _messages.length + (showQuickPrompts ? 1 : 0),
+      separatorBuilder: (_, index) {
+        if (showQuickPrompts && index == 0) {
+          return const SizedBox(height: 16);
+        }
+        return const SizedBox(height: 8);
+      },
+      itemBuilder: (context, index) {
+        if (showQuickPrompts && index == _messages.length) {
+          return _QuickPromptsPanel(onPromptTapped: _sendQuickPrompt);
+        }
+        final msg = _messages[index];
+        DateTime? prevAt;
+        for (var i = index - 1; i >= 0; i--) {
+          final t = _messages[i].createdAt;
+          if (t != null) {
+            prevAt = t;
+            break;
+          }
+        }
+        return _ChatBubble(
+          message: msg,
+          previousCreatedAt: prevAt,
+          bubbleMaxWidth: bubbleMaxWidth,
+          surfaceColor: surfaceColor,
+          borderColor: borderColor,
+          titleColor: titleColor,
+          subtitleColor: subtitleColor,
+          onCommandTapped: _sendToApi,
+        );
+      },
+    );
   }
 
   void _sendQuickPrompt(RevenQuickPrompt prompt) {
@@ -1855,7 +1980,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                 _isExpanded ? 0 : 20,
                 _isExpanded ? 0 : 14,
                 _isExpanded ? 0 : 24,
-                keyboardInset + (_isExpanded ? 0 : 185),
+                keyboardInset + (_isExpanded ? 0 : (widget.embedded ? 12 : 185)),
               ),
               child: Align(
                 alignment: Alignment.bottomRight,
@@ -1929,15 +2054,19 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   Text(
                                     _humanHandoffActive
                                         ? 'Human support is chatting'
-                                        : _interactionMode == _RevenInteractionMode.voice
-                                            ? 'Voice · $_voicePlaybackLabel'
-                                            : (_isExpanded ? 'Full view' : 'AI assistant'),
+                                        : _interactionMode ==
+                                              _RevenInteractionMode.voice
+                                        ? 'Voice · $_voicePlaybackLabel'
+                                        : (_isExpanded
+                                              ? 'Full view'
+                                              : 'AI assistant'),
                                     style: TextStyle(
                                       color: _humanHandoffActive
                                           ? const Color(0xFFF59E0B)
-                                          : _interactionMode == _RevenInteractionMode.voice
-                                              ? const Color(0xFF22C55E)
-                                              : subtitleColor,
+                                          : _interactionMode ==
+                                                _RevenInteractionMode.voice
+                                          ? const Color(0xFF22C55E)
+                                          : subtitleColor,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1963,6 +2092,18 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 ],
                               ),
                             ),
+                            if (_isVoiceInteractionMode &&
+                                _voiceInAiChatEnabled &&
+                                !_humanHandoffActive)
+                              IconButton(
+                                tooltip: 'Keyboard',
+                                onPressed: _exitVoiceMode,
+                                icon: Icon(
+                                  Icons.keyboard_alt_outlined,
+                                  color: subtitleColor,
+                                  size: 22,
+                                ),
+                              ),
                             IconButton(
                               tooltip: 'Chat history',
                               onPressed: _showChatList,
@@ -2016,7 +2157,9 @@ class _RevenChatPageState extends State<RevenChatPage>
                             horizontal: 14,
                             vertical: 8,
                           ),
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFFF59E0B,
+                          ).withValues(alpha: 0.12),
                           child: Text(
                             'A team member is helping you. AI replies are paused for now.',
                             style: TextStyle(
@@ -2029,54 +2172,17 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
-                      // ── Messages or voice conversation transcript ───
+                      // ── Messages (same thread in text and voice — ChatGPT-style) ───
                       Expanded(
-                        child: _isVoiceInteractionMode
-                            ? _VoiceConversationView(
-                                messages: _messages,
-                                scrollController: _scrollController,
-                                titleColor: titleColor,
-                                subtitleColor: subtitleColor,
-                              )
-                            : ListView.separated(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                                itemCount:
-                                    _messages.length +
-                                    (_messages.length == 1 ? 1 : 0),
-                                separatorBuilder: (_, index) {
-                                  if (_messages.length == 1 && index == 0) {
-                                    return const SizedBox(height: 16);
-                                  }
-                                  return const SizedBox(height: 8);
-                                },
-                                itemBuilder: (context, index) {
-                                  if (_messages.length == 1 && index == 1) {
-                                    return _QuickPromptsPanel(
-                                      onPromptTapped: _sendQuickPrompt,
-                                    );
-                                  }
-                                  final msg = _messages[index];
-                                  DateTime? prevAt;
-                                  for (var i = index - 1; i >= 0; i--) {
-                                    final t = _messages[i].createdAt;
-                                    if (t != null) {
-                                      prevAt = t;
-                                      break;
-                                    }
-                                  }
-                                  return _ChatBubble(
-                                    message: msg,
-                                    previousCreatedAt: prevAt,
-                                    bubbleMaxWidth: bubbleMaxWidth,
-                                    surfaceColor: surfaceColor,
-                                    borderColor: borderColor,
-                                    titleColor: titleColor,
-                                    subtitleColor: subtitleColor,
-                                    onCommandTapped: _sendToApi,
-                                  );
-                                },
-                              ),
+                        child: _buildChatMessageList(
+                          bubbleMaxWidth: bubbleMaxWidth,
+                          surfaceColor: surfaceColor,
+                          borderColor: borderColor,
+                          titleColor: titleColor,
+                          subtitleColor: subtitleColor,
+                          showQuickPrompts:
+                              !_isVoiceInteractionMode && _messages.length == 1,
+                        ),
                       ),
 
                       // ── Composer: voice (ChatGPT-style) or text ────
@@ -2101,12 +2207,13 @@ class _RevenChatPageState extends State<RevenChatPage>
                           voiceModelLabel: _voicePlaybackLabel,
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
-                              _effectiveVoiceCloudEnabled && _voiceAllowUserPick,
+                              _effectiveVoiceCloudEnabled &&
+                              _voiceAllowUserPick,
                           liveCaption: _isListening
                               ? _voiceTranscript
                               : (_isSpeaking
-                                  ? _voiceSpeakingCaption
-                                  : _lastVoiceCaption),
+                                    ? _voiceSpeakingCaption
+                                    : _lastVoiceCaption),
                           speakingCaption: _voiceSpeakingCaption,
                           pulse: _micPulseController,
                           isDark: isDark,
@@ -2116,7 +2223,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           titleColor: titleColor,
                           subtitleColor: subtitleColor,
                           messageController: _messageController,
-                          onMicTap: _toggleVoiceInput,
+                          onMicTap: _toggleVoiceMicInVoiceMode,
                           onVoicePick: _showVoicePicker,
                           onExitVoice: _exitVoiceMode,
                           onSendText: _sendMessage,
@@ -2129,11 +2236,12 @@ class _RevenChatPageState extends State<RevenChatPage>
                           borderColor: borderColor,
                           titleColor: titleColor,
                           subtitleColor: subtitleColor,
-                          showMic: _voiceInAiChatEnabled && !_humanHandoffActive,
-                          isListening: _isListening,
-                          isSpeaking: _isSpeaking,
+                          showMic:
+                              _voiceInAiChatEnabled && !_humanHandoffActive,
+                          isListening: _isListening && !_isVoiceInteractionMode,
+                          isSpeaking: _isSpeaking && !_isVoiceInteractionMode,
                           micPulse: _micPulseController,
-                          onMicTap: _toggleVoiceInput,
+                          onMicTap: _openVoiceConversation,
                           onSend: _sendMessage,
                           onFieldTap: _scrollToBottom,
                         ),
@@ -2465,7 +2573,9 @@ class _RevenVoiceComposer extends StatelessWidget {
               top: false,
               minimum: const EdgeInsets.fromLTRB(12, 4, 12, 10),
               child: Container(
-                constraints: const BoxConstraints(minHeight: _kComposerBarMinHeight),
+                constraints: const BoxConstraints(
+                  minHeight: _kComposerBarMinHeight,
+                ),
                 decoration: BoxDecoration(
                   color: backgroundColor,
                   borderRadius: BorderRadius.circular(26),
@@ -2505,8 +2615,12 @@ class _RevenVoiceComposer extends StatelessWidget {
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          contentPadding:
-                              const EdgeInsets.fromLTRB(8, 12, 4, 12),
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            8,
+                            12,
+                            4,
+                            12,
+                          ),
                         ),
                         style: TextStyle(
                           color: titleColor,
@@ -2536,14 +2650,16 @@ class _RevenVoiceComposer extends StatelessWidget {
                               color: userSpeaking
                                   ? const Color(0xFF22C55E)
                                   : micSessionOpen
-                                      ? const Color(0xFF4F7CFF).withValues(alpha: 0.2)
-                                      : surfaceColor,
+                                  ? const Color(
+                                      0xFF4F7CFF,
+                                    ).withValues(alpha: 0.2)
+                                  : surfaceColor,
                               border: Border.all(
                                 color: userSpeaking
                                     ? const Color(0xFF22C55E)
                                     : micSessionOpen
-                                        ? const Color(0xFF4F7CFF)
-                                        : borderColor,
+                                    ? const Color(0xFF4F7CFF)
+                                    : borderColor,
                               ),
                             ),
                             child: Icon(
@@ -2553,8 +2669,8 @@ class _RevenVoiceComposer extends StatelessWidget {
                               color: userSpeaking
                                   ? Colors.white
                                   : micSessionOpen
-                                      ? const Color(0xFF4F7CFF)
-                                      : subtitleColor,
+                                  ? const Color(0xFF4F7CFF)
+                                  : subtitleColor,
                               size: 20,
                             ),
                           ),
@@ -2564,7 +2680,7 @@ class _RevenVoiceComposer extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
                       child: _RevenComposerCircleButton(
-                        icon: Icons.close_rounded,
+                        icon: Icons.keyboard_alt_rounded,
                         backgroundColor: Colors.white,
                         iconColor: const Color(0xFF0F172A),
                         onTap: onExitVoice,
@@ -2792,15 +2908,15 @@ class _VoiceMicButton extends StatelessWidget {
     final fill = isListening
         ? const Color(0xFFEF4444)
         : isSpeaking
-            ? RealtorOneBrand.accentIndigo
-            : voiceModeActive
-                ? const Color(0xFF22C55E).withValues(alpha: 0.14)
-                : backgroundColor;
+        ? RealtorOneBrand.accentIndigo
+        : voiceModeActive
+        ? const Color(0xFF22C55E).withValues(alpha: 0.14)
+        : backgroundColor;
     final border = active
         ? (isListening ? const Color(0xFFEF4444) : RealtorOneBrand.accentIndigo)
         : voiceModeActive
-            ? const Color(0xFF22C55E)
-            : borderColor;
+        ? const Color(0xFF22C55E)
+        : borderColor;
     final size = compact ? _kComposerBtnSize : 48.0;
     final iconSize = compact ? 20.0 : 22.0;
     final shape = compact
@@ -2824,10 +2940,11 @@ class _VoiceMicButton extends StatelessWidget {
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: (isListening
-                              ? const Color(0xFFEF4444)
-                              : RealtorOneBrand.accentIndigo)
-                          .withValues(alpha: 0.35),
+                      color:
+                          (isListening
+                                  ? const Color(0xFFEF4444)
+                                  : RealtorOneBrand.accentIndigo)
+                              .withValues(alpha: 0.35),
                       blurRadius: 12,
                       offset: const Offset(0, 3),
                     ),
@@ -2839,8 +2956,8 @@ class _VoiceMicButton extends StatelessWidget {
             color: active
                 ? Colors.white
                 : voiceModeActive
-                    ? const Color(0xFF22C55E)
-                    : subtitleColor,
+                ? const Color(0xFF22C55E)
+                : subtitleColor,
             size: iconSize,
           ),
         ),
@@ -2922,8 +3039,12 @@ class _VoiceConversationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final turns = messages.where((m) => !m.isLoading && m.text.trim().isNotEmpty).toList();
-    final visible = turns.length > 10 ? turns.sublist(turns.length - 10) : turns;
+    final turns = messages
+        .where((m) => !m.isLoading && m.text.trim().isNotEmpty)
+        .toList();
+    final visible = turns.length > 10
+        ? turns.sublist(turns.length - 10)
+        : turns;
     _RevenMessage? pending;
     for (var i = messages.length - 1; i >= 0; i--) {
       if (messages[i].isLoading) {
@@ -3031,14 +3152,15 @@ class _VoiceTurnLine extends StatelessWidget {
     final accent = isUser
         ? const Color(0xFF4F7CFF)
         : message.isHuman
-            ? const Color(0xFFF59E0B)
-            : const Color(0xFF22C55E);
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF22C55E);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -3121,8 +3243,8 @@ class _ChatBubble extends StatelessWidget {
           color: isUser
               ? const Color(0xFF4F7CFF)
               : isHuman
-                  ? const Color(0xFFF59E0B).withValues(alpha: 0.14)
-                  : surfaceColor,
+              ? const Color(0xFFF59E0B).withValues(alpha: 0.14)
+              : surfaceColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
@@ -3132,7 +3254,9 @@ class _ChatBubble extends StatelessWidget {
           border: isUser
               ? null
               : Border.all(
-                  color: isHuman ? const Color(0xFFF59E0B).withValues(alpha: 0.45) : borderColor,
+                  color: isHuman
+                      ? const Color(0xFFF59E0B).withValues(alpha: 0.45)
+                      : borderColor,
                 ),
           boxShadow: isUser
               ? [

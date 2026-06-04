@@ -3,7 +3,14 @@ import 'package:flutter/material.dart';
 import 'reven_chat_page.dart';
 
 class ChatbotFloatingButton extends StatefulWidget {
-  const ChatbotFloatingButton({super.key});
+  const ChatbotFloatingButton({
+    super.key,
+    this.onOpen,
+    this.onOpenVoice,
+  });
+
+  final VoidCallback? onOpen;
+  final VoidCallback? onOpenVoice;
 
   @override
   State<ChatbotFloatingButton> createState() => _ChatbotFloatingButtonState();
@@ -50,8 +57,20 @@ class _ChatbotFloatingButtonState extends State<ChatbotFloatingButton>
         );
       },
       child: GestureDetector(
-        onTap: () => RevenChatPage.show(context, startVoice: true),
-        onLongPress: () => RevenChatPage.show(context),
+        onTap: () {
+          if (widget.onOpenVoice != null) {
+            widget.onOpenVoice!();
+          } else {
+            RevenChatPage.show(context, startVoice: true);
+          }
+        },
+        onLongPress: () {
+          if (widget.onOpen != null) {
+            widget.onOpen!();
+          } else {
+            RevenChatPage.show(context);
+          }
+        },
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           width: 68,

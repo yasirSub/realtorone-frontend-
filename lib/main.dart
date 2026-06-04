@@ -7,6 +7,8 @@ import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
+import 'screens/chatbot/reven_global_shell.dart';
+import 'screens/chatbot/reven_overlay_navigator_observer.dart';
 import 'api/api_endpoints.dart';
 import 'api/api_client.dart';
 import 'services/support_contact_service.dart';
@@ -85,6 +87,7 @@ class RealtorOneApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
+      navigatorObservers: [RevenOverlayNavigatorObserver()],
       title: 'RealtorOne',
       debugShowCheckedModeBanner: false,
       locale: localeProvider.locale,
@@ -129,6 +132,7 @@ class RealtorOneApp extends StatelessWidget {
       ),
       initialRoute: AppRoutes.initial,
       routes: RouteConfig.getRoutes(),
+      builder: (context, child) => RevenGlobalShell(child: child),
     );
   }
 

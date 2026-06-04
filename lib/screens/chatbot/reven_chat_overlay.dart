@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'reven_chat_page.dart';
 
-/// Global Reven chat shell: full panel or minimized bubble while user uses other tabs.
+/// Global Reven chat shell: floating panel or minimized bubble while user uses the app.
 class RevenChatOverlay {
   RevenChatOverlay._();
 
@@ -24,11 +24,12 @@ class RevenChatOverlay {
   static Future<void> show(
     BuildContext context, {
     bool startVoice = false,
+    bool startMinimized = false,
   }) {
     _pendingStartVoice = startVoice;
     ui.value = RevenOverlayUiState(
       visible: true,
-      minimized: false,
+      minimized: startMinimized,
       startVoice: startVoice,
       callStatus: RevenOverlayCallStatus.idle,
     );
@@ -39,6 +40,12 @@ class RevenChatOverlay {
     final s = ui.value;
     if (!s.visible) return;
     ui.value = s.copyWith(minimized: true);
+  }
+
+  static void minimizeIfExpanded() {
+    if (isVisible && !isMinimized) {
+      minimize();
+    }
   }
 
   static void expand() {
@@ -94,9 +101,16 @@ class RevenOverlayUiState {
   }
 }
 
-/// Place once above the nav bar (e.g. in [MainNavigation]).
-class RevenChatOverlayHost extends StatelessWidget {
+/// Floating chat host — no fullscreen scrim; app stays usable underneath.
+class RevenChatOverlayHost extends StatefulWidget {
   const RevenChatOverlayHost({super.key});
+
+  @override
+  State<RevenChatOverlayHost> createState() => _RevenChatOverlayHostState();
+}
+
+class _RevenChatOverlayHostState extends State<RevenChatOverlayHost> {
+  Offset? _bubbleDragOffset;
 
   @override
   Widget build(BuildContext context) {
@@ -105,29 +119,42 @@ class RevenChatOverlayHost extends StatelessWidget {
       builder: (context, state, _) {
         if (!state.visible) return const SizedBox.shrink();
 
+        final media = MediaQuery.of(context);
+        final bottomInset = media.padding.bottom + 76;
+
         return Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (!state.minimized)
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: RevenChatOverlay.minimize,
-                  behavior: HitTestBehavior.opaque,
-                  child: Container(
-                    color: Colors.black.withValues(alpha: 0.22),
+            // Keep chat alive while minimized (voice session continues).
+            Offstage(
+              offstage: state.minimized,
+              child: Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: 8,
+                      bottom: bottomInset,
+                      top: media.padding.top + 8,
+                    ),
+                    child: const RevenChatPage(
+                      key: ValueKey('reven-chat-panel'),
+                      embedded: true,
+                    ),
                   ),
                 ),
               ),
-            Offstage(
-              offstage: state.minimized,
-              child: const Align(
-                alignment: Alignment.bottomRight,
-                child: RevenChatPage(
-                  key: ValueKey('reven-chat-panel'),
-                  embedded: true,
-                ),
-              ),
             ),
-            if (state.minimized) _MinimizedRevenBubble(state: state),
+            if (state.minimized)
+              _DraggableRevenBubble(
+                dragOffset: _bubbleDragOffset,
+                onMoved: (offset) => setState(() => _bubbleDragOffset = offset),
+                state: state,
+              ),
           ],
         );
       },
@@ -135,10 +162,16 @@ class RevenChatOverlayHost extends StatelessWidget {
   }
 }
 
-class _MinimizedRevenBubble extends StatelessWidget {
-  const _MinimizedRevenBubble({required this.state});
+class _DraggableRevenBubble extends StatelessWidget {
+  const _DraggableRevenBubble({
+    required this.state,
+    required this.dragOffset,
+    required this.onMoved,
+  });
 
   final RevenOverlayUiState state;
+  final Offset? dragOffset;
+  final ValueChanged<Offset> onMoved;
 
   Color get _ringColor {
     switch (state.callStatus) {
@@ -155,59 +188,80 @@ class _MinimizedRevenBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    final padding = MediaQuery.paddingOf(context);
+    final defaultPos = Offset(size.width - 80, size.height - padding.bottom - 120);
+    final origin = dragOffset ?? defaultPos;
+    final clamped = Offset(
+      origin.dx.clamp(8.0, size.width - 72),
+      origin.dy.clamp(padding.top + 8, size.height - padding.bottom - 100),
+    );
+
     return Positioned(
-      right: 16,
-      bottom: 100,
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            GestureDetector(
-              onTap: RevenChatOverlay.expand,
-              child: Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white,
-                  border: Border.all(color: _ringColor, width: 3),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _ringColor.withValues(alpha: 0.35),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(10),
-                child: Image.asset(
-                  'assets/images/chat-bot.png',
-                  fit: BoxFit.contain,
-                ),
+      left: clamped.dx,
+      top: clamped.dy,
+      child: GestureDetector(
+        onPanUpdate: (d) {
+          onMoved(
+            Offset(
+              (clamped.dx + d.delta.dx).clamp(8.0, size.width - 72),
+              (clamped.dy + d.delta.dy).clamp(
+                padding.top + 8,
+                size.height - padding.bottom - 100,
               ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _MiniChip(
-                  icon: Icons.open_in_full_rounded,
-                  label: 'Open',
-                  onTap: RevenChatOverlay.expand,
-                ),
-                const SizedBox(width: 6),
-                _MiniChip(
-                  icon: Icons.close_rounded,
-                  label: 'End',
-                  onTap: RevenChatOverlay.hide,
-                ),
-              ],
+          );
+        },
+        onTap: RevenChatOverlay.expand,
+        child: _bubbleCore(),
+      ),
+    );
+  }
+
+  Widget _bubbleCore({double ringWidth = 3}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: _ringColor, width: ringWidth),
+            boxShadow: [
+              BoxShadow(
+                color: _ringColor.withValues(alpha: 0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(10),
+          child: Image.asset(
+            'assets/images/chat-bot.png',
+            fit: BoxFit.contain,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _MiniChip(
+              icon: Icons.open_in_full_rounded,
+              label: 'Open',
+              onTap: RevenChatOverlay.expand,
+            ),
+            const SizedBox(width: 6),
+            _MiniChip(
+              icon: Icons.close_rounded,
+              label: 'End',
+              onTap: RevenChatOverlay.hide,
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }

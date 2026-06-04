@@ -25,7 +25,7 @@ import '../screens/results/results_tracker_page.dart';
 import '../screens/activities/activities_page.dart';
 import '../screens/leaderboard/leaderboard_page.dart';
 import '../screens/badges/badges_page.dart';
-import '../screens/chatbot/reven_chat_page.dart';
+import '../screens/chatbot/reven_chat_overlay.dart';
 
 import '../screens/learning/course_curriculum_page.dart';
 import '../screens/learning/video_player_page.dart';
@@ -90,7 +90,17 @@ class RouteConfig {
       AppRoutes.activities: (context) => const ActivitiesPage(),
       AppRoutes.leaderboard: (context) => const LeaderboardPage(),
       AppRoutes.badges: (context) => const BadgesPage(),
-      AppRoutes.revenChat: (context) => const RevenChatPage(),
+      AppRoutes.revenChat: (context) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          RevenChatOverlay.show(context);
+          final nav = Navigator.of(context);
+          if (nav.canPop()) nav.pop();
+        });
+        return const Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SizedBox.shrink(),
+        );
+      },
       AppRoutes.maintenance: (context) {
         final args =
             ModalRoute.of(context)?.settings.arguments

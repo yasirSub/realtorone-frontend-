@@ -6,7 +6,6 @@ import 'growth_report_widget.dart';
 import 'home_activity_log_widget.dart';
 import '../../l10n/app_localizations.dart';
 import '../../widgets/elite_loader.dart';
-import '../chatbot/chatbot_floating_button.dart';
 import '../../services/push_notification_service.dart';
 import 'notifications_history_page.dart';
 import '../../routes/app_routes.dart';
@@ -832,11 +831,6 @@ class _HomePageState extends State<HomePage> {
             EliteLoader.top(
               color: _getTierColor(_userData?['membership_tier']),
             ),
-          const Positioned(
-            right: 16,
-            bottom: 140,
-            child: ChatbotFloatingButton(),
-          ),
         ],
       ),
     );
