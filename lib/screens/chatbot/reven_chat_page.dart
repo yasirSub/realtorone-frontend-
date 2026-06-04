@@ -595,10 +595,21 @@ class _RevenChatPageState extends State<RevenChatPage>
     );
   }
 
+  String get _voiceSpeakingCaption {
+    if (!_isSpeaking) return '';
+    for (var i = _messages.length - 1; i >= 0; i--) {
+      final m = _messages[i];
+      if (!m.isUser && !m.isLoading && m.text.trim().isNotEmpty) {
+        return m.text.trim();
+      }
+    }
+    return '';
+  }
+
   void _scheduleVoiceUtteranceFinalize() {
     _voiceUtteranceTimer?.cancel();
     final delay = _isVoiceInteractionMode
-        ? const Duration(milliseconds: 2800)
+        ? const Duration(milliseconds: 2200)
         : const Duration(milliseconds: 1400);
     _voiceUtteranceTimer = Timer(delay, () {
       if (!_isListening) return;
@@ -654,7 +665,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _toggleVoiceInput() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    if (_isLoading && _isVoiceInteractionMode) return;
+    if (_isLoading && _isVoiceInteractionMode && !_isSpeaking) return;
     if (!_isVoiceInteractionMode) {
       await _enterVoiceMode();
       if (!mounted) return;
@@ -751,7 +762,7 @@ class _RevenChatPageState extends State<RevenChatPage>
           : stt.ListenMode.confirmation,
       cancelOnError: false,
       partialResults: true,
-      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 6 : 2),
+      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 4 : 2),
       listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 45),
     );
   }
@@ -1364,18 +1375,36 @@ class _RevenChatPageState extends State<RevenChatPage>
           }
         }
 
+        final voiceTurn = _isVoiceInteractionMode;
+        if (voiceTurn) {
+          replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
+        }
         _messages.add(
           _RevenMessage(
             text: replyText,
             isUser: false,
-            courses: courses,
-            commands: commands,
-            clients: clients,
+            courses: voiceTurn ? null : courses,
+            commands: voiceTurn ? null : commands,
+            clients: voiceTurn ? null : clients,
             createdAt: DateTime.now(),
           ),
         );
 
         // --- Auto-fetch clients/courses if promised but not sent ---
+        if (voiceTurn) {
+          final sid = res['session_id'];
+          if (sid != null) {
+            _sessionId = sid is int ? sid : int.tryParse(sid.toString());
+            _fetchSessions();
+          }
+          if (shouldSpeak && replyText.trim().isNotEmpty) {
+            ttsReply = replyText;
+            ttsRes = res;
+          }
+          _lastTurnWasVoice = false;
+          return;
+        }
+
         final lastMsg = _messages.last;
         final replyLower = lastMsg.text.toLowerCase();
 
@@ -1772,38 +1801,45 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
-                      // ── Messages (always visible) ──────────────────
+                      // ── Messages or voice conversation transcript ───
                       Expanded(
-                        child: ListView.separated(
-                          controller: _scrollController,
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                          itemCount:
-                              _messages.length +
-                              (_messages.length == 1 ? 1 : 0),
-                          separatorBuilder: (_, index) {
-                            if (_messages.length == 1 && index == 0) {
-                              return const SizedBox(height: 16);
-                            }
-                            return const SizedBox(height: 8);
-                          },
-                          itemBuilder: (context, index) {
-                            if (_messages.length == 1 && index == 1) {
-                              return _QuickPromptsPanel(
-                                onPromptTapped: _sendQuickPrompt,
-                              );
-                            }
-                            final msg = _messages[index];
-                            return _ChatBubble(
-                              message: msg,
-                              bubbleMaxWidth: bubbleMaxWidth,
-                              surfaceColor: surfaceColor,
-                              borderColor: borderColor,
-                              titleColor: titleColor,
-                              subtitleColor: subtitleColor,
-                              onCommandTapped: _sendToApi,
-                            );
-                          },
-                        ),
+                        child: _isVoiceInteractionMode
+                            ? _VoiceConversationView(
+                                messages: _messages,
+                                scrollController: _scrollController,
+                                titleColor: titleColor,
+                                subtitleColor: subtitleColor,
+                              )
+                            : ListView.separated(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                                itemCount:
+                                    _messages.length +
+                                    (_messages.length == 1 ? 1 : 0),
+                                separatorBuilder: (_, index) {
+                                  if (_messages.length == 1 && index == 0) {
+                                    return const SizedBox(height: 16);
+                                  }
+                                  return const SizedBox(height: 8);
+                                },
+                                itemBuilder: (context, index) {
+                                  if (_messages.length == 1 && index == 1) {
+                                    return _QuickPromptsPanel(
+                                      onPromptTapped: _sendQuickPrompt,
+                                    );
+                                  }
+                                  final msg = _messages[index];
+                                  return _ChatBubble(
+                                    message: msg,
+                                    bubbleMaxWidth: bubbleMaxWidth,
+                                    surfaceColor: surfaceColor,
+                                    borderColor: borderColor,
+                                    titleColor: titleColor,
+                                    subtitleColor: subtitleColor,
+                                    onCommandTapped: _sendToApi,
+                                  );
+                                },
+                              ),
                       ),
 
                       // ── Composer: voice (ChatGPT-style) or text ────
@@ -1819,7 +1855,10 @@ class _RevenChatPageState extends State<RevenChatPage>
                               _effectiveVoiceCloudEnabled && _voiceAllowUserPick,
                           liveCaption: _isListening
                               ? _voiceTranscript
-                              : _lastVoiceCaption,
+                              : (_isSpeaking
+                                  ? _voiceSpeakingCaption
+                                  : _lastVoiceCaption),
+                          speakingCaption: _voiceSpeakingCaption,
                           pulse: _micPulseController,
                           isDark: isDark,
                           backgroundColor: backgroundColor,
@@ -2040,6 +2079,7 @@ class _RevenVoiceComposer extends StatelessWidget {
     required this.activeVoiceLabel,
     required this.showVoicePicker,
     required this.liveCaption,
+    this.speakingCaption = '',
     required this.pulse,
     required this.isDark,
     required this.backgroundColor,
@@ -2060,6 +2100,7 @@ class _RevenVoiceComposer extends StatelessWidget {
   final String activeVoiceLabel;
   final bool showVoicePicker;
   final String liveCaption;
+  final String speakingCaption;
   final AnimationController pulse;
   final bool isDark;
   final Color backgroundColor;
@@ -2095,9 +2136,17 @@ class _RevenVoiceComposer extends StatelessWidget {
       case _VoiceCallStatus.processing:
         return 'Thinking…';
       case _VoiceCallStatus.speaking:
-        return 'Speaking…';
+        final cap = speakingCaption.trim().isNotEmpty
+            ? speakingCaption.trim()
+            : liveCaption.trim();
+        if (cap.isNotEmpty) {
+          return cap.length > 140 ? '${cap.substring(0, 137)}…' : cap;
+        }
+        return 'Speaking… · tap mic to interrupt';
       case _VoiceCallStatus.idle:
-        return micPaused ? 'Tap the mic to resume' : 'Tap the mic to talk';
+        return micPaused
+            ? 'Tap the mic to resume'
+            : 'Tap the mic and talk — like ChatGPT voice';
     }
   }
 
@@ -2584,6 +2633,113 @@ class _TypingDotState extends State<_TypingDot>
           color: color.withValues(alpha: _animation.value),
           shape: BoxShape.circle,
         ),
+      ),
+    );
+  }
+}
+
+// ── Voice conversation transcript (ChatGPT / Gemini style) ───────────────
+
+class _VoiceConversationView extends StatelessWidget {
+  const _VoiceConversationView({
+    required this.messages,
+    required this.scrollController,
+    required this.titleColor,
+    required this.subtitleColor,
+  });
+
+  final List<_RevenMessage> messages;
+  final ScrollController scrollController;
+  final Color titleColor;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final turns = messages.where((m) => !m.isLoading && m.text.trim().isNotEmpty).toList();
+    final visible = turns.length > 10 ? turns.sublist(turns.length - 10) : turns;
+
+    if (visible.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            'Start talking — Reven will reply out loud and keep the conversation going.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: subtitleColor,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      itemCount: visible.length,
+      itemBuilder: (context, index) {
+        final msg = visible[index];
+        return _VoiceTurnLine(
+          message: msg,
+          titleColor: titleColor,
+          subtitleColor: subtitleColor,
+        );
+      },
+    );
+  }
+}
+
+class _VoiceTurnLine extends StatelessWidget {
+  const _VoiceTurnLine({
+    required this.message,
+    required this.titleColor,
+    required this.subtitleColor,
+  });
+
+  final _RevenMessage message;
+  final Color titleColor;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.isUser;
+    final label = isUser ? 'You' : (message.isHuman ? 'Support' : 'Reven');
+    final accent = isUser
+        ? const Color(0xFF4F7CFF)
+        : message.isHuman
+            ? const Color(0xFFF59E0B)
+            : const Color(0xFF22C55E);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            message.text.trim(),
+            textAlign: isUser ? TextAlign.right : TextAlign.left,
+            style: TextStyle(
+              color: titleColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+        ],
       ),
     );
   }
