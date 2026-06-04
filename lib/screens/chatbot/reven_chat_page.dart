@@ -98,7 +98,6 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _lastTurnWasVoice = false;
   _RevenInteractionMode _interactionMode = _RevenInteractionMode.text;
   String _voiceModelLabel = 'MAI-Voice-2';
-  String _textAiModelLabel = '';
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
@@ -223,22 +222,25 @@ class _RevenChatPageState extends State<RevenChatPage>
         _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
         if (opts.isNotEmpty) _voiceOptions = opts;
         _voiceModelLabel = data['voice_model_label']?.toString() ?? 'Voice AI';
-        final textModel = data['text_ai_model']?.toString() ?? '';
-        final textProvider = data['text_ai_provider']?.toString() ?? '';
-        _textAiModelLabel = textModel.isNotEmpty
-            ? (textProvider.isNotEmpty ? '$textProvider · $textModel' : textModel)
-            : 'Text AI';
       });
     } catch (_) {}
   }
 
-  void _setInteractionMode(_RevenInteractionMode mode) {
+  Future<void> _enterVoiceMode() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    setState(() => _interactionMode = mode);
-    if (mode == _RevenInteractionMode.voice) {
-      _stopTts();
-      unawaited(_loadVoiceSettings());
-    }
+    if (_isVoiceInteractionMode) return;
+    await _stopTts();
+    if (!mounted) return;
+    setState(() => _interactionMode = _RevenInteractionMode.voice);
+    await _loadVoiceSettings();
+  }
+
+  Future<void> _exitVoiceMode() async {
+    if (!_isVoiceInteractionMode) return;
+    await _cancelVoiceInput();
+    await _stopTts();
+    if (!mounted) return;
+    setState(() => _interactionMode = _RevenInteractionMode.text);
   }
 
   bool get _isVoiceInteractionMode =>
@@ -443,6 +445,12 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _toggleVoiceInput() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (!_isVoiceInteractionMode) {
+      await _enterVoiceMode();
+      if (!mounted) return;
+      await _startVoiceInput();
+      return;
+    }
     if (_isListening) {
       await _finishVoiceSession();
       return;
@@ -1403,7 +1411,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                         ? 'Human support is chatting'
                                         : _interactionMode == _RevenInteractionMode.voice
                                             ? 'Voice · $_voiceModelLabel'
-                                            : (_isExpanded ? 'Full view' : 'Text · $_textAiModelLabel'),
+                                            : (_isExpanded ? 'Full view' : 'AI assistant'),
                                     style: TextStyle(
                                       color: _humanHandoffActive
                                           ? const Color(0xFFF59E0B)
@@ -1491,14 +1499,20 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
-                      if (_voiceInAiChatEnabled && !_humanHandoffActive)
-                        _RevenInteractionModeBar(
-                          mode: _interactionMode,
+                      if (_voiceInAiChatEnabled &&
+                          _isVoiceInteractionMode &&
+                          !_humanHandoffActive)
+                        _RevenVoiceModeBar(
                           voiceModelLabel: _voiceModelLabel,
-                          textModelLabel: _textAiModelLabel,
+                          activeVoiceLabel: _activeVoiceLabel,
+                          showVoicePicker:
+                              _voiceCloudEnabled && _voiceAllowUserPick,
                           isDark: isDark,
                           borderColor: borderColor,
-                          onModeChanged: _setInteractionMode,
+                          subtitleColor: subtitleColor,
+                          titleColor: titleColor,
+                          onVoicePick: _showVoicePicker,
+                          onExitVoice: _exitVoiceMode,
                         ),
 
                       if (_voiceInAiChatEnabled && (_isListening || _isSpeaking))
@@ -1551,22 +1565,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           color: surfaceColor,
                           border: Border(top: BorderSide(color: borderColor)),
                         ),
-                        child: _interactionMode == _RevenInteractionMode.voice &&
-                                _voiceInAiChatEnabled &&
-                                !_humanHandoffActive
-                            ? _RevenVoiceModeComposer(
-                                isListening: _isListening,
-                                isSpeaking: _isSpeaking,
-                                voiceLabel: _activeVoiceLabel,
-                                modelLabel: _voiceModelLabel,
-                                pulse: _micPulseController,
-                                onMicTap: _toggleVoiceInput,
-                                onVoicePick: _showVoicePicker,
-                                isDark: isDark,
-                                titleColor: titleColor,
-                                subtitleColor: subtitleColor,
-                              )
-                            : Row(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Expanded(
@@ -1587,7 +1586,9 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   textInputAction: TextInputAction.send,
                                   onSubmitted: (_) => _sendMessage(),
                                   decoration: InputDecoration(
-                                    hintText: 'Message Reven...',
+                                    hintText: _isVoiceInteractionMode
+                                        ? 'Or type a message...'
+                                        : 'Message Reven...',
                                     hintStyle: TextStyle(color: subtitleColor),
                                     border: InputBorder.none,
                                     isCollapsed: true,
@@ -1601,40 +1602,11 @@ class _RevenChatPageState extends State<RevenChatPage>
                               ),
                             ),
                             if (_voiceInAiChatEnabled && !_humanHandoffActive) ...[
-                              if (_voiceCloudEnabled && _voiceAllowUserPick) ...[
-                                const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _showVoicePicker,
-                                  child: Container(
-                                    height: 46,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                                    decoration: BoxDecoration(
-                                      color: backgroundColor,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: borderColor),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(Icons.record_voice_over_outlined, size: 18, color: subtitleColor),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _activeVoiceLabel,
-                                          style: TextStyle(
-                                            color: titleColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
                               const SizedBox(width: 8),
                               _VoiceMicButton(
                                 isListening: _isListening,
                                 isSpeaking: _isSpeaking,
+                                voiceModeActive: _isVoiceInteractionMode,
                                 pulse: _micPulseController,
                                 backgroundColor: backgroundColor,
                                 borderColor: borderColor,
@@ -1840,194 +1812,79 @@ class _VoiceWaveBarsState extends State<_VoiceWaveBars>
   }
 }
 
-class _RevenInteractionModeBar extends StatelessWidget {
-  const _RevenInteractionModeBar({
-    required this.mode,
+class _RevenVoiceModeBar extends StatelessWidget {
+  const _RevenVoiceModeBar({
     required this.voiceModelLabel,
-    required this.textModelLabel,
+    required this.activeVoiceLabel,
+    required this.showVoicePicker,
     required this.isDark,
     required this.borderColor,
-    required this.onModeChanged,
+    required this.subtitleColor,
+    required this.titleColor,
+    required this.onVoicePick,
+    required this.onExitVoice,
   });
 
-  final _RevenInteractionMode mode;
   final String voiceModelLabel;
-  final String textModelLabel;
+  final String activeVoiceLabel;
+  final bool showVoicePicker;
   final bool isDark;
   final Color borderColor;
-  final ValueChanged<_RevenInteractionMode> onModeChanged;
+  final Color subtitleColor;
+  final Color titleColor;
+  final VoidCallback onVoicePick;
+  final VoidCallback onExitVoice;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: borderColor)),
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+        color: const Color(0xFF22C55E).withValues(alpha: isDark ? 0.08 : 0.06),
       ),
       child: Row(
         children: [
+          Icon(Icons.mic_rounded, size: 16, color: const Color(0xFF22C55E)),
+          const SizedBox(width: 6),
           Expanded(
-            child: _modeChip(
-              label: 'Text',
-              sub: textModelLabel,
-              selected: mode == _RevenInteractionMode.text,
-              onTap: () => onModeChanged(_RevenInteractionMode.text),
+            child: Text(
+              'Voice · $voiceModelLabel',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: titleColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: _modeChip(
-              label: 'Voice',
-              sub: voiceModelLabel,
-              selected: mode == _RevenInteractionMode.voice,
-              onTap: () => onModeChanged(_RevenInteractionMode.voice),
-              accent: const Color(0xFF22C55E),
+          if (showVoicePicker)
+            TextButton(
+              onPressed: onVoicePick,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                activeVoiceLabel,
+                style: TextStyle(
+                  color: subtitleColor,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
+          IconButton(
+            tooltip: 'Back to text',
+            onPressed: onExitVoice,
+            icon: Icon(Icons.keyboard_rounded, size: 20, color: subtitleColor),
+            padding: const EdgeInsets.all(6),
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _modeChip({
-    required String label,
-    required String sub,
-    required bool selected,
-    required VoidCallback onTap,
-    Color accent = const Color(0xFF4F7CFF),
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? accent.withValues(alpha: 0.55) : borderColor,
-              width: selected ? 1.5 : 1,
-            ),
-            color: selected ? accent.withValues(alpha: 0.12) : Colors.transparent,
-          ),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: selected ? accent : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                sub,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RevenVoiceModeComposer extends StatelessWidget {
-  const _RevenVoiceModeComposer({
-    required this.isListening,
-    required this.isSpeaking,
-    required this.voiceLabel,
-    required this.modelLabel,
-    required this.pulse,
-    required this.onMicTap,
-    required this.onVoicePick,
-    required this.isDark,
-    required this.titleColor,
-    required this.subtitleColor,
-  });
-
-  final bool isListening;
-  final bool isSpeaking;
-  final String voiceLabel;
-  final String modelLabel;
-  final AnimationController pulse;
-  final VoidCallback onMicTap;
-  final VoidCallback onVoicePick;
-  final bool isDark;
-  final Color titleColor;
-  final Color subtitleColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final active = isListening || isSpeaking;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          isListening
-              ? 'Listening…'
-              : isSpeaking
-                  ? 'Speaking · $modelLabel'
-                  : 'Tap to talk · $modelLabel',
-          style: TextStyle(
-            color: subtitleColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: onMicTap,
-          child: AnimatedBuilder(
-            animation: pulse,
-            builder: (_, child) {
-              final scale = isListening ? 1.0 + (pulse.value * 0.12) : 1.0;
-              return Transform.scale(scale: scale, child: child);
-            },
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: active
-                      ? [const Color(0xFF22C55E), const Color(0xFF4F7CFF)]
-                      : [const Color(0xFF4F7CFF), const Color(0xFF6366F1)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF4F7CFF).withValues(alpha: active ? 0.45 : 0.25),
-                    blurRadius: active ? 24 : 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Icon(
-                active ? Icons.mic_rounded : Icons.mic_none_rounded,
-                color: Colors.white,
-                size: 32,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          onPressed: onVoicePick,
-          child: Text(
-            'Voice: $voiceLabel',
-            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.w700),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -2036,6 +1893,7 @@ class _VoiceMicButton extends StatelessWidget {
   const _VoiceMicButton({
     required this.isListening,
     required this.isSpeaking,
+    required this.voiceModeActive,
     required this.pulse,
     required this.backgroundColor,
     required this.borderColor,
@@ -2045,6 +1903,7 @@ class _VoiceMicButton extends StatelessWidget {
 
   final bool isListening;
   final bool isSpeaking;
+  final bool voiceModeActive;
   final AnimationController pulse;
   final Color backgroundColor;
   final Color borderColor;
@@ -2058,10 +1917,14 @@ class _VoiceMicButton extends StatelessWidget {
         ? const Color(0xFFEF4444)
         : isSpeaking
             ? RealtorOneBrand.accentIndigo
-            : backgroundColor;
+            : voiceModeActive
+                ? const Color(0xFF22C55E).withValues(alpha: 0.14)
+                : backgroundColor;
     final border = active
         ? (isListening ? const Color(0xFFEF4444) : RealtorOneBrand.accentIndigo)
-        : borderColor;
+        : voiceModeActive
+            ? const Color(0xFF22C55E)
+            : borderColor;
 
     return GestureDetector(
       onTap: onTap,
@@ -2093,7 +1956,11 @@ class _VoiceMicButton extends StatelessWidget {
           ),
           child: Icon(
             active ? Icons.mic_rounded : Icons.mic_none_rounded,
-            color: active ? Colors.white : subtitleColor,
+            color: active
+                ? Colors.white
+                : voiceModeActive
+                    ? const Color(0xFF22C55E)
+                    : subtitleColor,
             size: 22,
           ),
         ),
