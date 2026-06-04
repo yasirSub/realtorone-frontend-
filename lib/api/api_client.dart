@@ -349,7 +349,7 @@ class ApiClient {
         endpoint: endpoint,
       );
     } catch (e) {
-      return {'status': 'error', 'message': e.toString()};
+      return {'success': false, 'message': e.toString()};
     }
   }
 

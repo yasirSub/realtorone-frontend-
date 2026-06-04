@@ -563,9 +563,27 @@ class _RevenChatPageState extends State<RevenChatPage>
       return;
     }
 
-    final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
-    final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
-    final engine = apiRes?['reply_audio_engine']?.toString() ?? '';
+    Map<String, dynamic>? voiceRes = apiRes;
+    var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
+    if (audioB64.isEmpty) {
+      voiceRes = await ChatApi.synthesizeVoice(
+        text,
+        voiceId: _activeVoiceIdForApi,
+      );
+      if (voiceRes['success'] == true &&
+          voiceRes['reply_audio_engine']?.toString() == 'device') {
+        final spoke = await _speakDeviceTts(text);
+        if (spoke && _isVoiceInteractionMode) {
+          await _scheduleVoiceListenAfterReply();
+        }
+        return;
+      }
+      audioB64 = voiceRes['reply_audio_base64']?.toString() ?? '';
+    }
+
+    final audioMime =
+        voiceRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
+    final engine = voiceRes?['reply_audio_engine']?.toString() ?? '';
 
     if (audioB64.isNotEmpty) {
       await _stopTts();
@@ -586,7 +604,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     if (engine == 'failed' || _isVoiceInteractionMode || _preferAiVoiceOnly) {
-      final err = apiRes?['reply_audio_error']?.toString();
+      final err = voiceRes?['reply_audio_error']?.toString() ??
+          voiceRes?['message']?.toString();
       _showVoiceSnack(
         err?.isNotEmpty == true
             ? err!
@@ -1366,12 +1385,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
 
-    final requestVoiceAudio = _voiceReadAloud && _effectiveVoiceCloudEnabled;
-
+    // Text reply first; cloud TTS runs in _speakReply via /chat/voice-audio (avoids timeouts).
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: requestVoiceAudio,
+      voiceReply: false,
       voiceMode: _isVoiceInteractionMode,
       voiceId: _activeVoiceIdForApi,
     );
@@ -1527,12 +1545,14 @@ class _RevenChatPageState extends State<RevenChatPage>
         _lastTurnWasVoice = false;
       } else {
         final unavailable = res['service_unavailable'] == true;
+        final errMsg = (res['message'] as String?)?.trim();
         _messages.add(
           _RevenMessage(
             text: unavailable
                 ? 'Reven is temporarily unreachable (server busy or updating). Please try again in a minute.'
-                : (res['message'] as String? ??
-                    'Something went wrong. Please try again.'),
+                : (errMsg != null && errMsg.isNotEmpty
+                    ? errMsg
+                    : 'Something went wrong. Please try again.'),
             isUser: false,
           ),
         );

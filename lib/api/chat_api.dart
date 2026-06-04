@@ -50,6 +50,23 @@ class ChatApi {
     );
   }
 
+  /// Cloud TTS for a reply (after /chat returns text — avoids slow combined requests).
+  static Future<Map<String, dynamic>> synthesizeVoice(
+    String text, {
+    String? voiceId,
+  }) async {
+    final body = <String, dynamic>{'text': text};
+    if (voiceId != null && voiceId.trim().isNotEmpty) {
+      body['voice_id'] = voiceId.trim();
+    }
+    return ApiClient.post(
+      ApiEndpoints.chatVoiceAudio,
+      body,
+      requiresAuth: true,
+      timeout: const Duration(seconds: 90),
+    );
+  }
+
   /// Delete a chat session.
   static Future<Map<String, dynamic>> deleteSession(int sessionId) async {
     return ApiClient.delete(
