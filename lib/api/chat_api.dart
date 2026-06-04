@@ -16,11 +16,13 @@ class ChatApi {
     String message, {
     int? sessionId,
     bool voiceReply = false,
+    bool voiceMode = false,
     String? voiceId,
   }) async {
     final body = <String, dynamic>{'message': message};
     if (sessionId != null) body['session_id'] = sessionId;
     if (voiceReply) body['voice_reply'] = true;
+    if (voiceMode) body['voice_mode'] = true;
     if (voiceId != null && voiceId.trim().isNotEmpty) {
       body['voice_id'] = voiceId.trim();
     }
@@ -28,7 +30,7 @@ class ChatApi {
       ApiEndpoints.chat,
       body,
       requiresAuth: true,
-      timeout: const Duration(seconds: 90),
+      timeout: const Duration(seconds: 120),
     );
   }
 

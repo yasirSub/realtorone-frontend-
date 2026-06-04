@@ -84,6 +84,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _voiceAutoSend = true;
   bool _voiceReadAloud = true;
   bool _voiceCloudEnabled = true;
+  bool _preferAiVoiceOnly = false;
   bool _voiceAllowUserPick = true;
   String _defaultVoiceId = 'nova';
   String? _preferredVoiceId;
@@ -211,15 +212,17 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceInAiChatEnabled = _configFlag(data['voice_in_ai_chat']);
         _voiceAutoSend = _configFlag(data['voice_auto_send']);
         _voiceReadAloud = _configFlag(data['voice_read_aloud']);
-        _voiceCloudEnabled = _configFlag(
-          data['voice_cloud_enabled'],
-          defaultValue: _configFlag(data['voice_read_aloud']),
-        );
+        final cloudFlag = data['voice_cloud_enabled'];
+        _voiceCloudEnabled = cloudFlag == null
+            ? true
+            : _configFlag(cloudFlag, defaultValue: true);
+        _preferAiVoiceOnly = _voiceCloudEnabled &&
+            (data['voice_model']?.toString().contains('mai-voice') == true ||
+                data['voice_provider']?.toString() == 'openrouter');
         _voiceAllowUserPick = _configFlag(data['voice_allow_user_pick']);
         _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
         if (opts.isNotEmpty) _voiceOptions = opts;
         _voiceModelLabel = data['voice_model_label']?.toString() ?? 'Voice AI';
-        _configuredVoiceModel = data['voice_model']?.toString() ?? '';
         final textModel = data['text_ai_model']?.toString() ?? '';
         final textProvider = data['text_ai_provider']?.toString() ?? '';
         _textAiModelLabel = textModel.isNotEmpty
@@ -234,18 +237,27 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() => _interactionMode = mode);
     if (mode == _RevenInteractionMode.voice) {
       _stopTts();
+      unawaited(_loadVoiceSettings());
     }
   }
 
-  String? get _activeVoiceId {
-    if (!_voiceAllowUserPick) return null;
-    final pref = _preferredVoiceId?.trim();
-    if (pref != null && pref.isNotEmpty) return pref;
-    return _defaultVoiceId;
+  bool get _isVoiceInteractionMode =>
+      _interactionMode == _RevenInteractionMode.voice;
+
+  String? get _activeVoiceIdForApi {
+    final id = _voiceAllowUserPick
+        ? (_preferredVoiceId?.trim().isNotEmpty == true
+            ? _preferredVoiceId!.trim()
+            : _defaultVoiceId)
+        : _defaultVoiceId;
+    if (_voiceOptions.any((v) => v['id'] == id)) {
+      return id;
+    }
+    return _defaultVoiceId.isNotEmpty ? _defaultVoiceId : null;
   }
 
   String get _activeVoiceLabel {
-    final id = _activeVoiceId ?? _defaultVoiceId;
+    final id = _activeVoiceIdForApi ?? _defaultVoiceId;
     for (final v in _voiceOptions) {
       if (v['id'] == id) return v['label'] ?? id;
     }
@@ -284,7 +296,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                 const SizedBox(height: 12),
                 ..._voiceOptions.map((v) {
                   final id = v['id'] ?? '';
-                  final selected = (_activeVoiceId ?? _defaultVoiceId) == id;
+                  final selected = (_activeVoiceIdForApi ?? _defaultVoiceId) == id;
                   return ListTile(
                     dense: true,
                     title: Text(
@@ -355,28 +367,59 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
 
+    final useAiVoiceOnly = _isVoiceInteractionMode || _preferAiVoiceOnly;
     final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
     final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
-    if (_voiceCloudEnabled && audioB64.isNotEmpty) {
+    final engine = apiRes?['reply_audio_engine']?.toString() ?? '';
+
+    if (audioB64.isNotEmpty && engine == 'cloud') {
       await _stopTts();
       try {
         await _speakCloudAudio(audioB64, audioMime);
         return;
+      } catch (e) {
+        if (mounted) setState(() => _isSpeaking = false);
+        if (useAiVoiceOnly) {
+          _showVoiceSnack(
+            'Could not play AI voice audio. Check connection and try again.',
+          );
+          return;
+        }
+      }
+    }
+
+    if (useAiVoiceOnly) {
+      final err = apiRes?['reply_audio_error']?.toString();
+      _showVoiceSnack(
+        err?.isNotEmpty == true
+            ? err!
+            : 'AI voice (${_voiceModelLabel}) was not returned. Enable OpenRouter MAI-Voice-2 in admin and redeploy backend.',
+      );
+      return;
+    }
+
+    if (!_voiceCloudEnabled) {
+      final spoken = text.trim();
+      if (spoken.isEmpty || !_ttsReady) return;
+      await _stopTts();
+      if (!mounted) return;
+      setState(() => _isSpeaking = true);
+      try {
+        await _tts.speak(spoken);
       } catch (_) {
         if (mounted) setState(() => _isSpeaking = false);
       }
     }
+  }
 
-    final spoken = text.trim();
-    if (spoken.isEmpty || !_ttsReady) return;
-    await _stopTts();
+  void _showVoiceSnack(String message) {
     if (!mounted) return;
-    setState(() => _isSpeaking = true);
-    try {
-      await _tts.speak(spoken);
-    } catch (_) {
-      if (mounted) setState(() => _isSpeaking = false);
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+      ),
+    );
   }
 
   Future<void> _initSpeech() async {
@@ -981,19 +1024,23 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
 
+    final requestVoiceAudio =
+        _voiceReadAloud &&
+        (_isVoiceInteractionMode || fromVoice || _voiceCloudEnabled);
+
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: (_interactionMode == _RevenInteractionMode.voice || fromVoice) &&
-          _voiceReadAloud &&
-          _voiceCloudEnabled,
-      voiceId: _activeVoiceId,
+      voiceReply: requestVoiceAudio,
+      voiceMode: _isVoiceInteractionMode,
+      voiceId: _activeVoiceIdForApi,
     );
 
     if (!mounted) return;
     String? ttsReply;
     Map<String, dynamic>? ttsRes;
-    final shouldSpeak = _lastTurnWasVoice;
+    final shouldSpeak = _voiceReadAloud &&
+        (_isVoiceInteractionMode || _lastTurnWasVoice);
     setState(() {
       _messages.removeLast();
       _isLoading = false;
