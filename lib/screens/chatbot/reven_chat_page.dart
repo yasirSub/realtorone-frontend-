@@ -54,6 +54,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   final ScrollController _scrollController = ScrollController();
   bool _isExpanded = false;
   bool _isLoading = false;
+  Timer? _waitElapsedTimer;
   bool _humanHandoffActive = false;
   bool _voiceInAiChatEnabled = true;
   bool _voiceAutoSend = true;
@@ -1303,8 +1304,26 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
   }
 
+  void _startWaitElapsedTicker() {
+    _waitElapsedTimer?.cancel();
+    _waitElapsedTimer = Timer.periodic(const Duration(milliseconds: 400), (_) {
+      if (!mounted) return;
+      if (_isLoading) {
+        setState(() {});
+      } else {
+        _waitElapsedTimer?.cancel();
+      }
+    });
+  }
+
+  void _stopWaitElapsedTicker() {
+    _waitElapsedTimer?.cancel();
+    _waitElapsedTimer = null;
+  }
+
   @override
   void dispose() {
+    _stopWaitElapsedTicker();
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
     if (widget.embedded) {
@@ -1416,10 +1435,16 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() {
       _messages.add(_RevenMessage(text: text, isUser: true, createdAt: now));
       _messages.add(
-        const _RevenMessage(text: '…', isUser: false, isLoading: true),
+        _RevenMessage(
+          text: '…',
+          isUser: false,
+          isLoading: true,
+          createdAt: now,
+        ),
       );
       _isLoading = true;
     });
+    _startWaitElapsedTicker();
     _scrollToBottom();
 
     // Voice call: one request returns text + audio (faster than text then a second TTS call).
@@ -1440,6 +1465,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     final shouldSpeak = _voiceReadAloud &&
         (_isVoiceInteractionMode || _lastTurnWasVoice);
     final voiceTurn = _isVoiceInteractionMode;
+    _stopWaitElapsedTicker();
     setState(() {
       _messages.removeLast();
       _isLoading = false;
@@ -2003,8 +2029,17 @@ class _RevenChatPageState extends State<RevenChatPage>
                                     );
                                   }
                                   final msg = _messages[index];
+                                  DateTime? prevAt;
+                                  for (var i = index - 1; i >= 0; i--) {
+                                    final t = _messages[i].createdAt;
+                                    if (t != null) {
+                                      prevAt = t;
+                                      break;
+                                    }
+                                  }
                                   return _ChatBubble(
                                     message: msg,
+                                    previousCreatedAt: prevAt,
                                     bubbleMaxWidth: bubbleMaxWidth,
                                     surfaceColor: surfaceColor,
                                     borderColor: borderColor,
@@ -2022,6 +2057,16 @@ class _RevenChatPageState extends State<RevenChatPage>
                           !_humanHandoffActive)
                         _RevenVoiceComposer(
                           status: _voiceCallStatus,
+                          processingSince: () {
+                            if (!_isLoading) return null;
+                            for (var i = _messages.length - 1; i >= 0; i--) {
+                              final m = _messages[i];
+                              if (m.isLoading && m.createdAt != null) {
+                                return m.createdAt;
+                              }
+                            }
+                            return null;
+                          }(),
                           micPaused: _voiceMicPausedByUser,
                           micSessionOpen: _isListening,
                           userSpeaking: _voiceUserSpeaking,
@@ -2250,6 +2295,7 @@ class _RevenComposerCircleButton extends StatelessWidget {
 class _RevenVoiceComposer extends StatelessWidget {
   const _RevenVoiceComposer({
     required this.status,
+    this.processingSince,
     this.micPaused = false,
     this.micSessionOpen = false,
     this.userSpeaking = false,
@@ -2273,6 +2319,7 @@ class _RevenVoiceComposer extends StatelessWidget {
   });
 
   final _VoiceCallStatus status;
+  final DateTime? processingSince;
   final bool micPaused;
   final bool micSessionOpen;
   final bool userSpeaking;
@@ -2314,6 +2361,9 @@ class _RevenVoiceComposer extends StatelessWidget {
             ? liveCaption.trim()
             : 'Listening to you…';
       case _VoiceCallStatus.processing:
+        if (processingSince != null) {
+          return 'Thinking… ${_RevenChatTimestamps.waiting(processingSince!)}';
+        }
         return 'Thinking…';
       case _VoiceCallStatus.speaking:
         final cap = speakingCaption.trim().isNotEmpty
@@ -2846,8 +2896,15 @@ class _VoiceConversationView extends StatelessWidget {
   Widget build(BuildContext context) {
     final turns = messages.where((m) => !m.isLoading && m.text.trim().isNotEmpty).toList();
     final visible = turns.length > 10 ? turns.sublist(turns.length - 10) : turns;
+    _RevenMessage? pending;
+    for (var i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].isLoading) {
+        pending = messages[i];
+        break;
+      }
+    }
 
-    if (visible.isEmpty) {
+    if (visible.isEmpty && pending == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -2865,14 +2922,59 @@ class _VoiceConversationView extends StatelessWidget {
       );
     }
 
+    final itemCount = visible.length + (pending != null ? 1 : 0);
+
     return ListView.builder(
       controller: scrollController,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-      itemCount: visible.length,
+      itemCount: itemCount,
       itemBuilder: (context, index) {
+        if (pending != null && index == itemCount - 1) {
+          DateTime? prevAt;
+          for (var i = messages.length - 1; i >= 0; i--) {
+            final m = messages[i];
+            if (!m.isLoading && m.createdAt != null) {
+              prevAt = m.createdAt;
+              break;
+            }
+          }
+          final started = pending.createdAt ?? DateTime.now();
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Reven',
+                  style: TextStyle(
+                    color: const Color(0xFF22C55E),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _RevenChatTimestamps.waiting(started, after: prevAt),
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
         final msg = visible[index];
+        DateTime? prevAt;
+        final globalIndex = turns.length - visible.length + index;
+        if (globalIndex > 0) {
+          prevAt = turns[globalIndex - 1].createdAt;
+        }
         return _VoiceTurnLine(
           message: msg,
+          previousCreatedAt: prevAt,
           titleColor: titleColor,
           subtitleColor: subtitleColor,
         );
@@ -2884,11 +2986,13 @@ class _VoiceConversationView extends StatelessWidget {
 class _VoiceTurnLine extends StatelessWidget {
   const _VoiceTurnLine({
     required this.message,
+    this.previousCreatedAt,
     required this.titleColor,
     required this.subtitleColor,
   });
 
   final _RevenMessage message;
+  final DateTime? previousCreatedAt;
   final Color titleColor;
   final Color subtitleColor;
 
@@ -2908,14 +3012,33 @@ class _VoiceTurnLine extends StatelessWidget {
         crossAxisAlignment:
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              if (message.createdAt != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  _RevenChatTimestamps.label(
+                    message.createdAt!,
+                    after: previousCreatedAt,
+                  ),
+                  style: TextStyle(
+                    color: subtitleColor,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 4),
           Text(
@@ -2939,6 +3062,7 @@ class _VoiceTurnLine extends StatelessWidget {
 class _ChatBubble extends StatelessWidget {
   const _ChatBubble({
     required this.message,
+    this.previousCreatedAt,
     required this.bubbleMaxWidth,
     required this.surfaceColor,
     required this.borderColor,
@@ -2948,23 +3072,13 @@ class _ChatBubble extends StatelessWidget {
   });
 
   final _RevenMessage message;
+  final DateTime? previousCreatedAt;
   final double bubbleMaxWidth;
   final Color surfaceColor;
   final Color borderColor;
   final Color titleColor;
   final Color subtitleColor;
   final void Function(String)? onCommandTapped;
-
-  static String _formatMessageTime(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inSeconds < 60) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (dt.day == now.day && dt.month == now.month && dt.year == now.year) {
-      return 'Today ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    }
-    return '${dt.day}/${dt.month} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -3003,17 +3117,37 @@ class _ChatBubble extends StatelessWidget {
               : null,
         ),
         child: message.isLoading
-            ? SizedBox(
-                width: 48,
-                height: 20,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _TypingDot(delay: 0),
-                    _TypingDot(delay: 1),
-                    _TypingDot(delay: 2),
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 20,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _TypingDot(delay: 0),
+                        _TypingDot(delay: 1),
+                        _TypingDot(delay: 2),
+                      ],
+                    ),
+                  ),
+                  if (message.createdAt != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _RevenChatTimestamps.waiting(
+                        message.createdAt!,
+                        after: previousCreatedAt,
+                      ),
+                      style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
-                ),
+                ],
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3091,12 +3225,16 @@ class _ChatBubble extends StatelessWidget {
                   if (message.createdAt != null) ...[
                     const SizedBox(height: 6),
                     Text(
-                      _formatMessageTime(message.createdAt!),
+                      _RevenChatTimestamps.label(
+                        message.createdAt!,
+                        after: previousCreatedAt,
+                      ),
                       style: TextStyle(
                         color: isUser
                             ? Colors.white.withValues(alpha: 0.8)
                             : subtitleColor,
                         fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -3488,6 +3626,43 @@ class _PromptChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Timestamps (clock + step duration for latency debugging) ───────────────
+
+class _RevenChatTimestamps {
+  static String clock(DateTime dt) {
+    final h = dt.hour;
+    final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    final m = dt.minute.toString().padLeft(2, '0');
+    final s = dt.second.toString().padLeft(2, '0');
+    return '$hour12:$m:$s $ampm';
+  }
+
+  static String deltaSeconds(DateTime dt, DateTime after) {
+    final sec = dt.difference(after).inMilliseconds / 1000.0;
+    if (sec < 0.05) return '';
+    return ' · +${sec.toStringAsFixed(1)}s';
+  }
+
+  /// e.g. `3:42:08 PM · +12.4s` (time since previous message in chat).
+  static String label(DateTime dt, {DateTime? after}) {
+    final base = clock(dt);
+    if (after == null) return base;
+    return '$base${deltaSeconds(dt, after)}';
+  }
+
+  /// Live timer while Reven is thinking (updates via parent setState).
+  static String waiting(DateTime started, {DateTime? after}) {
+    final now = DateTime.now();
+    final waitSec = now.difference(started).inMilliseconds / 1000.0;
+    if (after != null) {
+      final totalSec = now.difference(after).inMilliseconds / 1000.0;
+      return 'Waiting ${waitSec.toStringAsFixed(1)}s (${totalSec.toStringAsFixed(1)}s since you)';
+    }
+    return 'Waiting ${waitSec.toStringAsFixed(1)}s…';
   }
 }
 
