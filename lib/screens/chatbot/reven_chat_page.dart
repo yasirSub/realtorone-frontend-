@@ -103,12 +103,26 @@ class _RevenChatPageState extends State<RevenChatPage>
   double _voiceSoundLevel = 0;
   bool _voiceUserSpeaking = false;
   static const double _voiceSoundActiveDb = -40;
-  /// How long after mic goes quiet before we send (voice hands-free).
+  /// How long after mic goes quiet before review / send (voice hands-free).
   static const Duration _voiceSilenceSendDelay =
-      Duration(milliseconds: 450);
+      Duration(milliseconds: 400);
+  /// Pause after STT finalResult before review (lets trailing words arrive).
+  static const Duration _voiceFinalResultGrace =
+      Duration(milliseconds: 320);
+  /// Auto-send after review unless the user edits the text field.
+  static const Duration _voiceReviewAutoSendDelay =
+      Duration(milliseconds: 2400);
   bool _voiceFinalizeInProgress = false;
+  bool _voiceReviewActive = false;
+  bool _bargeInListenActive = false;
+  bool _voiceReviewUserEdited = false;
+  bool _voiceReviewProgrammaticEdit = false;
+  Timer? _voiceReviewAutoSendTimer;
 
   _VoiceCallStatus get _voiceCallStatus {
+    if (_voiceReviewActive) {
+      return _VoiceCallStatus.listening;
+    }
     if (_isListening && _voiceUserSpeaking) {
       return _VoiceCallStatus.listening;
     }
@@ -136,7 +150,230 @@ class _RevenChatPageState extends State<RevenChatPage>
     _initSpeech();
     _initTts();
     _loadHistory();
+    _messageController.addListener(_onMessageControllerChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartVoiceOnOpen());
+  }
+
+  void _onMessageControllerChanged() {
+    if (!_voiceReviewActive || !mounted || _voiceReviewProgrammaticEdit) return;
+    if (_voiceReviewUserEdited) return;
+    _voiceReviewUserEdited = true;
+    _cancelVoiceReviewTimer();
+    setState(() {});
+  }
+
+  void _cancelVoiceReviewTimer() {
+    _voiceReviewAutoSendTimer?.cancel();
+    _voiceReviewAutoSendTimer = null;
+  }
+
+  void _setAssistantSpeaking(bool speaking) {
+    if (!mounted) return;
+    final was = _isSpeaking;
+    if (was == speaking) return;
+    setState(() => _isSpeaking = speaking);
+    if (speaking && _isVoiceInteractionMode) {
+      unawaited(_startBargeInMonitor());
+    } else if (was) {
+      unawaited(_stopBargeInMonitor());
+    }
+  }
+
+  Future<void> _interruptAssistantPlayback() async {
+    _cancelVoiceReviewTimer();
+    await _stopBargeInMonitor();
+    try {
+      await _cloudPlayer.stop();
+    } catch (_) {}
+    try {
+      await _tts.stop();
+    } catch (_) {}
+    if (!mounted) return;
+    final pending = _pendingAssistantReply.trim();
+    setState(() {
+      _isSpeaking = false;
+      if (pending.isNotEmpty) {
+        final exists = _messages.any(
+          (m) => !m.isUser && !m.isLoading && m.text.trim() == pending,
+        );
+        if (!exists) {
+          _messages.add(
+            _RevenMessage(
+              text: pending,
+              isUser: false,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
+        _pendingAssistantReply = '';
+      }
+    });
+    _syncOverlayCallStatus();
+  }
+
+  Future<void> _handleUserBargeIn() async {
+    if (!_isVoiceInteractionMode) return;
+    if (!_isSpeaking && !_isLoading) return;
+    await _interruptAssistantPlayback();
+    if (!mounted || _humanHandoffActive) return;
+    if (_isListening) return;
+    await _stopBargeInMonitor();
+    _voiceMicPausedByUser = false;
+    await _startVoiceInput();
+  }
+
+  Future<void> _startBargeInMonitor() async {
+    if (!_isVoiceInteractionMode ||
+        _bargeInListenActive ||
+        _isListening ||
+        _humanHandoffActive ||
+        !_speechInitialized) {
+      return;
+    }
+    if (!_isSpeaking && !_isLoading) return;
+    _bargeInListenActive = true;
+    try {
+      final locales = await _speech.locales();
+      final localeId = locales.isNotEmpty ? locales.first.localeId : null;
+      await _speech.listen(
+        onResult: (_) {},
+        onSoundLevelChange: (level) {
+          if (!_bargeInListenActive || !mounted) return;
+          if (!_isSpeaking && !_isLoading) return;
+          if (level > _voiceSoundActiveDb) {
+            unawaited(_handleUserBargeIn());
+          }
+        },
+        localeId: localeId,
+        listenMode: stt.ListenMode.dictation,
+        cancelOnError: true,
+        partialResults: false,
+        pauseFor: const Duration(seconds: 30),
+        listenFor: const Duration(seconds: 120),
+      );
+    } catch (_) {
+      _bargeInListenActive = false;
+    }
+  }
+
+  Future<void> _stopBargeInMonitor() async {
+    if (!_bargeInListenActive) return;
+    _bargeInListenActive = false;
+    try {
+      await _speech.cancel();
+    } catch (_) {}
+  }
+
+  void _beginVoiceReview(String text) {
+    _cancelVoiceReviewTimer();
+    _voiceReviewUserEdited = false;
+    _voiceReviewProgrammaticEdit = true;
+    setState(() {
+      _voiceReviewActive = true;
+      _lastVoiceCaption = text;
+    });
+    _messageController.text = text;
+    _messageController.selection = TextSelection.fromPosition(
+      TextPosition(offset: text.length),
+    );
+    _voiceReviewProgrammaticEdit = false;
+    _voiceReviewAutoSendTimer = Timer(_voiceReviewAutoSendDelay, () {
+      if (!mounted || !_voiceReviewActive || _voiceReviewUserEdited) return;
+      unawaited(_commitVoiceReview());
+    });
+  }
+
+  Future<void> _cancelVoiceReview({bool clearField = true}) async {
+    _cancelVoiceReviewTimer();
+    if (!mounted) return;
+    setState(() {
+      _voiceReviewActive = false;
+      _voiceReviewUserEdited = false;
+      if (clearField) _messageController.clear();
+    });
+  }
+
+  Future<void> _commitVoiceReview() async {
+    if (!_voiceReviewActive) {
+      _sendMessage();
+      return;
+    }
+    final text = _messageController.text.trim();
+    await _cancelVoiceReview(clearField: true);
+    if (text.isEmpty) {
+      if (!_voiceMicPausedByUser) {
+        await _restartVoiceListenIfNeeded();
+      }
+      return;
+    }
+    await _sendToApi(text, fromVoice: true);
+  }
+
+  /// Tap the Reven orb — send immediately when STT/auto-send is stuck.
+  Future<void> _onVoiceOrbTap() async {
+    if (!_isVoiceInteractionMode || _humanHandoffActive) return;
+
+    if (_voiceReviewActive) {
+      await _commitVoiceReview();
+      return;
+    }
+
+    final hasDraft = _voiceTranscript.trim().isNotEmpty ||
+        _messageController.text.trim().isNotEmpty ||
+        _lastVoiceCaption.trim().isNotEmpty;
+
+    if (hasDraft && !_isLoading) {
+      await _forceSendVoiceDraft();
+      return;
+    }
+
+    if (_isSpeaking) {
+      await _interruptAssistantPlayback();
+      return;
+    }
+
+    if (_isListening) {
+      await _forceSendVoiceDraft();
+      return;
+    }
+
+    await _toggleVoiceMicInVoiceMode();
+  }
+
+  Future<void> _forceSendVoiceDraft() async {
+    if (!_isVoiceInteractionMode || _humanHandoffActive) return;
+
+    _cancelVoiceReviewTimer();
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceFinalizeInProgress = false;
+
+    if (_isListening) {
+      _resetVoiceSoundActivity();
+      try {
+        await _speech.stop();
+      } catch (_) {}
+      _micPulseController.stop();
+    }
+
+    var text = _voiceTranscript.trim();
+    if (text.isEmpty) text = _messageController.text.trim();
+    if (text.isEmpty) text = _lastVoiceCaption.trim();
+
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+      _voiceTranscript = '';
+      _voiceReviewActive = false;
+      _voiceReviewUserEdited = false;
+      _messageController.clear();
+    });
+
+    if (text.isEmpty) return;
+
+    await _stopBargeInMonitor();
+    if (_isSpeaking) await _interruptAssistantPlayback();
+    await _sendToApi(text, fromVoice: true);
   }
 
   Future<void> _maybeStartVoiceOnOpen() async {
@@ -318,8 +555,10 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _stopAllVoiceActivity() async {
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
+    _cancelVoiceReviewTimer();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
+    await _stopBargeInMonitor();
     try {
       if (_isListening) {
         await _speech.stop();
@@ -333,6 +572,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() {
       _isListening = false;
       _voiceTranscript = '';
+      _voiceReviewActive = false;
+      _voiceReviewUserEdited = false;
     });
   }
 
@@ -385,15 +626,11 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _toggleVoiceMicInVoiceMode() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
     if (!_isVoiceInteractionMode) return;
-    if (_isSpeaking) {
-      await _stopTts();
-      _flushPendingVoiceReplyToMessages();
-      if (mounted) {
-        setState(() {
-          _pendingAssistantReply = '';
-          _isSpeaking = false;
-        });
-      }
+    if (_voiceReviewActive) {
+      await _cancelVoiceReview(clearField: false);
+    }
+    if (_isSpeaking || _isLoading) {
+      await _interruptAssistantPlayback();
     }
     if (_isListening) {
       await _pauseVoiceInput();
@@ -407,7 +644,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (!_isVoiceInteractionMode ||
         _humanHandoffActive ||
         !_voiceInAiChatEnabled ||
-        _voiceMicPausedByUser) {
+        _voiceMicPausedByUser ||
+        _voiceReviewActive) {
       return;
     }
     await Future<void>.delayed(const Duration(milliseconds: 280));
@@ -556,13 +794,14 @@ class _RevenChatPageState extends State<RevenChatPage>
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
       _tts.setCompletionHandler(() {
-        if (mounted) setState(() => _isSpeaking = false);
+        if (!mounted) return;
+        _setAssistantSpeaking(false);
         if (_isVoiceInteractionMode) {
           unawaited(_scheduleVoiceListenAfterReply());
         }
       });
       _tts.setCancelHandler(() {
-        if (mounted) setState(() => _isSpeaking = false);
+        if (mounted) _setAssistantSpeaking(false);
       });
       if (mounted) setState(() => _ttsReady = true);
     } catch (_) {}
@@ -575,7 +814,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     try {
       await _tts.stop();
     } catch (_) {}
-    if (mounted) setState(() => _isSpeaking = false);
+    if (mounted) _setAssistantSpeaking(false);
   }
 
   bool _bytesLookLikeMp3(List<int> bytes) {
@@ -598,7 +837,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (bytes.isEmpty) return false;
     await _cloudPlayer.stop();
     if (!mounted) return false;
-    setState(() => _isSpeaking = true);
+    _setAssistantSpeaking(true);
 
     String playMime = mime;
     if (_bytesLookLikeMp3(bytes)) {
@@ -625,7 +864,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
       return false;
     } finally {
-      if (mounted) setState(() => _isSpeaking = false);
+      if (mounted) _setAssistantSpeaking(false);
     }
   }
 
@@ -634,12 +873,12 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (spoken.isEmpty || !_ttsReady) return false;
     await _stopTts();
     if (!mounted) return false;
-    setState(() => _isSpeaking = true);
+    _setAssistantSpeaking(true);
     try {
       await _tts.speak(spoken);
       return true;
     } catch (_) {
-      if (mounted) setState(() => _isSpeaking = false);
+      if (mounted) _setAssistantSpeaking(false);
       return false;
     }
   }
@@ -661,7 +900,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
     // Fallback TTS if /chat did not return inline audio.
     if (audioB64.isEmpty) {
-      if (mounted) setState(() => _isSpeaking = true);
+      if (mounted) _setAssistantSpeaking(true);
       voiceRes = await ChatApi.synthesizeVoice(
         text,
         voiceId: _activeVoiceIdForApi,
@@ -673,7 +912,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (spoke && _isVoiceInteractionMode) {
           await _scheduleVoiceListenAfterReply();
         } else if (mounted) {
-          setState(() => _isSpeaking = false);
+          _setAssistantSpeaking(false);
         }
         return;
       }
@@ -681,7 +920,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (audioB64.isEmpty && voiceRes['success'] != true) {
         final err = voiceRes['message']?.toString().trim() ?? '';
         final spoke = await _speakDeviceTts(text);
-        if (mounted) setState(() => _isSpeaking = false);
+        if (mounted) _setAssistantSpeaking(false);
         if (spoke) {
           if (err.isNotEmpty) {
             _showVoiceSnack('$err — using device voice.');
@@ -691,7 +930,7 @@ class _RevenChatPageState extends State<RevenChatPage>
           }
           return;
         }
-        if (mounted) setState(() => _isSpeaking = false);
+        if (mounted) _setAssistantSpeaking(false);
       }
     }
 
@@ -729,7 +968,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         await _scheduleVoiceListenAfterReply();
       }
     } else if (_isVoiceInteractionMode && audioB64.isEmpty) {
-      if (mounted) setState(() => _isSpeaking = false);
+      if (mounted) _setAssistantSpeaking(false);
       final err = voiceRes?['message']?.toString().trim() ?? '';
       final spoke = await _speakDeviceTts(text);
       if (spoke) {
@@ -807,6 +1046,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (speaking) {
       _voiceUtteranceTimer?.cancel();
       _voiceSilenceFinalizeTimer?.cancel();
+      if (_isVoiceInteractionMode &&
+          (_isSpeaking || _isLoading) &&
+          !_isListening) {
+        unawaited(_handleUserBargeIn());
+      }
       if (_isVoiceInteractionMode) {
         try {
           _speech.changePauseFor(const Duration(seconds: 2));
@@ -916,7 +1160,16 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _startVoiceInput() async {
-    if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
+    if (_isListening || !_voiceInAiChatEnabled) return;
+    if (!_isVoiceInteractionMode && _isLoading) return;
+    if (_voiceReviewActive) {
+      final seed = _messageController.text.trim();
+      await _cancelVoiceReview(clearField: false);
+      _voiceTranscript = seed;
+    }
+    if (_isSpeaking || _isLoading) {
+      await _interruptAssistantPlayback();
+    }
 
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
@@ -934,11 +1187,10 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (!_speechInitialized) return;
     }
 
-    _voiceTranscript = '';
-    if (mounted) {
-      setState(() {
-        _lastVoiceCaption = '';
-      });
+    if (_voiceTranscript.isEmpty) {
+      if (mounted) {
+        setState(() => _lastVoiceCaption = '');
+      }
     }
 
     final locales = await _speech.locales();
@@ -965,7 +1217,10 @@ class _RevenChatPageState extends State<RevenChatPage>
           if (result.finalResult && words.isNotEmpty) {
             _voiceSilenceFinalizeTimer?.cancel();
             _voiceUtteranceTimer?.cancel();
-            unawaited(_finishVoiceSession());
+            _voiceSilenceFinalizeTimer = Timer(_voiceFinalResultGrace, () {
+              if (!mounted || !_isListening || _voiceUserSpeaking) return;
+              unawaited(_finishVoiceSession());
+            });
           }
           return;
         }
@@ -1007,7 +1262,9 @@ class _RevenChatPageState extends State<RevenChatPage>
         }
         return;
       }
-      if (_voiceAutoSend) {
+      if (_voiceAutoSend && _isVoiceInteractionMode) {
+        _beginVoiceReview(text);
+      } else if (_voiceAutoSend) {
         await _sendToApi(text, fromVoice: true);
       } else {
         _messageController.text = text;
@@ -1420,6 +1677,8 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   @override
   void dispose() {
+    _cancelVoiceReviewTimer();
+    _messageController.removeListener(_onMessageControllerChanged);
     _stopWaitElapsedTicker();
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
@@ -1543,6 +1802,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _startWaitElapsedTicker();
     _scrollToBottom();
+    if (_isVoiceInteractionMode) {
+      unawaited(_startBargeInMonitor());
+    }
 
     final voiceTurn = _isVoiceInteractionMode;
     final inlineCloudVoice = voiceTurn &&
@@ -1641,7 +1903,6 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (holdTextForVoice) {
           deferredVoiceReply = replyText;
           _pendingAssistantReply = replyText;
-          _isSpeaking = true;
         } else {
           _messages.add(
             _RevenMessage(
@@ -1747,12 +2008,14 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
     _scrollToBottom();
     if (ttsReply != null) {
+      if (deferredVoiceReply != null && mounted) {
+        _setAssistantSpeaking(true);
+      }
       await _speakReply(ttsReply, apiRes: ttsRes);
       if (deferredVoiceReply != null && mounted) {
         final reply = deferredVoiceReply!;
         setState(() {
           _pendingAssistantReply = '';
-          _isSpeaking = false;
           final exists = _messages.any(
             (m) => !m.isUser && !m.isLoading && m.text == reply,
           );
@@ -1766,6 +2029,7 @@ class _RevenChatPageState extends State<RevenChatPage>
             );
           }
         });
+        _setAssistantSpeaking(false);
         _scrollToBottom();
       }
     }
@@ -1867,6 +2131,10 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   void _sendMessage() {
+    if (_voiceReviewActive) {
+      unawaited(_commitVoiceReview());
+      return;
+    }
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     _messageController.clear();
@@ -2194,12 +2462,16 @@ class _RevenChatPageState extends State<RevenChatPage>
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
                               _effectiveVoiceCloudEnabled && _voiceAllowUserPick,
-                          liveCaption: _isListening
-                              ? _voiceTranscript
-                              : (_isSpeaking
-                                  ? _voiceSpeakingCaption
-                                  : _lastVoiceCaption),
+                          liveCaption: _voiceReviewActive
+                              ? _messageController.text
+                              : (_isListening
+                                  ? _voiceTranscript
+                                  : (_isSpeaking
+                                      ? _voiceSpeakingCaption
+                                      : _lastVoiceCaption)),
                           speakingCaption: _voiceSpeakingCaption,
+                          voiceReviewActive: _voiceReviewActive,
+                          voiceReviewUserEdited: _voiceReviewUserEdited,
                           pulse: _micPulseController,
                           isDark: isDark,
                           backgroundColor: backgroundColor,
@@ -2212,6 +2484,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           onVoicePick: _showVoicePicker,
                           onExitVoice: _exitVoiceMode,
                           onSendText: _sendMessage,
+                          onOrbTap: _onVoiceOrbTap,
                         )
                       else
                         _RevenTextComposer(
@@ -2426,6 +2699,8 @@ class _RevenVoiceComposer extends StatelessWidget {
     required this.showVoicePicker,
     required this.liveCaption,
     this.speakingCaption = '',
+    this.voiceReviewActive = false,
+    this.voiceReviewUserEdited = false,
     required this.pulse,
     required this.isDark,
     required this.backgroundColor,
@@ -2438,6 +2713,7 @@ class _RevenVoiceComposer extends StatelessWidget {
     required this.onVoicePick,
     required this.onExitVoice,
     required this.onSendText,
+    required this.onOrbTap,
   });
 
   final _VoiceCallStatus status;
@@ -2450,6 +2726,8 @@ class _RevenVoiceComposer extends StatelessWidget {
   final bool showVoicePicker;
   final String liveCaption;
   final String speakingCaption;
+  final bool voiceReviewActive;
+  final bool voiceReviewUserEdited;
   final AnimationController pulse;
   final bool isDark;
   final Color backgroundColor;
@@ -2462,6 +2740,7 @@ class _RevenVoiceComposer extends StatelessWidget {
   final VoidCallback onVoicePick;
   final VoidCallback onExitVoice;
   final VoidCallback onSendText;
+  final VoidCallback onOrbTap;
 
   Color get _accent {
     switch (status) {
@@ -2477,11 +2756,21 @@ class _RevenVoiceComposer extends StatelessWidget {
   }
 
   String get _statusText {
+    if (voiceReviewActive) {
+      final t = liveCaption.trim();
+      if (t.isNotEmpty) {
+        return voiceReviewUserEdited
+            ? 'Fix your message — tap Reven or send to continue'
+            : 'Edit if needed — tap Reven to send now';
+      }
+      return 'Say something or type below';
+    }
     switch (status) {
       case _VoiceCallStatus.listening:
-        return liveCaption.trim().isNotEmpty
-            ? liveCaption.trim()
-            : 'Listening to you…';
+        if (liveCaption.trim().isNotEmpty) {
+          return '${liveCaption.trim()} · tap Reven to send';
+        }
+        return 'Listening to you…';
       case _VoiceCallStatus.processing:
         if (processingSince != null) {
           return 'Thinking… ${_RevenChatTimestamps.waiting(processingSince!)}';
@@ -2500,9 +2789,9 @@ class _RevenVoiceComposer extends StatelessWidget {
           return 'Tap the mic to resume';
         }
         if (micSessionOpen) {
-          return 'Speak now — sends when you pause (~½ sec)';
+          return 'Speak now — pause ~½ sec, then you can fix words';
         }
-        return 'Tap the mic and talk — like ChatGPT voice';
+        return 'Tap the mic and talk — interrupt Reven anytime';
     }
   }
 
@@ -2530,6 +2819,7 @@ class _RevenVoiceComposer extends StatelessWidget {
                   pulse: pulse,
                   isListening: userSpeaking,
                   size: 72,
+                  onTap: onOrbTap,
                 ),
                 const SizedBox(height: 10),
                 AnimatedSwitcher(
@@ -2591,7 +2881,9 @@ class _RevenVoiceComposer extends StatelessWidget {
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => onSendText(),
                         decoration: InputDecoration(
-                          hintText: 'Type',
+                          hintText: voiceReviewActive
+                              ? 'Fix words, then send'
+                              : 'Type',
                           hintStyle: TextStyle(
                             color: subtitleColor,
                             fontSize: 16,
@@ -2655,6 +2947,17 @@ class _RevenVoiceComposer extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (voiceReviewActive)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 5),
+                        child: _RevenComposerCircleButton(
+                          icon: Icons.send_rounded,
+                          backgroundColor: const Color(0xFF4F7CFF),
+                          iconColor: Colors.white,
+                          onTap: onSendText,
+                          shadowColor: const Color(0xFF4F7CFF),
+                        ),
+                      ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
                       child: _RevenComposerCircleButton(
@@ -2715,6 +3018,7 @@ class _VoiceCallOrb extends StatelessWidget {
     required this.pulse,
     required this.isListening,
     this.size = 88,
+    this.onTap,
   });
 
   final Color accent;
@@ -2722,11 +3026,12 @@ class _VoiceCallOrb extends StatelessWidget {
   final AnimationController pulse;
   final bool isListening;
   final double size;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final core = size * 0.72;
-    return AnimatedBuilder(
+    final orb = AnimatedBuilder(
       animation: pulse,
       builder: (_, __) {
         final ring = isListening ? 0.12 + pulse.value * 0.18 : 0.08;
@@ -2788,6 +3093,15 @@ class _VoiceCallOrb extends StatelessWidget {
           ),
         );
       },
+    );
+    if (onTap == null) return orb;
+    return Tooltip(
+      message: 'Tap Reven to send',
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: orb,
+      ),
     );
   }
 }
