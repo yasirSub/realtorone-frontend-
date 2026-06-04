@@ -410,7 +410,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceMicPausedByUser) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 550));
+    await Future<void>.delayed(const Duration(milliseconds: 280));
     if (!mounted ||
         !_isVoiceInteractionMode ||
         _isListening ||
