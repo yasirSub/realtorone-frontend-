@@ -1317,12 +1317,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             if (response['status'] == 'ok' ||
                                 response['success'] == true) {
-                              if (isEmail && mounted) {
+                              if (mounted) {
                                 setState(() {
                                   _userData ??= {};
-                                  _userData!['email_verified_at'] =
-                                      response['email_verified_at'] ??
-                                      DateTime.now().toIso8601String();
+                                  if (isEmail) {
+                                    _userData!['email_verified_at'] =
+                                        response['email_verified_at'] ??
+                                        DateTime.now().toIso8601String();
+                                  } else {
+                                    _userData!['mobile_verified_at'] =
+                                        response['mobile_verified_at'] ??
+                                        DateTime.now().toIso8601String();
+                                    if (phone != null && phone.isNotEmpty) {
+                                      _userData!['mobile'] = phone;
+                                    }
+                                  }
                                 });
                               }
                               _showSnackBar(
@@ -1472,6 +1481,17 @@ class _ProfilePageState extends State<ProfilePage> {
       );
 
       if (response['status'] == 'ok' || response['success'] == true) {
+        if (mounted) {
+          setState(() {
+            _userData ??= {};
+            _userData!['mobile_verified_at'] =
+                response['mobile_verified_at'] ??
+                DateTime.now().toIso8601String();
+            if (mobile.isNotEmpty) {
+              _userData!['mobile'] = mobile;
+            }
+          });
+        }
         if (showSuccessSnackBar) {
           _showSnackBar('Phone number verified successfully!', Colors.green);
         }
