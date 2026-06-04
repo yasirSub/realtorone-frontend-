@@ -13,6 +13,7 @@ import '../../api/api_client.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/chat_api.dart';
+import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
@@ -86,6 +87,12 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _voiceAutoSend = true;
   bool _voiceReadAloud = true;
   bool _voiceCloudEnabled = true;
+  Map<String, bool> _voiceCloudTierAllow = const {
+    'Consultant': false,
+    'Rainmaker': true,
+    'Titan': true,
+  };
+  String _membershipTier = 'Consultant';
   bool _preferAiVoiceOnly = false;
   bool _voiceAllowUserPick = true;
   String _defaultVoiceId = 'nova';
@@ -131,6 +138,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       duration: const Duration(milliseconds: 900),
     );
     _loadVoiceSettings();
+    _loadMembershipTier();
     _loadPreferredVoice();
     _initSpeech();
     _initTts();
@@ -228,9 +236,18 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceCloudEnabled = cloudFlag == null
             ? true
             : _configFlag(cloudFlag, defaultValue: true);
-        _preferAiVoiceOnly = _voiceCloudEnabled &&
-            (data['voice_model']?.toString().contains('mai-voice') == true ||
-                data['voice_provider']?.toString() == 'openrouter');
+        final tierRaw = data['voice_cloud_tier_allow'];
+        if (tierRaw is Map) {
+          _voiceCloudTierAllow = {
+            'Consultant': _configFlag(tierRaw['Consultant'], defaultValue: false),
+            'Rainmaker': _configFlag(tierRaw['Rainmaker'], defaultValue: true),
+            'Titan': _configFlag(tierRaw['Titan'], defaultValue: true),
+          };
+        }
+        final maiModel =
+            data['voice_model']?.toString().contains('mai-voice') == true ||
+                data['voice_provider']?.toString() == 'openrouter';
+        _preferAiVoiceOnly = _effectiveVoiceCloudEnabled && maiModel;
         _voiceAllowUserPick = _configFlag(data['voice_allow_user_pick']);
         _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
         if (opts.isNotEmpty) _voiceOptions = opts;
@@ -297,6 +314,25 @@ class _RevenChatPageState extends State<RevenChatPage>
     return _defaultVoiceId.isNotEmpty ? _defaultVoiceId : null;
   }
 
+  bool get _effectiveVoiceCloudEnabled {
+    if (!_voiceCloudEnabled) return false;
+    final tier = _membershipTier.trim().isEmpty ? 'Consultant' : _membershipTier;
+    return _voiceCloudTierAllow[tier] == true;
+  }
+
+  String get _voicePlaybackLabel =>
+      _effectiveVoiceCloudEnabled ? _voiceModelLabel : 'Device voice';
+
+  Future<void> _loadMembershipTier() async {
+    try {
+      final res = await UserApi.getProfile(useCache: true);
+      final tier = res['membership_tier']?.toString().trim();
+      if (!mounted || tier == null || tier.isEmpty) return;
+      setState(() => _membershipTier = tier);
+      await _loadVoiceSettings();
+    } catch (_) {}
+  }
+
   String get _activeVoiceLabel {
     final id = _activeVoiceIdForApi ?? _defaultVoiceId;
     for (final v in _voiceOptions) {
@@ -306,7 +342,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _showVoicePicker() async {
-    if (!_voiceAllowUserPick || !_voiceCloudEnabled) return;
+    if (!_voiceAllowUserPick || !_effectiveVoiceCloudEnabled) return;
     final picked = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF0F172A),
@@ -411,31 +447,66 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
   }
 
+  Future<bool> _speakDeviceTts(String text) async {
+    final spoken = text.trim();
+    if (spoken.isEmpty || !_ttsReady) return false;
+    await _stopTts();
+    if (!mounted) return false;
+    setState(() => _isSpeaking = true);
+    try {
+      await _tts.speak(spoken);
+      return true;
+    } catch (_) {
+      if (mounted) setState(() => _isSpeaking = false);
+      return false;
+    }
+  }
+
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
 
-    final useAiVoiceOnly = _isVoiceInteractionMode || _preferAiVoiceOnly;
     final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
     final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
     final engine = apiRes?['reply_audio_engine']?.toString() ?? '';
-    var spoke = false;
+    final useDevice =
+        engine == 'device' || (_isVoiceInteractionMode && !_effectiveVoiceCloudEnabled);
+    final expectCloud = _effectiveVoiceCloudEnabled &&
+        (engine == 'cloud' || (_isVoiceInteractionMode && engine != 'device'));
 
-    if (audioB64.isNotEmpty && engine == 'cloud') {
-      await _stopTts();
-      spoke = await _speakCloudAudio(audioB64, audioMime);
-      if (!spoke && useAiVoiceOnly) {
-        _showVoiceSnack(
-          'Could not play AI voice audio. Check connection and try again.',
-        );
-      }
-      if (spoke) {
+    if (useDevice) {
+      final spoke = await _speakDeviceTts(text);
+      if (spoke && _isVoiceInteractionMode) {
         await _scheduleVoiceListenAfterReply();
       }
       return;
     }
 
-    if (useAiVoiceOnly) {
+    if (audioB64.isNotEmpty && engine == 'cloud') {
+      await _stopTts();
+      final spoke = await _speakCloudAudio(audioB64, audioMime);
+      if (!spoke && (_isVoiceInteractionMode || _preferAiVoiceOnly)) {
+        final fallback = await _speakDeviceTts(text);
+        if (fallback && _isVoiceInteractionMode) {
+          await _scheduleVoiceListenAfterReply();
+          return;
+        }
+        _showVoiceSnack(
+          'Could not play AI voice audio. Check connection and try again.',
+        );
+      }
+      if (spoke && _isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+      }
+      return;
+    }
+
+    if (expectCloud && (_isVoiceInteractionMode || _preferAiVoiceOnly)) {
       final err = apiRes?['reply_audio_error']?.toString();
+      final fallback = await _speakDeviceTts(text);
+      if (fallback && _isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+        return;
+      }
       _showVoiceSnack(
         err?.isNotEmpty == true
             ? err!
@@ -444,19 +515,9 @@ class _RevenChatPageState extends State<RevenChatPage>
       return;
     }
 
-    if (!_voiceCloudEnabled) {
-      final spoken = text.trim();
-      if (spoken.isEmpty || !_ttsReady) return;
-      await _stopTts();
-      if (!mounted) return;
-      setState(() => _isSpeaking = true);
-      try {
-        await _tts.speak(spoken);
-        spoke = true;
-      } catch (_) {
-        if (mounted) setState(() => _isSpeaking = false);
-      }
-      if (spoke && !_isVoiceInteractionMode) {
+    if (!_effectiveVoiceCloudEnabled || engine == 'failed') {
+      final spoke = await _speakDeviceTts(text);
+      if (spoke && _isVoiceInteractionMode) {
         await _scheduleVoiceListenAfterReply();
       }
     }
@@ -1469,7 +1530,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                     _humanHandoffActive
                                         ? 'Human support is chatting'
                                         : _interactionMode == _RevenInteractionMode.voice
-                                            ? 'Voice · $_voiceModelLabel'
+                                            ? 'Voice · $_voicePlaybackLabel'
                                             : (_isExpanded ? 'Full view' : 'AI assistant'),
                                     style: TextStyle(
                                       color: _humanHandoffActive
@@ -1598,10 +1659,10 @@ class _RevenChatPageState extends State<RevenChatPage>
                           !_humanHandoffActive)
                         _RevenVoiceComposer(
                           status: _voiceCallStatus,
-                          voiceModelLabel: _voiceModelLabel,
+                          voiceModelLabel: _voicePlaybackLabel,
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
-                              _voiceCloudEnabled && _voiceAllowUserPick,
+                              _effectiveVoiceCloudEnabled && _voiceAllowUserPick,
                           liveCaption: _isListening
                               ? _voiceTranscript
                               : _lastVoiceCaption,
