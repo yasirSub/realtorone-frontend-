@@ -95,9 +95,22 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _voiceMicPausedByUser = false;
   bool _wasExpandedBeforeVoice = false;
   Timer? _voiceUtteranceTimer;
+  Timer? _voiceSilenceFinalizeTimer;
   late final AnimationController _micPulseController;
+  /// Mic dB level from speech_to_text; orb/mic glow when above [_voiceSoundActiveDb].
+  double _voiceSoundLevel = 0;
+  bool _voiceUserSpeaking = false;
+  static const double _voiceSoundActiveDb = -42;
+  static const Duration _voiceSilenceSendDelay =
+      Duration(milliseconds: 850);
 
   _VoiceCallStatus get _voiceCallStatus {
+    if (_isListening && _voiceUserSpeaking) {
+      return _VoiceCallStatus.listening;
+    }
+    if (_isListening && _isVoiceInteractionMode) {
+      return _VoiceCallStatus.idle;
+    }
     if (_isListening) return _VoiceCallStatus.listening;
     if (_isSpeaking) return _VoiceCallStatus.speaking;
     if (_isLoading && _isVoiceInteractionMode) {
@@ -607,6 +620,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   void _scheduleVoiceUtteranceFinalize() {
+    if (_isVoiceInteractionMode && _voiceUserSpeaking) return;
     _voiceUtteranceTimer?.cancel();
     final delay = _isVoiceInteractionMode
         ? const Duration(milliseconds: 2200)
@@ -617,6 +631,55 @@ class _RevenChatPageState extends State<RevenChatPage>
         unawaited(_finishVoiceSession());
       }
     });
+  }
+
+  void _onVoiceSoundLevel(double level) {
+    if (!_isListening || !mounted) return;
+
+    final speaking = level > _voiceSoundActiveDb;
+    final changedSpeaking = speaking != _voiceUserSpeaking;
+
+    if (changedSpeaking || (speaking && (_voiceSoundLevel - level).abs() > 2)) {
+      setState(() {
+        _voiceSoundLevel = level;
+        _voiceUserSpeaking = speaking;
+      });
+      _syncOverlayCallStatus();
+      if (speaking) {
+        if (!_micPulseController.isAnimating) {
+          _micPulseController.repeat(reverse: true);
+        }
+      } else {
+        _micPulseController.stop();
+      }
+    }
+
+    _voiceSilenceFinalizeTimer?.cancel();
+    if (speaking) {
+      _voiceUtteranceTimer?.cancel();
+      if (_isVoiceInteractionMode) {
+        try {
+          _speech.changePauseFor(const Duration(seconds: 8));
+        } catch (_) {}
+      }
+      return;
+    }
+
+    if (!_isVoiceInteractionMode) return;
+
+    final hasText = _voiceTranscript.trim().isNotEmpty;
+    if (hasText) {
+      _voiceSilenceFinalizeTimer = Timer(_voiceSilenceSendDelay, () {
+        if (!mounted || !_isListening || _voiceUserSpeaking) return;
+        unawaited(_finishVoiceSession());
+      });
+    }
+  }
+
+  void _resetVoiceSoundActivity() {
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceSoundLevel = 0;
+    _voiceUserSpeaking = false;
   }
 
   Future<void> _restartVoiceListenIfNeeded() async {
@@ -684,6 +747,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   /// Mic tap while listening: stop mic without sending (tap again to resume).
   Future<void> _pauseVoiceInput() async {
     _voiceUtteranceTimer?.cancel();
+    _resetVoiceSoundActivity();
     if (_isListening) {
       await _speech.stop();
     } else {
@@ -702,6 +766,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _cancelVoiceInput() async {
     if (!_isListening) return;
+    _resetVoiceSoundActivity();
     await _speech.cancel();
     _voiceTranscript = '';
     if (!mounted) return;
@@ -742,8 +807,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() {
       _isListening = true;
       _voiceMicPausedByUser = false;
+      _voiceUserSpeaking = false;
+      _voiceSoundLevel = 0;
     });
-    _micPulseController.repeat(reverse: true);
+    _micPulseController.stop();
+    _syncOverlayCallStatus();
 
     await _speech.listen(
       onResult: (result) {
@@ -752,17 +820,19 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (words.isNotEmpty) {
           setState(() => _voiceTranscript = words);
         }
-        if (words.isNotEmpty || result.finalResult) {
+        if (!_isVoiceInteractionMode &&
+            (words.isNotEmpty || result.finalResult)) {
           _scheduleVoiceUtteranceFinalize();
         }
       },
+      onSoundLevelChange: _onVoiceSoundLevel,
       localeId: localeId,
       listenMode: _isVoiceInteractionMode
           ? stt.ListenMode.dictation
           : stt.ListenMode.confirmation,
       cancelOnError: false,
       partialResults: true,
-      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 4 : 2),
+      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 10 : 2),
       listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 45),
     );
   }
@@ -770,6 +840,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _finishVoiceSession() async {
     if (!_isListening) return;
     _voiceUtteranceTimer?.cancel();
+    _resetVoiceSoundActivity();
     await _speech.stop();
     _micPulseController.stop();
     final text = _voiceTranscript.trim();
@@ -1179,6 +1250,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   @override
   void dispose() {
     _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
     if (widget.embedded) {
       RevenChatOverlay.updateCallStatus(RevenOverlayCallStatus.idle);
     }
@@ -1849,6 +1921,8 @@ class _RevenChatPageState extends State<RevenChatPage>
                         _RevenVoiceComposer(
                           status: _voiceCallStatus,
                           micPaused: _voiceMicPausedByUser,
+                          micSessionOpen: _isListening,
+                          userSpeaking: _voiceUserSpeaking,
                           voiceModelLabel: _voicePlaybackLabel,
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
@@ -2075,6 +2149,8 @@ class _RevenVoiceComposer extends StatelessWidget {
   const _RevenVoiceComposer({
     required this.status,
     this.micPaused = false,
+    this.micSessionOpen = false,
+    this.userSpeaking = false,
     required this.voiceModelLabel,
     required this.activeVoiceLabel,
     required this.showVoicePicker,
@@ -2096,6 +2172,8 @@ class _RevenVoiceComposer extends StatelessWidget {
 
   final _VoiceCallStatus status;
   final bool micPaused;
+  final bool micSessionOpen;
+  final bool userSpeaking;
   final String voiceModelLabel;
   final String activeVoiceLabel;
   final bool showVoicePicker;
@@ -2132,7 +2210,7 @@ class _RevenVoiceComposer extends StatelessWidget {
       case _VoiceCallStatus.listening:
         return liveCaption.trim().isNotEmpty
             ? liveCaption.trim()
-            : 'Listening…';
+            : 'Listening to you…';
       case _VoiceCallStatus.processing:
         return 'Thinking…';
       case _VoiceCallStatus.speaking:
@@ -2144,18 +2222,20 @@ class _RevenVoiceComposer extends StatelessWidget {
         }
         return 'Speaking… · tap mic to interrupt';
       case _VoiceCallStatus.idle:
-        return micPaused
-            ? 'Tap the mic to resume'
-            : 'Tap the mic and talk — like ChatGPT voice';
+        if (micPaused) {
+          return 'Tap the mic to resume';
+        }
+        if (micSessionOpen) {
+          return 'Speak now — voice active when it hears you';
+        }
+        return 'Tap the mic and talk — like ChatGPT voice';
     }
   }
 
-  bool get _micIsListening => status == _VoiceCallStatus.listening;
+  bool get _micIsListening => userSpeaking;
 
   @override
   Widget build(BuildContext context) {
-    final active = status != _VoiceCallStatus.idle;
-
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
@@ -2172,9 +2252,9 @@ class _RevenVoiceComposer extends StatelessWidget {
               children: [
                 _VoiceCallOrb(
                   accent: _accent,
-                  active: active,
+                  active: userSpeaking,
                   pulse: pulse,
-                  isListening: _micIsListening,
+                  isListening: userSpeaking,
                   size: 72,
                 ),
                 const SizedBox(height: 10),
@@ -2273,21 +2353,28 @@ class _RevenVoiceComposer extends StatelessWidget {
                             height: _kComposerBtnSize,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _micIsListening
+                              color: userSpeaking
                                   ? const Color(0xFF22C55E)
-                                  : surfaceColor,
+                                  : micSessionOpen
+                                      ? const Color(0xFF4F7CFF).withValues(alpha: 0.2)
+                                      : surfaceColor,
                               border: Border.all(
-                                color: _micIsListening
+                                color: userSpeaking
                                     ? const Color(0xFF22C55E)
-                                    : borderColor,
+                                    : micSessionOpen
+                                        ? const Color(0xFF4F7CFF)
+                                        : borderColor,
                               ),
                             ),
                             child: Icon(
-                              _micIsListening
+                              userSpeaking
                                   ? Icons.mic_rounded
                                   : Icons.mic_none_rounded,
-                              color:
-                                  _micIsListening ? Colors.white : subtitleColor,
+                              color: userSpeaking
+                                  ? Colors.white
+                                  : micSessionOpen
+                                      ? const Color(0xFF4F7CFF)
+                                      : subtitleColor,
                               size: 20,
                             ),
                           ),
