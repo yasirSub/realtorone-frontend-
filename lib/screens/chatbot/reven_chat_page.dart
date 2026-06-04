@@ -353,10 +353,18 @@ class _RevenChatPageState extends State<RevenChatPage>
     return _defaultVoiceId.isNotEmpty ? _defaultVoiceId : null;
   }
 
+  String get _normalizedMembershipTier {
+    final raw = _membershipTier.trim();
+    if (raw.isEmpty) return 'Consultant';
+    for (final key in _voiceCloudTierAllow.keys) {
+      if (key.toLowerCase() == raw.toLowerCase()) return key;
+    }
+    return raw;
+  }
+
   bool get _effectiveVoiceCloudEnabled {
     if (!_voiceCloudEnabled) return false;
-    final tier = _membershipTier.trim().isEmpty ? 'Consultant' : _membershipTier;
-    return _voiceCloudTierAllow[tier] == true;
+    return _voiceCloudTierAllow[_normalizedMembershipTier] == true;
   }
 
   String get _voicePlaybackLabel {
@@ -566,19 +574,38 @@ class _RevenChatPageState extends State<RevenChatPage>
     Map<String, dynamic>? voiceRes = apiRes;
     var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
     if (audioB64.isEmpty) {
+      if (mounted) setState(() => _isSpeaking = true);
       voiceRes = await ChatApi.synthesizeVoice(
         text,
         voiceId: _activeVoiceIdForApi,
       );
+      if (!mounted) return;
       if (voiceRes['success'] == true &&
           voiceRes['reply_audio_engine']?.toString() == 'device') {
         final spoke = await _speakDeviceTts(text);
         if (spoke && _isVoiceInteractionMode) {
           await _scheduleVoiceListenAfterReply();
+        } else if (mounted) {
+          setState(() => _isSpeaking = false);
         }
         return;
       }
       audioB64 = voiceRes['reply_audio_base64']?.toString() ?? '';
+      if (audioB64.isEmpty && voiceRes['success'] != true) {
+        final err = voiceRes['message']?.toString().trim() ?? '';
+        final spoke = await _speakDeviceTts(text);
+        if (mounted) setState(() => _isSpeaking = false);
+        if (spoke) {
+          if (err.isNotEmpty) {
+            _showVoiceSnack('$err — using device voice.');
+          }
+          if (_isVoiceInteractionMode) {
+            await _scheduleVoiceListenAfterReply();
+          }
+          return;
+        }
+        if (mounted) setState(() => _isSpeaking = false);
+      }
     }
 
     final audioMime =
@@ -606,11 +633,19 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (engine == 'failed' || _isVoiceInteractionMode || _preferAiVoiceOnly) {
       final err = voiceRes?['reply_audio_error']?.toString() ??
           voiceRes?['message']?.toString();
-      _showVoiceSnack(
-        err?.isNotEmpty == true
-            ? err!
-            : 'Cloud voice ($_voiceModelLabel) unavailable. Enable cloud voice in admin and choose a speaker for this model.',
-      );
+      final spoke = await _speakDeviceTts(text);
+      if (mounted) setState(() => _isSpeaking = false);
+      if (spoke) {
+        if (err != null && err.isNotEmpty) {
+          _showVoiceSnack('$err — using device voice.');
+        }
+      } else {
+        _showVoiceSnack(
+          err != null && err.isNotEmpty
+              ? err
+              : 'Cloud voice ($_voiceModelLabel) unavailable. Enable cloud voice in admin and choose a speaker for this model.',
+        );
+      }
       if (_isVoiceInteractionMode) {
         await _scheduleVoiceListenAfterReply();
       }
@@ -1399,6 +1434,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     Map<String, dynamic>? ttsRes;
     final shouldSpeak = _voiceReadAloud &&
         (_isVoiceInteractionMode || _lastTurnWasVoice);
+    final voiceTurn = _isVoiceInteractionMode;
     setState(() {
       _messages.removeLast();
       _isLoading = false;
@@ -1465,7 +1501,6 @@ class _RevenChatPageState extends State<RevenChatPage>
           }
         }
 
-        final voiceTurn = _isVoiceInteractionMode;
         if (voiceTurn) {
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
@@ -1487,12 +1522,7 @@ class _RevenChatPageState extends State<RevenChatPage>
             _sessionId = sid is int ? sid : int.tryParse(sid.toString());
             _fetchSessions();
           }
-          if (shouldSpeak && replyText.trim().isNotEmpty) {
-            ttsReply = replyText;
-            ttsRes = res;
-          }
           _lastTurnWasVoice = false;
-          return;
         }
 
         final lastMsg = _messages.last;
@@ -1538,11 +1568,9 @@ class _RevenChatPageState extends State<RevenChatPage>
           _fetchSessions();
         }
 
-        if (shouldSpeak && replyText.trim().isNotEmpty) {
-          ttsReply = replyText;
-          ttsRes = res;
+        if (!voiceTurn) {
+          _lastTurnWasVoice = false;
         }
-        _lastTurnWasVoice = false;
       } else {
         final unavailable = res['service_unavailable'] == true;
         final errMsg = (res['message'] as String?)?.trim();
@@ -1558,9 +1586,19 @@ class _RevenChatPageState extends State<RevenChatPage>
         );
       }
     });
+    if (res['success'] == true) {
+      final lastAssistant = _messages.reversed
+          .where((m) => !m.isUser && !m.isLoading)
+          .map((m) => m.text.trim())
+          .firstWhere((t) => t.isNotEmpty, orElse: () => '');
+      if (shouldSpeak && lastAssistant.isNotEmpty) {
+        ttsReply = lastAssistant;
+        ttsRes = res;
+      }
+    }
     _scrollToBottom();
     if (ttsReply != null) {
-      await _speakReply(ttsReply!, apiRes: ttsRes);
+      await _speakReply(ttsReply, apiRes: ttsRes);
     }
     // Hands-free: re-open mic after reply unless the user muted it with the mic button.
     if (_isVoiceInteractionMode &&
