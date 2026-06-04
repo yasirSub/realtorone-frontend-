@@ -73,8 +73,12 @@ class _ProfilePageState extends State<ProfilePage> {
               'PROFILE_DEBUG: Is Premium: ${_userData?['is_premium']} (Type: ${_userData?['is_premium']?.runtimeType})',
             );
           }
-          if (quotaRes['success'] == true && quotaRes['data'] is Map) {
+          if (quotaRes['success'] == true &&
+              quotaRes['visible'] != false &&
+              quotaRes['data'] is Map) {
             _aiQuota = Map<String, dynamic>.from(quotaRes['data'] as Map);
+          } else {
+            _aiQuota = null;
           }
           _isLoading = false;
         });
