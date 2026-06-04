@@ -573,7 +573,9 @@ class _RevenChatPageState extends State<RevenChatPage>
 
     Map<String, dynamic>? voiceRes = apiRes;
     var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
-    if (audioB64.isEmpty) {
+    // Voice call uses inline audio on /chat; second TTS call only for typed read-aloud.
+    final needsSeparateTts = audioB64.isEmpty && !_isVoiceInteractionMode;
+    if (needsSeparateTts) {
       if (mounted) setState(() => _isSpeaking = true);
       voiceRes = await ChatApi.synthesizeVoice(
         text,
@@ -1420,11 +1422,14 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
 
-    // Text reply first; cloud TTS runs in _speakReply via /chat/voice-audio (avoids timeouts).
+    // Voice call: one request returns text + audio (faster than text then a second TTS call).
+    final inlineCloudVoice = _isVoiceInteractionMode &&
+        _voiceReadAloud &&
+        _effectiveVoiceCloudEnabled;
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: false,
+      voiceReply: inlineCloudVoice,
       voiceMode: _isVoiceInteractionMode,
       voiceId: _activeVoiceIdForApi,
     );
@@ -1504,16 +1509,24 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (voiceTurn) {
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
-        _messages.add(
-          _RevenMessage(
-            text: replyText,
-            isUser: false,
-            courses: voiceTurn ? null : courses,
-            commands: voiceTurn ? null : commands,
-            clients: voiceTurn ? null : clients,
-            createdAt: DateTime.now(),
-          ),
-        );
+
+        final deferVoiceBubble = voiceTurn &&
+            shouldSpeak &&
+            inlineCloudVoice &&
+            (res['reply_audio_base64']?.toString().isNotEmpty == true);
+
+        if (!deferVoiceBubble) {
+          _messages.add(
+            _RevenMessage(
+              text: replyText,
+              isUser: false,
+              courses: voiceTurn ? null : courses,
+              commands: voiceTurn ? null : commands,
+              clients: voiceTurn ? null : clients,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
 
         // --- Auto-fetch clients/courses if promised but not sent ---
         if (voiceTurn) {
@@ -1587,18 +1600,49 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     });
     if (res['success'] == true) {
-      final lastAssistant = _messages.reversed
-          .where((m) => !m.isUser && !m.isLoading)
-          .map((m) => m.text.trim())
-          .firstWhere((t) => t.isNotEmpty, orElse: () => '');
-      if (shouldSpeak && lastAssistant.isNotEmpty) {
-        ttsReply = lastAssistant;
+      var speakText = (res['reply'] as String? ?? '').trim();
+      if (voiceTurn) {
+        speakText = speakText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
+      }
+      if (speakText.isEmpty) {
+        speakText = _messages.reversed
+            .where((m) => !m.isUser && !m.isLoading)
+            .map((m) => m.text.trim())
+            .firstWhere((t) => t.isNotEmpty, orElse: () => '');
+      }
+      if (shouldSpeak && speakText.isNotEmpty) {
+        ttsReply = speakText;
         ttsRes = res;
       }
     }
     _scrollToBottom();
     if (ttsReply != null) {
-      await _speakReply(ttsReply, apiRes: ttsRes);
+      final speakText = ttsReply;
+      final deferBubble = voiceTurn &&
+          inlineCloudVoice &&
+          (ttsRes?['reply_audio_base64']?.toString().isNotEmpty == true);
+      if (deferBubble && mounted) {
+        setState(() => _isSpeaking = true);
+      }
+      await _speakReply(speakText, apiRes: ttsRes);
+      if (deferBubble && mounted) {
+        setState(() {
+          _isSpeaking = false;
+          final alreadyShown = _messages.any(
+            (m) => !m.isUser && !m.isLoading && m.text == speakText,
+          );
+          if (!alreadyShown) {
+            _messages.add(
+              _RevenMessage(
+                text: speakText,
+                isUser: false,
+                createdAt: DateTime.now(),
+              ),
+            );
+          }
+        });
+        _scrollToBottom();
+      }
     }
     // Hands-free: re-open mic after reply unless the user muted it with the mic button.
     if (_isVoiceInteractionMode &&

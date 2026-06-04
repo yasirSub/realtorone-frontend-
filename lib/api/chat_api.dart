@@ -26,11 +26,14 @@ class ChatApi {
     if (voiceId != null && voiceId.trim().isNotEmpty) {
       body['voice_id'] = voiceId.trim();
     }
+    final timeout = voiceReply || voiceMode
+        ? const Duration(seconds: 150)
+        : const Duration(seconds: 120);
     return ApiClient.post(
       ApiEndpoints.chat,
       body,
       requiresAuth: true,
-      timeout: const Duration(seconds: 120),
+      timeout: timeout,
     );
   }
 
