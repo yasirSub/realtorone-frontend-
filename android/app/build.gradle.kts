@@ -53,14 +53,21 @@ android {
                 val localKeyPassword = keystoreProperties["keyPassword"] as String?
                     ?: throw GradleException("key.properties missing 'keyPassword'")
 
-                signingConfig = signingConfigs.create("release") {
-                    this.keyAlias = localKeyAlias
-                    this.keyPassword = localKeyPassword
-                    this.storeFile = file(localStoreFilePath)
-                    this.storePassword = localStorePassword
+                val localStoreFile = file(localStoreFilePath)
+                if (!localStoreFile.exists()) {
+                    logger.warn("Keystore file '${localStoreFile.absolutePath}' not found. Falling back to debug signing for local builds.")
+                    signingConfig = signingConfigs.getByName("debug")
+                } else {
+                    signingConfig = signingConfigs.create("release") {
+                        this.keyAlias = localKeyAlias
+                        this.keyPassword = localKeyPassword
+                        this.storeFile = localStoreFile
+                        this.storePassword = localStorePassword
+                    }
                 }
             } else {
-                logger.warn("Missing android/key.properties. Release build will fail to sign.")
+                logger.warn("Missing android/key.properties. Release build will use debug signing for local builds (not for Play Store).")
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
     }

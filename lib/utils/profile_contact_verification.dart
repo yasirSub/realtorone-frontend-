@@ -7,6 +7,13 @@ import '../utils/firebase_phone_auth_helper.dart';
 import '../widgets/otp_pin_input_row.dart';
 import '../widgets/realtor_one_dialog_scaffold.dart';
 
+/// Outcome of the post-save contact verification dialog.
+enum ProfileContactVerificationResult {
+  verified,
+  dismissedLater,
+  notVerified,
+}
+
 /// Sends OTP and shows verify dialog after email/phone change (e.g. Edit Profile save).
 class ProfileContactVerification {
   ProfileContactVerification({
@@ -24,14 +31,16 @@ class ProfileContactVerification {
     );
   }
 
-  /// Returns true when verified (or dialog completed successfully).
-  Future<bool> verifyEmail(String email, {bool sendOtpIfNeeded = true}) async {
+  Future<ProfileContactVerificationResult> verifyEmail(
+    String email, {
+    bool sendOtpIfNeeded = true,
+  }) async {
     final normalized = email.trim().toLowerCase();
-    if (normalized.isEmpty) return false;
+    if (normalized.isEmpty) return ProfileContactVerificationResult.notVerified;
 
     if (sendOtpIfNeeded) {
       final send = await UserApi.sendEmailOtp(normalized);
-      if (!context.mounted) return false;
+      if (!context.mounted) return ProfileContactVerificationResult.notVerified;
       if (send['status'] != 'ok' &&
           send['success'] != true &&
           send['already_verified'] != true) {
@@ -39,9 +48,11 @@ class ProfileContactVerification {
           send['message']?.toString() ?? 'Could not send email verification code.',
           Colors.red,
         );
-        return false;
+        return ProfileContactVerificationResult.notVerified;
       }
-      if (send['already_verified'] == true) return true;
+      if (send['already_verified'] == true) {
+        return ProfileContactVerificationResult.verified;
+      }
     }
 
     return _showOtpDialog(
@@ -52,14 +63,16 @@ class ProfileContactVerification {
   }
 
   /// Sends phone OTP (Firebase or server SMS) then shows verify dialog.
-  Future<bool> verifyPhone({
+  Future<ProfileContactVerificationResult> verifyPhone({
     required String accountEmail,
     required String phoneE164,
   }) async {
-    if (!context.mounted) return false;
+    if (!context.mounted) return ProfileContactVerificationResult.notVerified;
     final email = accountEmail.trim().toLowerCase();
     final phone = phoneE164.trim();
-    if (email.isEmpty || phone.isEmpty) return false;
+    if (email.isEmpty || phone.isEmpty) {
+      return ProfileContactVerificationResult.notVerified;
+    }
 
     final ready = await FirebasePhoneAuthHelper.ensureInitialized();
     if (!ready) {
@@ -74,7 +87,7 @@ class ProfileContactVerification {
       auth: firebaseAuth,
       phoneE164: phone,
     );
-    if (!context.mounted) return false;
+    if (!context.mounted) return ProfileContactVerificationResult.notVerified;
 
     if (!result.ok) {
       if (result.billingBlocked) {
@@ -91,7 +104,10 @@ class ProfileContactVerification {
         email: email,
         mobile: phone,
       );
-      return response['status'] == 'ok' || response['success'] == true;
+      if (response['status'] == 'ok' || response['success'] == true) {
+        return ProfileContactVerificationResult.verified;
+      }
+      return ProfileContactVerificationResult.notVerified;
     }
 
     _snack('Verification code sent to your phone.', Colors.green);
@@ -104,12 +120,12 @@ class ProfileContactVerification {
     );
   }
 
-  Future<bool> _sendBrevoAndShowDialog({
+  Future<ProfileContactVerificationResult> _sendBrevoAndShowDialog({
     required String email,
     required String phone,
   }) async {
     final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-    if (!context.mounted) return false;
+    if (!context.mounted) return ProfileContactVerificationResult.notVerified;
     if (smsResponse['status'] == 'ok' || smsResponse['success'] == true) {
       _snack('Verification code sent via SMS.', Colors.green);
       return _showOtpDialog(
@@ -123,7 +139,7 @@ class ProfileContactVerification {
       smsResponse['message']?.toString() ?? 'Could not send SMS verification code.',
       Colors.red,
     );
-    return false;
+    return ProfileContactVerificationResult.notVerified;
   }
 
   Future<Map<String, dynamic>> _verifyFirebaseCredential({
@@ -156,7 +172,7 @@ class ProfileContactVerification {
     }
   }
 
-  Future<bool> _showOtpDialog({
+  Future<ProfileContactVerificationResult> _showOtpDialog({
     required String email,
     required bool isEmail,
     String? phone,
@@ -169,7 +185,7 @@ class ProfileContactVerification {
     var errorMessage = '';
     var isVerifying = false;
     var isResending = false;
-    var verified = false;
+    var outcome = ProfileContactVerificationResult.notVerified;
     var currentFirebaseVerificationId = firebaseVerificationId ?? '';
     var currentUsesFirebase = usesFirebasePhone;
 
@@ -213,7 +229,7 @@ class ProfileContactVerification {
                 }
 
                 if (response['status'] == 'ok' || response['success'] == true) {
-                  verified = true;
+                  outcome = ProfileContactVerificationResult.verified;
                   setDialogState(() {
                     visualState = OtpPinVisualState.success;
                     isVerifying = false;
@@ -335,7 +351,12 @@ class ProfileContactVerification {
               title: isEmail ? 'Verify new email' : 'Verify new phone',
               actions: [
                 TextButton(
-                  onPressed: isVerifying ? null : () => Navigator.pop(dCtx),
+                  onPressed: isVerifying
+                      ? null
+                      : () {
+                          outcome = ProfileContactVerificationResult.dismissedLater;
+                          Navigator.pop(dCtx);
+                        },
                   child: const Text(
                     'LATER',
                     style: TextStyle(
@@ -433,12 +454,12 @@ class ProfileContactVerification {
       },
     );
 
-    if (verified) {
+    if (outcome == ProfileContactVerificationResult.verified) {
       _snack(
         isEmail ? 'Email verified successfully!' : 'Phone verified successfully!',
         Colors.green,
       );
     }
-    return verified;
+    return outcome;
   }
 }

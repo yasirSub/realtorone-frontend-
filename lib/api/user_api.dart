@@ -37,11 +37,19 @@ class UserApi {
     double? targetMonthlyIncome,
     int? onboardingStep,
     bool? isProfileComplete,
+    bool restoreEmailVerification = false,
+    bool restoreMobileVerification = false,
   }) async {
     final data = <String, dynamic>{};
     if (name != null) data['name'] = name;
     if (email != null) data['email'] = email;
     if (mobile != null) data['mobile'] = mobile;
+    if (restoreEmailVerification) {
+      data['restore_email_verification'] = true;
+    }
+    if (restoreMobileVerification) {
+      data['restore_mobile_verification'] = true;
+    }
     if (city != null) data['city'] = city;
     if (brokerage != null) data['brokerage'] = brokerage;
     if (instagram != null) data['instagram'] = instagram;

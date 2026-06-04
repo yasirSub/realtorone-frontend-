@@ -90,8 +90,8 @@ class _ProfilePageState extends State<ProfilePage> {
     if (_userData!['brokerage']?.toString().isNotEmpty == true) count++;
     if (_userData!['years_experience'] != null) count++;
     if (_userData!['current_monthly_income'] != null) count++;
-    if (_userData!['email_verified_at'] != null) count++;
-    if (_userData!['mobile_verified_at'] != null) count++;
+    if (isVerifiedTimestamp(_userData!['email_verified_at'])) count++;
+    if (isVerifiedTimestamp(_userData!['mobile_verified_at'])) count++;
 
     return count / total;
   }
@@ -402,10 +402,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                   const SizedBox(width: 6),
                                   Icon(
-                                    _userData?['email_verified_at'] != null
+                                    isVerifiedTimestamp(
+                                          _userData?['email_verified_at'],
+                                        )
                                         ? Icons.verified_user_rounded
                                         : Icons.warning_amber_rounded,
-                                    color: _userData?['email_verified_at'] != null
+                                    color: isVerifiedTimestamp(
+                                          _userData?['email_verified_at'],
+                                        )
                                         ? const Color(0xFF10B981)
                                         : const Color(0xFFEF4444),
                                     size: 14,
@@ -430,10 +434,14 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                     const SizedBox(width: 6),
                                     Icon(
-                                      _userData?['mobile_verified_at'] != null
+                                      isVerifiedTimestamp(
+                                            _userData?['mobile_verified_at'],
+                                          )
                                           ? Icons.verified_user_rounded
                                           : Icons.warning_amber_rounded,
-                                      color: _userData?['mobile_verified_at'] != null
+                                      color: isVerifiedTimestamp(
+                                            _userData?['mobile_verified_at'],
+                                          )
                                           ? const Color(0xFF10B981)
                                           : const Color(0xFFEF4444),
                                       size: 14,
@@ -1698,8 +1706,10 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
-    final emailVerified = _userData?['email_verified_at'] != null;
-    final phoneVerified = _userData?['mobile_verified_at'] != null;
+    final emailVerified =
+        isVerifiedTimestamp(_userData?['email_verified_at']);
+    final phoneVerified =
+        isVerifiedTimestamp(_userData?['mobile_verified_at']);
     final hasEmail = (_userData?['email']?.toString() ?? '').trim().isNotEmpty;
     final showEmailVerify = hasEmail && !emailVerified;
     final showPhoneVerify = !phoneVerified;

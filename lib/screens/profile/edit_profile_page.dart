@@ -36,7 +36,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _isPhoneVerified = false;
   String _originalEmail = '';
   String _originalPhoneE164 = '';
+  bool _originalEmailWasVerified = false;
+  bool _originalPhoneWasVerified = false;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+  bool _phonesEqual(String a, String b) {
+    final na = PhoneUtils.normalizeFreeform(a.trim());
+    final nb = PhoneUtils.normalizeFreeform(b.trim());
+    if (na.isEmpty && nb.isEmpty) return true;
+    return na == nb;
+  }
 
   final List<String> _dubaiCities = [
     'Dubai Marina',
@@ -80,14 +89,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _isEmailVerified = isVerifiedTimestamp(userData['email_verified_at']);
         _isPhoneVerified = isVerifiedTimestamp(userData['mobile_verified_at']);
         _originalEmail = _emailController.text.trim().toLowerCase();
+        _originalEmailWasVerified = _isEmailVerified;
+        _originalPhoneWasVerified = _isPhoneVerified;
         final storedMobile =
             (userData['mobile'] ?? userData['phone_number'] ?? '').toString();
         final parsed = PhoneUtils.parseStored(storedMobile);
         _selectedDialCode = parsed.dialCode;
         _mobileController.text = parsed.localDigits;
-        _originalPhoneE164 = PhoneUtils.composeE164(
-          _selectedDialCode,
-          _mobileController.text,
+        _originalPhoneE164 = PhoneUtils.normalizeFreeform(
+          PhoneUtils.composeE164(_selectedDialCode, _mobileController.text),
         );
         _cityController.text = userData['city'] ?? 'Dubai Marina';
         _brokerageController.text = userData['brokerage'] ?? '';
@@ -117,12 +127,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!_formKey.currentState!.validate()) return;
 
     final newEmail = _emailController.text.trim().toLowerCase();
-    final newPhoneE164 = PhoneUtils.composeE164(
-      _selectedDialCode,
-      _mobileController.text,
+    final newPhoneE164 = PhoneUtils.normalizeFreeform(
+      PhoneUtils.composeE164(_selectedDialCode, _mobileController.text),
     );
     final emailChanged = newEmail != _originalEmail;
-    final phoneChanged = newPhoneE164 != _originalPhoneE164;
+    final phoneChanged = !_phonesEqual(newPhoneE164, _originalPhoneE164);
 
     setState(() => _isSaving = true);
 
@@ -131,8 +140,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         name:
             '${_firstNameController.text.trim()} ${_lastNameController.text.trim()}'
                 .trim(),
-        email: newEmail,
-        mobile: newPhoneE164,
+        email: emailChanged ? newEmail : null,
+        mobile: phoneChanged ? newPhoneE164 : null,
         city: _cityController.text.trim(),
         brokerage: _brokerageController.text.trim(),
         instagram: _instagramController.text.trim(),
@@ -146,13 +155,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       final ok = response['success'] == true || response['status'] == 'ok';
       if (ok) {
+        final apiEmailChanged = response['email_changed'] == true;
+        final apiPhoneChanged = response['mobile_changed'] == true;
+
+        void applyVerificationFromResponse(Map<String, dynamic>? payload) {
+          if (payload == null) return;
+          if (!apiEmailChanged) {
+            _isEmailVerified = _originalEmailWasVerified;
+          } else {
+            _isEmailVerified =
+                isVerifiedTimestamp(payload['email_verified_at']);
+          }
+          if (!apiPhoneChanged) {
+            _isPhoneVerified = _originalPhoneWasVerified;
+          } else {
+            _isPhoneVerified =
+                isVerifiedTimestamp(payload['mobile_verified_at']);
+          }
+        }
+
         final data = response['data'];
         if (data is Map<String, dynamic>) {
-          _isEmailVerified = isVerifiedTimestamp(data['email_verified_at']);
-          _isPhoneVerified = isVerifiedTimestamp(data['mobile_verified_at']);
+          applyVerificationFromResponse(data);
         } else {
-          if (emailChanged) _isEmailVerified = false;
-          if (phoneChanged) _isPhoneVerified = false;
+          applyVerificationFromResponse(null);
         }
 
         final verifier = ProfileContactVerification(
@@ -161,8 +187,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         );
 
         var pendingMessage = '';
+        var emailReverted = false;
+        var phoneReverted = false;
 
-        if (emailChanged) {
+        if (apiEmailChanged) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -175,20 +203,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
               behavior: SnackBarBehavior.floating,
             ),
           );
-          final emailOk = await verifier.verifyEmail(
+          final emailResult = await verifier.verifyEmail(
             newEmail,
             sendOtpIfNeeded: response['otp_send_failed'] == true,
           );
-          if (emailOk) {
+          if (emailResult == ProfileContactVerificationResult.verified) {
             _isEmailVerified = true;
             _originalEmail = newEmail;
+            _originalEmailWasVerified = true;
+          } else if (emailResult ==
+              ProfileContactVerificationResult.dismissedLater) {
+            emailReverted = true;
+            await _revertContactChange(
+              revertEmail: true,
+              revertPhone: false,
+            );
           } else {
             pendingMessage = 'New email is not verified yet.';
           }
         }
 
-        if (phoneChanged && mounted) {
-          if (!emailChanged) {
+        if (apiPhoneChanged && mounted && !phoneReverted) {
+          if (!apiEmailChanged) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -199,14 +235,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
             );
           }
-          final phoneOk = await verifier.verifyPhone(
-            accountEmail: newEmail,
+          final accountEmail =
+              emailReverted ? _originalEmail : newEmail;
+          final phoneResult = await verifier.verifyPhone(
+            accountEmail: accountEmail,
             phoneE164: newPhoneE164,
           );
-          if (phoneOk) {
+          if (phoneResult == ProfileContactVerificationResult.verified) {
             _isPhoneVerified = true;
             _originalPhoneE164 = newPhoneE164;
-          } else {
+            _originalPhoneWasVerified = true;
+          } else if (phoneResult ==
+              ProfileContactVerificationResult.dismissedLater) {
+            phoneReverted = true;
+            await _revertContactChange(
+              revertEmail: false,
+              revertPhone: true,
+            );
+          } else if (!emailReverted) {
             pendingMessage = pendingMessage.isEmpty
                 ? 'New phone number is not verified yet.'
                 : '$pendingMessage New phone is not verified yet.';
@@ -215,7 +261,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
         if (!mounted) return;
 
-        if (!emailChanged && !phoneChanged) {
+        if (!apiEmailChanged && !apiPhoneChanged) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Profile updated successfully!'),
@@ -224,6 +270,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+            ),
+          );
+        } else if (emailReverted || phoneReverted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                emailReverted && phoneReverted
+                    ? 'Contact changes discarded. Previous email and phone restored.'
+                    : emailReverted
+                        ? 'Email change discarded. Your previous email was restored.'
+                        : 'Phone change discarded. Your previous number was restored.',
+              ),
+              backgroundColor: Colors.orange[800],
+              behavior: SnackBarBehavior.floating,
             ),
           );
         } else if (pendingMessage.isNotEmpty) {
@@ -246,6 +306,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (mounted) _showError('Connection error: $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _revertContactChange({
+    required bool revertEmail,
+    required bool revertPhone,
+  }) async {
+    final response = await UserApi.updateProfile(
+      email: revertEmail ? _originalEmail : null,
+      mobile: revertPhone ? _originalPhoneE164 : null,
+      restoreEmailVerification: revertEmail && _originalEmailWasVerified,
+      restoreMobileVerification: revertPhone && _originalPhoneWasVerified,
+    );
+    if (!mounted) return;
+    if (response['success'] == true || response['status'] == 'ok') {
+      final data = response['data'];
+      if (data is Map<String, dynamic>) {
+        if (revertEmail) {
+          _emailController.text = _originalEmail;
+          _isEmailVerified =
+              isVerifiedTimestamp(data['email_verified_at']) ||
+              _originalEmailWasVerified;
+        }
+        if (revertPhone) {
+          final parsed = PhoneUtils.parseStored(_originalPhoneE164);
+          _selectedDialCode = parsed.dialCode;
+          _mobileController.text = parsed.localDigits;
+          _isPhoneVerified =
+              isVerifiedTimestamp(data['mobile_verified_at']) ||
+              _originalPhoneWasVerified;
+        }
+      } else {
+        if (revertEmail) {
+          _emailController.text = _originalEmail;
+          _isEmailVerified = _originalEmailWasVerified;
+        }
+        if (revertPhone) {
+          final parsed = PhoneUtils.parseStored(_originalPhoneE164);
+          _selectedDialCode = parsed.dialCode;
+          _mobileController.text = parsed.localDigits;
+          _isPhoneVerified = _originalPhoneWasVerified;
+        }
+      }
+      setState(() {});
     }
   }
 
