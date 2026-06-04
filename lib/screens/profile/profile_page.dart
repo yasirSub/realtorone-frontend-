@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../api/api_client.dart';
 import '../../api/user_api.dart';
+import '../../api/chat_api.dart';
 import '../../l10n/app_localizations.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/elite_loader.dart';
@@ -27,6 +28,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _userData;
+  Map<String, dynamic>? _aiQuota;
   bool _isLoading = true;
   bool _showCompletenessLabel = true;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -52,7 +54,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final response = await UserApi.getProfile(useCache: false);
+      final results = await Future.wait([
+        UserApi.getProfile(useCache: false),
+        ChatApi.getAiQuota().catchError((_) => <String, dynamic>{'success': false}),
+      ]);
+      final response = results[0];
+      final quotaRes = results[1];
       debugPrint('PROFILE_DEBUG: Raw Response: $response');
       if (mounted) {
         setState(() {
@@ -65,6 +72,9 @@ class _ProfilePageState extends State<ProfilePage> {
             debugPrint(
               'PROFILE_DEBUG: Is Premium: ${_userData?['is_premium']} (Type: ${_userData?['is_premium']?.runtimeType})',
             );
+          }
+          if (quotaRes['success'] == true && quotaRes['data'] is Map) {
+            _aiQuota = Map<String, dynamic>.from(quotaRes['data'] as Map);
           }
           _isLoading = false;
         });
@@ -503,6 +513,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ], isDark),
                       const SizedBox(height: 24),
 
+                      if (_aiQuota != null) ...[
+                        _buildAiUsageCard(isDark),
+                        const SizedBox(height: 24),
+                      ],
+
                       // My Plan Section
                       _buildMenuSection(l10n.profileSectionMyPlan, [
                         _MenuItem(
@@ -630,6 +645,181 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAiUsageCard(bool isDark) {
+    final q = _aiQuota!;
+    int _int(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
+    final todayUsed = _int(q['tokens_today']);
+    final monthUsed = _int(q['tokens_month']);
+    final dailyLimit = _int(q['daily_limit']);
+    final monthlyLimit = _int(q['monthly_limit']);
+    final remainDay = q['remaining_daily'];
+    final remainMonth = q['remaining_monthly'];
+    String fmtLimit(int n) => n <= 0 ? 'Unlimited' : n.toString();
+    double barFrac(int used, int limit) {
+      if (limit <= 0) return used > 0 ? 0.12 : 0;
+      return (used / limit).clamp(0.0, 1.0);
+    }
+
+    final sessions = q['recent_sessions'];
+    final List<Map<String, dynamic>> recent = sessions is List
+        ? sessions
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : [];
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: RealtorOneBrand.accentIndigo.withValues(alpha: 0.25),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+            blurRadius: 16,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, color: RealtorOneBrand.accentIndigo, size: 20),
+              const SizedBox(width: 8),
+              const Text(
+                'AI Coach usage',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${q['tier'] ?? _userData?['membership_tier'] ?? 'Consultant'} plan limits',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white54 : Colors.black54,
+            ),
+          ),
+          if (q['exceeded'] != null && '$q[exceeded]'.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Limit reached — resets ${q['exceeded'] == 'monthly' ? 'next month' : 'tomorrow'}',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          _aiUsageMeter(
+            label: 'Today',
+            used: todayUsed,
+            limitLabel: fmtLimit(dailyLimit),
+            remaining: remainDay is int ? remainDay : int.tryParse('$remainDay'),
+            fraction: barFrac(todayUsed, dailyLimit),
+            isDark: isDark,
+          ),
+          const SizedBox(height: 12),
+          _aiUsageMeter(
+            label: 'This month',
+            used: monthUsed,
+            limitLabel: fmtLimit(monthlyLimit),
+            remaining: remainMonth is int ? remainMonth : int.tryParse('$remainMonth'),
+            fraction: barFrac(monthUsed, monthlyLimit),
+            isDark: isDark,
+            accent: Colors.amber,
+          ),
+          if (recent.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            Text(
+              'Recent chats',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...recent.take(5).map((s) {
+              final title = (s['title'] ?? 'Chat').toString();
+              final tokens = _int(s['tokens']);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(
+                      '$tokens TK',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: RealtorOneBrand.accentIndigo,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _aiUsageMeter({
+    required String label,
+    required int used,
+    required String limitLabel,
+    required int? remaining,
+    required double fraction,
+    required bool isDark,
+    Color accent = const Color(0xFF6366F1),
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            Text(
+              '$used / $limitLabel TK${remaining != null ? ' · $remaining left' : ''}',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: LinearProgressIndicator(
+            value: fraction > 0 ? fraction : null,
+            minHeight: 8,
+            backgroundColor: isDark ? Colors.white10 : Colors.black12,
+            color: accent,
+          ),
+        ),
+      ],
     );
   }
 

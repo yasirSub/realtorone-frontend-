@@ -2,6 +2,14 @@ import 'api_client.dart';
 import 'api_endpoints.dart';
 
 class ChatApi {
+  /// Token usage vs tier limits (profile / chat header).
+  static Future<Map<String, dynamic>> getAiQuota() async {
+    return ApiClient.get(
+      ApiEndpoints.chatAiQuota,
+      requiresAuth: true,
+    );
+  }
+
   /// Send a message and receive AI reply.
   /// Returns [reply] and [sessionId] on success.
   static Future<Map<String, dynamic>> sendMessage(
