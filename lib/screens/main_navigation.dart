@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import '../l10n/app_localizations.dart';
 import '../theme/realtorone_brand.dart';
+import 'chatbot/reven_chat_overlay.dart';
 
 class _TourStepConfig {
   const _TourStepConfig({
@@ -770,6 +771,8 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
 
           if (_tourVisible) Positioned.fill(child: _buildTourSpotlightLayer()),
+
+          const RevenChatOverlayHost(),
         ],
       ),
     );

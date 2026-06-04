@@ -50,7 +50,8 @@ class _ChatbotFloatingButtonState extends State<ChatbotFloatingButton>
         );
       },
       child: GestureDetector(
-        onTap: () => RevenChatPage.show(context),
+        onTap: () => RevenChatPage.show(context, startVoice: true),
+        onLongPress: () => RevenChatPage.show(context),
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           width: 68,

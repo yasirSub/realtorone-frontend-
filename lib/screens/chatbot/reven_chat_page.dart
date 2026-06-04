@@ -17,6 +17,7 @@ import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
+import 'reven_chat_overlay.dart';
 
 // ignore_for_file: unused_element
 
@@ -25,51 +26,22 @@ enum _RevenInteractionMode { text, voice }
 enum _VoiceCallStatus { idle, listening, processing, speaking }
 
 class RevenChatPage extends StatefulWidget {
-  const RevenChatPage({super.key});
+  const RevenChatPage({
+    super.key,
+    this.embedded = false,
+    this.startVoiceOnOpen = false,
+  });
 
-  /// Opens Reven as a compact floating window.
-  /// Animates from the chat icon as if the bot is speaking.
-  static Future<void> show(BuildContext context) {
-    return showGeneralDialog<void>(
-      context: context,
-      barrierLabel: 'Reven chat',
-      barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.20),
-      transitionDuration: const Duration(milliseconds: 420),
-      pageBuilder: (ctx, _, _) => const RevenChatPage(),
-      transitionBuilder: (ctx, animation, _, child) {
-        final openCurve = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
+  /// When true, chat is hosted by [RevenChatOverlay] (minimize / multitask).
+  final bool embedded;
+  final bool startVoiceOnOpen;
 
-        final t = openCurve.value.clamp(0.0, 1.0);
-        final slideX = lerpDouble(0.22, 0.0, t) ?? 0.0;
-        final slideY = lerpDouble(0.30, 0.0, t) ?? 0.0;
-        final squashX = lerpDouble(0.24, 1.0, t) ?? 1.0;
-        final squashY = lerpDouble(0.08, 1.0, t) ?? 1.0;
-        final widthFactor = lerpDouble(0.28, 1.0, t) ?? 1.0;
-        final heightFactor = lerpDouble(0.12, 1.0, t) ?? 1.0;
-
-        return Opacity(
-          opacity: lerpDouble(0.0, 1.0, t) ?? 1.0,
-          child: Transform.translate(
-            offset: Offset(slideX * 100, slideY * 100),
-            child: Align(
-              alignment: Alignment.bottomRight,
-              widthFactor: widthFactor,
-              heightFactor: heightFactor,
-              child: Transform(
-                alignment: Alignment.bottomRight,
-                transform: Matrix4.diagonal3Values(squashX, squashY, 1.0),
-                child: child,
-              ),
-            ),
-          ),
-        );
-      },
-    );
+  /// Opens Reven overlay. [startVoice] enters voice mode and starts the mic.
+  static Future<void> show(
+    BuildContext context, {
+    bool startVoice = false,
+  }) {
+    return RevenChatOverlay.show(context, startVoice: startVoice);
   }
 
   @override
@@ -119,6 +91,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   String _voiceTranscript = '';
   String _lastVoiceCaption = '';
   bool _wasExpandedBeforeVoice = false;
+  Timer? _voiceUtteranceTimer;
   late final AnimationController _micPulseController;
 
   _VoiceCallStatus get _voiceCallStatus {
@@ -143,6 +116,51 @@ class _RevenChatPageState extends State<RevenChatPage>
     _initSpeech();
     _initTts();
     _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartVoiceOnOpen());
+  }
+
+  Future<void> _maybeStartVoiceOnOpen() async {
+    final shouldStart =
+        widget.startVoiceOnOpen || RevenChatOverlay.consumeStartVoice();
+    if (!shouldStart || !_voiceInAiChatEnabled || _humanHandoffActive) return;
+    await _enterVoiceMode();
+    if (mounted) await _startVoiceInput();
+  }
+
+  void _syncOverlayCallStatus() {
+    if (!widget.embedded) return;
+    RevenOverlayCallStatus mapped;
+    switch (_voiceCallStatus) {
+      case _VoiceCallStatus.listening:
+        mapped = RevenOverlayCallStatus.listening;
+        break;
+      case _VoiceCallStatus.speaking:
+        mapped = RevenOverlayCallStatus.speaking;
+        break;
+      case _VoiceCallStatus.processing:
+        mapped = RevenOverlayCallStatus.processing;
+        break;
+      case _VoiceCallStatus.idle:
+        mapped = RevenOverlayCallStatus.idle;
+        break;
+    }
+    RevenChatOverlay.updateCallStatus(mapped);
+  }
+
+  void _closeChat() {
+    if (widget.embedded) {
+      RevenChatOverlay.hide();
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
+  void _minimizeChat() {
+    if (widget.embedded) {
+      RevenChatOverlay.minimize();
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   void _syncHandoffPolling() {
@@ -533,19 +551,56 @@ class _RevenChatPageState extends State<RevenChatPage>
     );
   }
 
+  void _scheduleVoiceUtteranceFinalize() {
+    _voiceUtteranceTimer?.cancel();
+    final delay = _isVoiceInteractionMode
+        ? const Duration(milliseconds: 2800)
+        : const Duration(milliseconds: 1400);
+    _voiceUtteranceTimer = Timer(delay, () {
+      if (!_isListening) return;
+      if (_voiceTranscript.trim().isNotEmpty) {
+        unawaited(_finishVoiceSession());
+      }
+    });
+  }
+
+  Future<void> _restartVoiceListenIfNeeded() async {
+    if (!_isVoiceInteractionMode ||
+        _humanHandoffActive ||
+        !_voiceInAiChatEnabled ||
+        _isListening ||
+        _isSpeaking ||
+        _isLoading) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+    await _startVoiceInput();
+  }
+
   Future<void> _initSpeech() async {
     try {
       final ok = await _speech.initialize(
         onStatus: (status) {
-          if (status == 'done' || status == 'notListening') {
-            if (_isListening) {
-              _finishVoiceSession();
+          if (status != 'done' && status != 'notListening') return;
+          if (!_isListening) return;
+          if (_isVoiceInteractionMode) {
+            if (_voiceTranscript.trim().isEmpty) {
+              unawaited(_restartVoiceListenIfNeeded());
+            } else {
+              unawaited(_finishVoiceSession());
             }
+            return;
           }
+          unawaited(_finishVoiceSession());
         },
         onError: (_) {
-          if (mounted) setState(() => _isListening = false);
+          if (!mounted) return;
+          setState(() => _isListening = false);
           _micPulseController.stop();
+          if (_isVoiceInteractionMode) {
+            unawaited(_restartVoiceListenIfNeeded());
+          }
         },
       );
       if (mounted) setState(() => _speechInitialized = ok);
@@ -618,21 +673,24 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (words.isNotEmpty) {
           setState(() => _voiceTranscript = words);
         }
-        if (result.finalResult) {
-          _finishVoiceSession();
+        if (words.isNotEmpty || result.finalResult) {
+          _scheduleVoiceUtteranceFinalize();
         }
       },
       localeId: localeId,
-      listenMode: stt.ListenMode.confirmation,
-      cancelOnError: true,
+      listenMode: _isVoiceInteractionMode
+          ? stt.ListenMode.dictation
+          : stt.ListenMode.confirmation,
+      cancelOnError: false,
       partialResults: true,
-      pauseFor: const Duration(seconds: 2),
-      listenFor: const Duration(seconds: 30),
+      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 6 : 2),
+      listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 45),
     );
   }
 
   Future<void> _finishVoiceSession() async {
     if (!_isListening) return;
+    _voiceUtteranceTimer?.cancel();
     await _speech.stop();
     _micPulseController.stop();
     final text = _voiceTranscript.trim();
@@ -642,7 +700,10 @@ class _RevenChatPageState extends State<RevenChatPage>
       _voiceTranscript = '';
       if (text.isNotEmpty) _lastVoiceCaption = text;
     });
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      await _restartVoiceListenIfNeeded();
+      return;
+    }
     if (_voiceAutoSend) {
       await _sendToApi(text, fromVoice: true);
     } else {
@@ -1036,6 +1097,10 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   @override
   void dispose() {
+    _voiceUtteranceTimer?.cancel();
+    if (widget.embedded) {
+      RevenChatOverlay.updateCallStatus(RevenOverlayCallStatus.idle);
+    }
     _handoffPollTimer?.cancel();
     _micPulseController.dispose();
     if (_isListening) {
@@ -1413,6 +1478,11 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.embedded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncOverlayCallStatus();
+      });
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final backgroundColor = isDark
         ? const Color(0xFF0B1220)
@@ -1586,9 +1656,19 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 size: 18,
                               ),
                             ),
+                            if (widget.embedded)
+                              IconButton(
+                                tooltip: 'Minimize',
+                                onPressed: _minimizeChat,
+                                icon: Icon(
+                                  Icons.minimize_rounded,
+                                  color: subtitleColor,
+                                  size: 20,
+                                ),
+                              ),
                             IconButton(
                               tooltip: 'Close',
-                              onPressed: () => Navigator.of(context).pop(),
+                              onPressed: _closeChat,
                               icon: Icon(
                                 Icons.close_rounded,
                                 color: subtitleColor,
