@@ -69,6 +69,7 @@ class _RevenChatPageState extends State<RevenChatPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isExpanded = false;
   bool _isLoading = false;
+  bool _humanHandoffActive = false;
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
@@ -108,23 +109,11 @@ class _RevenChatPageState extends State<RevenChatPage> {
             if (!mounted) return;
             setState(() {
               _sessionId = sid;
+              _humanHandoffActive = historyRes['human_handoff_active'] == true;
               _messages.clear();
               for (final m in msgs) {
                 if (m is Map<String, dynamic>) {
-                  final role = (m['role'] as String?) ?? 'assistant';
-                  final content = (m['content'] as String?) ?? '';
-                  final parsed = _parseMessageContent(content);
-                  final createdAt = _parseDateTime(m['created_at']);
-                  _messages.add(
-                    _RevenMessage(
-                      text: parsed.$1,
-                      isUser: role == 'user',
-                      courses: parsed.$2,
-                      commands: parsed.$3,
-                      clients: parsed.$4,
-                      createdAt: createdAt,
-                    ),
-                  );
+                  _messages.add(_messageFromApiRow(m));
                 }
               }
             });
@@ -236,29 +225,33 @@ class _RevenChatPageState extends State<RevenChatPage> {
         final msgs = res['messages'] as List;
         setState(() {
           _sessionId = sid;
+          _humanHandoffActive = res['human_handoff_active'] == true;
           _messages.clear();
           for (final m in msgs) {
             if (m is Map<String, dynamic>) {
-              final role = (m['role'] as String?) ?? 'assistant';
-              final content = (m['content'] as String?) ?? '';
-              final parsed = _parseMessageContent(content);
-              final createdAt = _parseDateTime(m['created_at']);
-              _messages.add(
-                _RevenMessage(
-                  text: parsed.$1,
-                  isUser: role == 'user',
-                  courses: parsed.$2,
-                  commands: parsed.$3,
-                  clients: parsed.$4,
-                  createdAt: createdAt,
-                ),
-              );
+              _messages.add(_messageFromApiRow(m));
             }
           }
         });
         _scrollToBottom();
       }
     } catch (_) {}
+  }
+
+  _RevenMessage _messageFromApiRow(Map<String, dynamic> m) {
+    final role = (m['role'] as String?) ?? 'assistant';
+    final content = (m['content'] as String?) ?? '';
+    final parsed = _parseMessageContent(content);
+    final createdAt = _parseDateTime(m['created_at']);
+    return _RevenMessage(
+      text: parsed.$1,
+      isUser: role == 'user',
+      isHuman: role == 'human',
+      courses: parsed.$2,
+      commands: parsed.$3,
+      clients: parsed.$4,
+      createdAt: createdAt,
+    );
   }
 
   static DateTime? _parseDateTime(dynamic v) {
@@ -573,7 +566,15 @@ class _RevenChatPageState extends State<RevenChatPage> {
     setState(() {
       _messages.removeLast();
       _isLoading = false;
+      if (res['success'] == true && res['awaiting_human'] == true) {
+        _humanHandoffActive = res['human_handoff_active'] == true;
+        final sid = res['session_id'];
+        if (sid is int) _sessionId = sid;
+        else if (sid != null) _sessionId = int.tryParse(sid.toString());
+        return;
+      }
       if (res['success'] == true) {
+        _humanHandoffActive = res['human_handoff_active'] == true;
         List<Map<String, dynamic>>? courses = res['courses'] is List
             ? (res['courses'] as List)
                   .map(
@@ -899,9 +900,13 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                     ),
                                   ),
                                   Text(
-                                    _isExpanded ? 'Full view' : 'AI assistant',
+                                    _humanHandoffActive
+                                        ? 'Human support is chatting'
+                                        : (_isExpanded ? 'Full view' : 'AI assistant'),
                                     style: TextStyle(
-                                      color: subtitleColor,
+                                      color: _humanHandoffActive
+                                          ? const Color(0xFFF59E0B)
+                                          : subtitleColor,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -962,6 +967,46 @@ class _RevenChatPageState extends State<RevenChatPage> {
                           ],
                         ),
                       ),
+
+                      if (_humanHandoffActive)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                          child: Text(
+                            'A team member is helping you. AI replies are paused for now.',
+                            style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFB45309),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+
+                      if (_humanHandoffActive)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                          child: Text(
+                            'A team member is helping you. AI replies are paused for now.',
+                            style: TextStyle(
+                              color: isDark
+                                  ? const Color(0xFFFDE68A)
+                                  : const Color(0xFFB45309),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
 
                       // ── Messages ──────────────────────────────────────
                       Expanded(
@@ -1170,20 +1215,29 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.isUser;
+    final isHuman = message.isHuman;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: isUser ? const Color(0xFF4F7CFF) : surfaceColor,
+          color: isUser
+              ? const Color(0xFF4F7CFF)
+              : isHuman
+                  ? const Color(0xFFF59E0B).withValues(alpha: 0.14)
+                  : surfaceColor,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isUser ? 16 : 4),
             bottomRight: Radius.circular(isUser ? 4 : 16),
           ),
-          border: isUser ? null : Border.all(color: borderColor),
+          border: isUser
+              ? null
+              : Border.all(
+                  color: isHuman ? const Color(0xFFF59E0B).withValues(alpha: 0.45) : borderColor,
+                ),
           boxShadow: isUser
               ? [
                   BoxShadow(
@@ -1676,6 +1730,7 @@ class _PromptChip extends StatelessWidget {
 class _RevenMessage {
   final String text;
   final bool isUser;
+  final bool isHuman;
   final bool isLoading;
   final List<Map<String, dynamic>>? courses;
   final List<Map<String, dynamic>>? commands;
@@ -1686,6 +1741,7 @@ class _RevenMessage {
   const _RevenMessage({
     required this.text,
     required this.isUser,
+    this.isHuman = false,
     this.isLoading = false,
     this.courses,
     this.commands,
