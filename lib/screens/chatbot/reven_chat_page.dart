@@ -103,9 +103,11 @@ class _RevenChatPageState extends State<RevenChatPage>
   /// Mic dB level from speech_to_text; orb/mic glow when above [_voiceSoundActiveDb].
   double _voiceSoundLevel = 0;
   bool _voiceUserSpeaking = false;
-  static const double _voiceSoundActiveDb = -42;
+  static const double _voiceSoundActiveDb = -40;
+  /// How long after mic goes quiet before we send (voice hands-free).
   static const Duration _voiceSilenceSendDelay =
-      Duration(milliseconds: 850);
+      Duration(milliseconds: 450);
+  bool _voiceFinalizeInProgress = false;
 
   _VoiceCallStatus get _voiceCallStatus {
     if (_isListening && _voiceUserSpeaking) {
@@ -724,9 +726,10 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceSilenceFinalizeTimer?.cancel();
     if (speaking) {
       _voiceUtteranceTimer?.cancel();
+      _voiceSilenceFinalizeTimer?.cancel();
       if (_isVoiceInteractionMode) {
         try {
-          _speech.changePauseFor(const Duration(seconds: 8));
+          _speech.changePauseFor(const Duration(seconds: 2));
         } catch (_) {}
       }
       return;
@@ -759,7 +762,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         _isLoading) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     if (!mounted) return;
     await _startVoiceInput();
   }
@@ -887,8 +890,15 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (words.isNotEmpty) {
           setState(() => _voiceTranscript = words);
         }
-        if (!_isVoiceInteractionMode &&
-            (words.isNotEmpty || result.finalResult)) {
+        if (_isVoiceInteractionMode) {
+          if (result.finalResult && words.isNotEmpty) {
+            _voiceSilenceFinalizeTimer?.cancel();
+            _voiceUtteranceTimer?.cancel();
+            unawaited(_finishVoiceSession());
+          }
+          return;
+        }
+        if (words.isNotEmpty || result.finalResult) {
           _scheduleVoiceUtteranceFinalize();
         }
       },
@@ -899,37 +909,43 @@ class _RevenChatPageState extends State<RevenChatPage>
           : stt.ListenMode.confirmation,
       cancelOnError: false,
       partialResults: true,
-      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 10 : 2),
+      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 2 : 2),
       listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 45),
     );
   }
 
   Future<void> _finishVoiceSession() async {
-    if (!_isListening) return;
+    if (!_isListening || _voiceFinalizeInProgress) return;
+    _voiceFinalizeInProgress = true;
     _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
     _resetVoiceSoundActivity();
-    await _speech.stop();
-    _micPulseController.stop();
-    final text = _voiceTranscript.trim();
-    if (!mounted) return;
-    setState(() {
-      _isListening = false;
-      _voiceTranscript = '';
-      if (text.isNotEmpty) _lastVoiceCaption = text;
-    });
-    if (text.isEmpty) {
-      if (!_voiceMicPausedByUser) {
-        await _restartVoiceListenIfNeeded();
+    try {
+      await _speech.stop();
+      _micPulseController.stop();
+      final text = _voiceTranscript.trim();
+      if (!mounted) return;
+      setState(() {
+        _isListening = false;
+        _voiceTranscript = '';
+        if (text.isNotEmpty) _lastVoiceCaption = text;
+      });
+      if (text.isEmpty) {
+        if (!_voiceMicPausedByUser) {
+          await _restartVoiceListenIfNeeded();
+        }
+        return;
       }
-      return;
-    }
-    if (_voiceAutoSend) {
-      await _sendToApi(text, fromVoice: true);
-    } else {
-      _messageController.text = text;
-      _messageController.selection = TextSelection.fromPosition(
-        TextPosition(offset: text.length),
-      );
+      if (_voiceAutoSend) {
+        await _sendToApi(text, fromVoice: true);
+      } else {
+        _messageController.text = text;
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: text.length),
+        );
+      }
+    } finally {
+      _voiceFinalizeInProgress = false;
     }
   }
 
@@ -2390,7 +2406,7 @@ class _RevenVoiceComposer extends StatelessWidget {
           return 'Tap the mic to resume';
         }
         if (micSessionOpen) {
-          return 'Speak now — voice active when it hears you';
+          return 'Speak now — sends when you pause (~½ sec)';
         }
         return 'Tap the mic and talk — like ChatGPT voice';
     }
