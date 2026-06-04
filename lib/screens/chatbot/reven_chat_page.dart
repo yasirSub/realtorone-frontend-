@@ -560,6 +560,16 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
   }
 
+  /// First sentence for instant phone TTS while cloud Grok audio loads.
+  String _instantVoicePreview(String text) {
+    final t = text.trim();
+    if (t.isEmpty) return t;
+    if (t.length <= 160) return t;
+    final match = RegExp(r'^[\s\S]{1,200}?[.!?](?:\s|$)').firstMatch(t);
+    if (match != null) return match.group(0)!.trim();
+    return '${t.substring(0, 160).trim()}…';
+  }
+
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
 
@@ -574,7 +584,23 @@ class _RevenChatPageState extends State<RevenChatPage>
 
     Map<String, dynamic>? voiceRes = apiRes;
     var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
-    // Voice call uses inline audio on /chat; second TTS call only for typed read-aloud.
+
+    // Voice call: text already returned — preview on phone, fetch Grok audio in parallel.
+    if (_isVoiceInteractionMode && audioB64.isEmpty) {
+      final preview = _instantVoicePreview(text);
+      if (preview.isNotEmpty) {
+        unawaited(_speakDeviceTts(preview));
+      }
+      if (mounted) setState(() => _isSpeaking = true);
+      voiceRes = await ChatApi.synthesizeVoice(
+        text,
+        voiceId: _activeVoiceIdForApi,
+      );
+      await _stopTts();
+      if (!mounted) return;
+      audioB64 = voiceRes['reply_audio_base64']?.toString() ?? '';
+    }
+
     final needsSeparateTts = audioB64.isEmpty && !_isVoiceInteractionMode;
     if (needsSeparateTts) {
       if (mounted) setState(() => _isSpeaking = true);
@@ -1447,14 +1473,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     _startWaitElapsedTicker();
     _scrollToBottom();
 
-    // Voice call: one request returns text + audio (faster than text then a second TTS call).
-    final inlineCloudVoice = _isVoiceInteractionMode &&
-        _voiceReadAloud &&
-        _effectiveVoiceCloudEnabled;
+    // Voice call: fast text-only /chat, then /chat/voice-audio (parallel with phone preview).
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: inlineCloudVoice,
+      voiceReply: false,
       voiceMode: _isVoiceInteractionMode,
       voiceId: _activeVoiceIdForApi,
     );
@@ -1536,23 +1559,16 @@ class _RevenChatPageState extends State<RevenChatPage>
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
 
-        final deferVoiceBubble = voiceTurn &&
-            shouldSpeak &&
-            inlineCloudVoice &&
-            (res['reply_audio_base64']?.toString().isNotEmpty == true);
-
-        if (!deferVoiceBubble) {
-          _messages.add(
-            _RevenMessage(
-              text: replyText,
-              isUser: false,
-              courses: voiceTurn ? null : courses,
-              commands: voiceTurn ? null : commands,
-              clients: voiceTurn ? null : clients,
-              createdAt: DateTime.now(),
-            ),
-          );
-        }
+        _messages.add(
+          _RevenMessage(
+            text: replyText,
+            isUser: false,
+            courses: voiceTurn ? null : courses,
+            commands: voiceTurn ? null : commands,
+            clients: voiceTurn ? null : clients,
+            createdAt: DateTime.now(),
+          ),
+        );
 
         // --- Auto-fetch clients/courses if promised but not sent ---
         if (voiceTurn) {
@@ -1643,32 +1659,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
     _scrollToBottom();
     if (ttsReply != null) {
-      final speakText = ttsReply;
-      final deferBubble = voiceTurn &&
-          inlineCloudVoice &&
-          (ttsRes?['reply_audio_base64']?.toString().isNotEmpty == true);
-      if (deferBubble && mounted) {
-        setState(() => _isSpeaking = true);
-      }
-      await _speakReply(speakText, apiRes: ttsRes);
-      if (deferBubble && mounted) {
-        setState(() {
-          _isSpeaking = false;
-          final alreadyShown = _messages.any(
-            (m) => !m.isUser && !m.isLoading && m.text == speakText,
-          );
-          if (!alreadyShown) {
-            _messages.add(
-              _RevenMessage(
-                text: speakText,
-                isUser: false,
-                createdAt: DateTime.now(),
-              ),
-            );
-          }
-        });
-        _scrollToBottom();
-      }
+      await _speakReply(ttsReply, apiRes: ttsRes);
     }
     // Hands-free: re-open mic after reply unless the user muted it with the mic button.
     if (_isVoiceInteractionMode &&
