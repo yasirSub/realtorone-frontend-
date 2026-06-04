@@ -15,14 +15,20 @@ class ChatApi {
   static Future<Map<String, dynamic>> sendMessage(
     String message, {
     int? sessionId,
+    bool voiceReply = false,
+    String? voiceId,
   }) async {
     final body = <String, dynamic>{'message': message};
     if (sessionId != null) body['session_id'] = sessionId;
+    if (voiceReply) body['voice_reply'] = true;
+    if (voiceId != null && voiceId.trim().isNotEmpty) {
+      body['voice_id'] = voiceId.trim();
+    }
     return ApiClient.post(
       ApiEndpoints.chat,
       body,
       requiresAuth: true,
-      timeout: const Duration(seconds: 60),
+      timeout: const Duration(seconds: 90),
     );
   }
 

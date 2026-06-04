@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show lerpDouble;
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../api/api_client.dart';
@@ -76,9 +78,16 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _isExpanded = false;
   bool _isLoading = false;
   bool _humanHandoffActive = false;
-  bool _voiceInAiChatEnabled = false;
+  bool _voiceInAiChatEnabled = true;
   bool _voiceAutoSend = true;
   bool _voiceReadAloud = true;
+  bool _voiceCloudEnabled = true;
+  bool _voiceAllowUserPick = true;
+  String _defaultVoiceId = 'nova';
+  String? _preferredVoiceId;
+  List<Map<String, String>> _voiceOptions = const [
+    {'id': 'nova', 'label': 'Nova'},
+  ];
   bool _speechInitialized = false;
   bool _ttsReady = false;
   bool _isListening = false;
@@ -91,6 +100,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   Timer? _handoffPollTimer;
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
+  final AudioPlayer _cloudPlayer = AudioPlayer();
+  static const _prefVoiceKey = 'reven_preferred_voice_id';
   String _voiceTranscript = '';
   late final AnimationController _micPulseController;
 
@@ -102,6 +113,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       duration: const Duration(milliseconds: 900),
     );
     _loadVoiceSettings();
+    _loadPreferredVoice();
     _initSpeech();
     _initTts();
     _loadHistory();
@@ -153,17 +165,130 @@ class _RevenChatPageState extends State<RevenChatPage>
     return v.toString().toLowerCase() != 'false';
   }
 
+  Future<void> _loadPreferredVoice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString(_prefVoiceKey)?.trim();
+      if (saved != null && saved.isNotEmpty && mounted) {
+        setState(() => _preferredVoiceId = saved);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _savePreferredVoice(String voiceId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefVoiceKey, voiceId);
+    } catch (_) {}
+  }
+
   Future<void> _loadVoiceSettings() async {
     try {
       final res = await ApiClient.getPublic('/app-config');
       final data = (res['data'] as Map?) ?? <String, dynamic>{};
       if (!mounted) return;
+      final optsRaw = data['voice_options'];
+      final opts = <Map<String, String>>[];
+      if (optsRaw is List) {
+        for (final item in optsRaw) {
+          if (item is Map) {
+            final id = item['id']?.toString() ?? '';
+            if (id.isNotEmpty) {
+              opts.add({
+                'id': id,
+                'label': item['label']?.toString() ?? id,
+              });
+            }
+          }
+        }
+      }
       setState(() {
         _voiceInAiChatEnabled = _configFlag(data['voice_in_ai_chat']);
         _voiceAutoSend = _configFlag(data['voice_auto_send']);
         _voiceReadAloud = _configFlag(data['voice_read_aloud']);
+        _voiceCloudEnabled = _configFlag(
+          data['voice_cloud_enabled'],
+          defaultValue: _configFlag(data['voice_read_aloud']),
+        );
+        _voiceAllowUserPick = _configFlag(data['voice_allow_user_pick']);
+        _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
+        if (opts.isNotEmpty) _voiceOptions = opts;
       });
     } catch (_) {}
+  }
+
+  String? get _activeVoiceId {
+    if (!_voiceAllowUserPick) return null;
+    final pref = _preferredVoiceId?.trim();
+    if (pref != null && pref.isNotEmpty) return pref;
+    return _defaultVoiceId;
+  }
+
+  String get _activeVoiceLabel {
+    final id = _activeVoiceId ?? _defaultVoiceId;
+    for (final v in _voiceOptions) {
+      if (v['id'] == id) return v['label'] ?? id;
+    }
+    return id;
+  }
+
+  Future<void> _showVoicePicker() async {
+    if (!_voiceAllowUserPick || !_voiceCloudEnabled) return;
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF0F172A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AI voice',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Choose how Reven sounds when reading replies aloud.',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                ..._voiceOptions.map((v) {
+                  final id = v['id'] ?? '';
+                  final selected = (_activeVoiceId ?? _defaultVoiceId) == id;
+                  return ListTile(
+                    dense: true,
+                    title: Text(
+                      v['label'] ?? id,
+                      style: TextStyle(
+                        color: selected ? const Color(0xFF4F7CFF) : Colors.white,
+                        fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                      ),
+                    ),
+                    trailing: selected
+                        ? const Icon(Icons.check_rounded, color: Color(0xFF4F7CFF))
+                        : null,
+                    onTap: () => Navigator.pop(ctx, id),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (picked == null || picked.isEmpty || !mounted) return;
+    setState(() => _preferredVoiceId = picked);
+    await _savePreferredVoice(picked);
   }
 
   Future<void> _initTts() async {
@@ -183,16 +308,47 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _stopTts() async {
     try {
+      await _cloudPlayer.stop();
+    } catch (_) {}
+    try {
       await _tts.stop();
     } catch (_) {}
     if (mounted) setState(() => _isSpeaking = false);
   }
 
-  Future<void> _speakReply(String text) async {
-    final spoken = text.trim();
-    if (spoken.isEmpty || !_voiceReadAloud || !_ttsReady || _humanHandoffActive) {
-      return;
+  Future<void> _speakCloudAudio(String base64, String mime) async {
+    final bytes = base64Decode(base64);
+    if (bytes.isEmpty) return;
+    await _cloudPlayer.stop();
+    if (!mounted) return;
+    setState(() => _isSpeaking = true);
+    unawaited(
+      _cloudPlayer.onPlayerComplete.first.then((_) {
+        if (mounted) setState(() => _isSpeaking = false);
+      }),
+    );
+    await _cloudPlayer.play(
+      BytesSource(bytes, mimeType: mime.contains('mpeg') ? 'audio/mpeg' : mime),
+    );
+  }
+
+  Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
+    if (!_voiceReadAloud || _humanHandoffActive) return;
+
+    final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
+    final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
+    if (_voiceCloudEnabled && audioB64.isNotEmpty) {
+      await _stopTts();
+      try {
+        await _speakCloudAudio(audioB64, audioMime);
+        return;
+      } catch (_) {
+        if (mounted) setState(() => _isSpeaking = false);
+      }
     }
+
+    final spoken = text.trim();
+    if (spoken.isEmpty || !_ttsReady) return;
     await _stopTts();
     if (!mounted) return;
     setState(() => _isSpeaking = true);
@@ -700,6 +856,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
     _speech.cancel();
     _tts.stop();
+    _cloudPlayer.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -804,10 +961,16 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
 
-    final res = await ChatApi.sendMessage(text, sessionId: _sessionId);
+    final res = await ChatApi.sendMessage(
+      text,
+      sessionId: _sessionId,
+      voiceReply: fromVoice && _voiceReadAloud && _voiceCloudEnabled,
+      voiceId: _activeVoiceId,
+    );
 
     if (!mounted) return;
     String? ttsReply;
+    Map<String, dynamic>? ttsRes;
     final shouldSpeak = _lastTurnWasVoice;
     setState(() {
       _messages.removeLast();
@@ -817,6 +980,16 @@ class _RevenChatPageState extends State<RevenChatPage>
         final sid = res['session_id'];
         if (sid is int) _sessionId = sid;
         else if (sid != null) _sessionId = int.tryParse(sid.toString());
+        final handoffReply = (res['reply'] as String?)?.trim() ?? '';
+        if (handoffReply.isNotEmpty) {
+          _messages.add(
+            _RevenMessage(
+              text: handoffReply,
+              isUser: false,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
         _syncHandoffPolling();
         return;
       }
@@ -922,6 +1095,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
         if (shouldSpeak && replyText.trim().isNotEmpty) {
           ttsReply = replyText;
+          ttsRes = res;
         }
         _lastTurnWasVoice = false;
       } else {
@@ -937,7 +1111,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     });
     _scrollToBottom();
     if (ttsReply != null) {
-      await _speakReply(ttsReply!);
+      await _speakReply(ttsReply!, apiRes: ttsRes);
     }
   }
 
@@ -1329,6 +1503,36 @@ class _RevenChatPageState extends State<RevenChatPage>
                               ),
                             ),
                             if (_voiceInAiChatEnabled && !_humanHandoffActive) ...[
+                              if (_voiceCloudEnabled && _voiceAllowUserPick) ...[
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: _showVoicePicker,
+                                  child: Container(
+                                    height: 46,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: backgroundColor,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: borderColor),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.record_voice_over_outlined, size: 18, color: subtitleColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          _activeVoiceLabel,
+                                          style: TextStyle(
+                                            color: titleColor,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(width: 8),
                               _VoiceMicButton(
                                 isListening: _isListening,
