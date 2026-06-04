@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
@@ -70,15 +72,108 @@ class _RevenChatPageState extends State<RevenChatPage> {
   bool _isExpanded = false;
   bool _isLoading = false;
   bool _humanHandoffActive = false;
+  bool _voiceInAiChatEnabled = false;
+  bool _speechInitialized = false;
+  bool _isListening = false;
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
   final List<_RevenMessage> _messages = [];
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  String _listenBaseText = '';
 
   @override
   void initState() {
     super.initState();
+    _loadVoiceSetting();
+    _initSpeech();
     _loadHistory();
+  }
+
+  Future<void> _loadVoiceSetting() async {
+    try {
+      final res = await ApiClient.getPublic('/app-config');
+      final data = (res['data'] as Map?) ?? <String, dynamic>{};
+      final enabled = data['voice_in_ai_chat'] != false &&
+          data['voice_in_ai_chat'] != 0 &&
+          data['voice_in_ai_chat']?.toString() != 'false';
+      if (mounted) {
+        setState(() => _voiceInAiChatEnabled = enabled);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      final ok = await _speech.initialize(
+        onStatus: (status) {
+          if (status == 'done' || status == 'notListening') {
+            if (mounted && _isListening) {
+              setState(() => _isListening = false);
+            }
+          }
+        },
+        onError: (_) {
+          if (mounted) setState(() => _isListening = false);
+        },
+      );
+      if (mounted) setState(() => _speechInitialized = ok);
+    } catch (_) {}
+  }
+
+  Future<void> _startVoiceInput() async {
+    if (_isListening || !_voiceInAiChatEnabled) return;
+
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Microphone permission is required for voice input.'),
+        ),
+      );
+      return;
+    }
+
+    if (!_speechInitialized) {
+      await _initSpeech();
+      if (!_speechInitialized) return;
+    }
+
+    _listenBaseText = _messageController.text.trim();
+    if (_listenBaseText.isNotEmpty) {
+      _listenBaseText = '$_listenBaseText ';
+    }
+
+    final locales = await _speech.locales();
+    final localeId = locales.isNotEmpty ? locales.first.localeId : null;
+
+    if (!mounted) return;
+    setState(() => _isListening = true);
+
+    await _speech.listen(
+      onResult: (result) {
+        if (!mounted) return;
+        final words = result.recognizedWords;
+        _messageController.text = '$_listenBaseText$words';
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _messageController.text.length),
+        );
+        if (result.finalResult) {
+          setState(() => _isListening = false);
+        }
+      },
+      localeId: localeId,
+      listenMode: stt.ListenMode.dictation,
+      cancelOnError: true,
+      partialResults: true,
+    );
+  }
+
+  Future<void> _stopVoiceInput() async {
+    if (!_isListening) return;
+    await _speech.stop();
+    if (mounted) setState(() => _isListening = false);
   }
 
   Future<List<Map<String, dynamic>>> _fetchSessions() async {
@@ -462,6 +557,10 @@ class _RevenChatPageState extends State<RevenChatPage> {
 
   @override
   void dispose() {
+    if (_isListening) {
+      _speech.stop();
+    }
+    _speech.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -1083,6 +1182,38 @@ class _RevenChatPageState extends State<RevenChatPage> {
                                 ),
                               ),
                             ),
+                            if (_voiceInAiChatEnabled) ...[
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onLongPressStart: (_) => _startVoiceInput(),
+                                onLongPressEnd: (_) => _stopVoiceInput(),
+                                onLongPressCancel: _stopVoiceInput,
+                                child: Container(
+                                  width: 46,
+                                  height: 46,
+                                  decoration: BoxDecoration(
+                                    color: _isListening
+                                        ? const Color(0xFFEF4444)
+                                        : backgroundColor,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: _isListening
+                                          ? const Color(0xFFEF4444)
+                                          : borderColor,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    _isListening
+                                        ? Icons.mic_rounded
+                                        : Icons.mic_none_rounded,
+                                    color: _isListening
+                                        ? Colors.white
+                                        : subtitleColor,
+                                    size: 22,
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 8),
                             GestureDetector(
                               onTap: _sendMessage,
