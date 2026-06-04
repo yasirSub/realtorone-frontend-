@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../routes/app_routes.dart';
 import 'chatbot_floating_button.dart';
 import 'reven_chat_overlay.dart';
+import 'reven_route_tracker.dart';
 
 /// Wraps the whole app so Reven floats above any route (tabs, settings, courses, etc.).
 class RevenGlobalShell extends StatelessWidget {
@@ -11,7 +12,9 @@ class RevenGlobalShell extends StatelessWidget {
   final Widget? child;
 
   static bool routeAllowsGlobalFab(String? routeName) {
-    if (routeName == null || routeName.isEmpty) return false;
+    if (routeName == null || routeName.isEmpty) {
+      return false;
+    }
     const hidden = {
       AppRoutes.initial,
       AppRoutes.onboarding,
@@ -31,7 +34,8 @@ class RevenGlobalShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final routeName = ModalRoute.of(context)?.settings.name;
+    final routeName =
+        RevenRouteTracker.routeName ?? ModalRoute.of(context)?.settings.name;
 
     return Stack(
       fit: StackFit.expand,
@@ -55,11 +59,19 @@ class RevenGlobalFloatingButton extends StatelessWidget {
       builder: (context, state, _) {
         if (state.visible) return const SizedBox.shrink();
 
+        final routeName =
+            RevenRouteTracker.routeName ?? ModalRoute.of(context)?.settings.name;
+        if (!RevenGlobalShell.routeAllowsGlobalFab(routeName)) {
+          return const SizedBox.shrink();
+        }
+
         final bottom = MediaQuery.paddingOf(context).bottom;
 
+        // Match original Home placement (above bottom nav).
+        final onMainTabs = routeName == AppRoutes.main;
         return Positioned(
-          right: 14,
-          bottom: bottom + 88,
+          right: 16,
+          bottom: onMainTabs ? 140 : bottom + 88,
           child: Material(
             color: Colors.transparent,
             child: Tooltip(
