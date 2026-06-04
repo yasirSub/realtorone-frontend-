@@ -96,7 +96,6 @@ class _RevenChatPageState extends State<RevenChatPage>
   String _pendingAssistantReply = '';
   /// User tapped mic to mute; blocks hands-free auto re-listen until they tap again.
   bool _voiceMicPausedByUser = false;
-  bool _wasExpandedBeforeVoice = false;
   Timer? _voiceUtteranceTimer;
   Timer? _voiceSilenceFinalizeTimer;
   late final AnimationController _micPulseController;
@@ -295,32 +294,113 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {}
   }
 
-  Future<void> _enterVoiceMode() async {
-    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    if (_isVoiceInteractionMode) return;
+  void _unfocusComposer() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  void _flushPendingVoiceReplyToMessages() {
+    final pending = _pendingAssistantReply.trim();
+    if (pending.isEmpty) return;
+    final exists = _messages.any(
+      (m) => !m.isUser && !m.isLoading && m.text.trim() == pending,
+    );
+    if (exists) return;
+    _messages.add(
+      _RevenMessage(
+        text: pending,
+        isUser: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+  }
+
+  /// Stops mic, timers, and playback — safe to call before switching text ↔ voice.
+  Future<void> _stopAllVoiceActivity() async {
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceFinalizeInProgress = false;
+    _resetVoiceSoundActivity();
+    try {
+      if (_isListening) {
+        await _speech.stop();
+      } else {
+        await _speech.cancel();
+      }
+    } catch (_) {}
+    _micPulseController.stop();
     await _stopTts();
     if (!mounted) return;
     setState(() {
-      _wasExpandedBeforeVoice = _isExpanded;
-      _isExpanded = true; // full-screen call experience
+      _isListening = false;
+      _voiceTranscript = '';
+    });
+  }
+
+  Future<void> _enterVoiceMode() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isVoiceInteractionMode) return;
+    _unfocusComposer();
+    await _stopAllVoiceActivity();
+    if (!mounted) return;
+    setState(() {
       _interactionMode = _RevenInteractionMode.voice;
       _voiceMicPausedByUser = false;
+      _lastVoiceCaption = '';
     });
     await _loadVoiceSettings();
+    _syncOverlayCallStatus();
   }
 
   Future<void> _exitVoiceMode() async {
     if (!_isVoiceInteractionMode) return;
-    await _cancelVoiceInput();
-    await _stopTts();
+    _unfocusComposer();
+    await _stopAllVoiceActivity();
     if (!mounted) return;
+    _flushPendingVoiceReplyToMessages();
     setState(() {
       _interactionMode = _RevenInteractionMode.text;
-      _isExpanded = _wasExpandedBeforeVoice;
       _lastVoiceCaption = '';
-      _voiceTranscript = '';
+      _pendingAssistantReply = '';
+      _lastTurnWasVoice = false;
+      _isSpeaking = false;
       _voiceMicPausedByUser = false;
     });
+    _syncOverlayCallStatus();
+    _scrollToBottom();
+  }
+
+  /// Text composer mic — open voice session (ChatGPT waveform flow).
+  Future<void> _openVoiceConversation() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isVoiceInteractionMode) {
+      await _toggleVoiceMicInVoiceMode();
+      return;
+    }
+    await _enterVoiceMode();
+    if (!mounted) return;
+    await _startVoiceInput();
+  }
+
+  /// Voice composer mic — pause, resume, or interrupt playback.
+  Future<void> _toggleVoiceMicInVoiceMode() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (!_isVoiceInteractionMode) return;
+    if (_isSpeaking) {
+      await _stopTts();
+      _flushPendingVoiceReplyToMessages();
+      if (mounted) {
+        setState(() {
+          _pendingAssistantReply = '';
+          _isSpeaking = false;
+        });
+      }
+    }
+    if (_isListening) {
+      await _pauseVoiceInput();
+      return;
+    }
+    _voiceMicPausedByUser = false;
+    await _startVoiceInput();
   }
 
   Future<void> _scheduleVoiceListenAfterReply() async {
@@ -796,23 +876,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {}
   }
 
-  Future<void> _toggleVoiceInput() async {
-    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
-    if (_isLoading && _isVoiceInteractionMode && !_isSpeaking) return;
-    if (!_isVoiceInteractionMode) {
-      await _enterVoiceMode();
-      if (!mounted) return;
-      await _startVoiceInput();
-      return;
-    }
-    if (_isListening) {
-      await _pauseVoiceInput();
-      return;
-    }
-    _voiceMicPausedByUser = false;
-    await _stopTts();
-    await _startVoiceInput();
-  }
 
   /// Mic tap while listening: stop mic without sending (tap again to resume).
   Future<void> _pauseVoiceInput() async {
@@ -835,9 +898,17 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _cancelVoiceInput() async {
-    if (!_isListening) return;
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
-    await _speech.cancel();
+    try {
+      if (_isListening) {
+        await _speech.stop();
+      } else {
+        await _speech.cancel();
+      }
+    } catch (_) {}
     _voiceTranscript = '';
     if (!mounted) return;
     setState(() => _isListening = false);
@@ -1799,7 +1870,53 @@ class _RevenChatPageState extends State<RevenChatPage>
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     _messageController.clear();
-    _sendToApi(text);
+    _unfocusComposer();
+    _sendToApi(text, fromVoice: _isVoiceInteractionMode);
+  }
+
+  Widget _buildChatMessageList({
+    required double bubbleMaxWidth,
+    required Color surfaceColor,
+    required Color borderColor,
+    required Color titleColor,
+    required Color subtitleColor,
+    required bool showQuickPrompts,
+  }) {
+    return ListView.separated(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      itemCount: _messages.length + (showQuickPrompts ? 1 : 0),
+      separatorBuilder: (_, index) {
+        if (showQuickPrompts && index == 0) {
+          return const SizedBox(height: 16);
+        }
+        return const SizedBox(height: 8);
+      },
+      itemBuilder: (context, index) {
+        if (showQuickPrompts && index == _messages.length) {
+          return _QuickPromptsPanel(onPromptTapped: _sendQuickPrompt);
+        }
+        final msg = _messages[index];
+        DateTime? prevAt;
+        for (var i = index - 1; i >= 0; i--) {
+          final t = _messages[i].createdAt;
+          if (t != null) {
+            prevAt = t;
+            break;
+          }
+        }
+        return _ChatBubble(
+          message: msg,
+          previousCreatedAt: prevAt,
+          bubbleMaxWidth: bubbleMaxWidth,
+          surfaceColor: surfaceColor,
+          borderColor: borderColor,
+          titleColor: titleColor,
+          subtitleColor: subtitleColor,
+          onCommandTapped: _sendToApi,
+        );
+      },
+    );
   }
 
   void _sendQuickPrompt(RevenQuickPrompt prompt) {
@@ -1963,6 +2080,18 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 ],
                               ),
                             ),
+                            if (_isVoiceInteractionMode &&
+                                _voiceInAiChatEnabled &&
+                                !_humanHandoffActive)
+                              IconButton(
+                                tooltip: 'Keyboard',
+                                onPressed: _exitVoiceMode,
+                                icon: Icon(
+                                  Icons.keyboard_alt_outlined,
+                                  color: subtitleColor,
+                                  size: 22,
+                                ),
+                              ),
                             IconButton(
                               tooltip: 'Chat history',
                               onPressed: _showChatList,
@@ -2029,54 +2158,17 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
-                      // ── Messages or voice conversation transcript ───
+                      // ── Messages (same thread in text and voice — ChatGPT-style) ───
                       Expanded(
-                        child: _isVoiceInteractionMode
-                            ? _VoiceConversationView(
-                                messages: _messages,
-                                scrollController: _scrollController,
-                                titleColor: titleColor,
-                                subtitleColor: subtitleColor,
-                              )
-                            : ListView.separated(
-                                controller: _scrollController,
-                                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                                itemCount:
-                                    _messages.length +
-                                    (_messages.length == 1 ? 1 : 0),
-                                separatorBuilder: (_, index) {
-                                  if (_messages.length == 1 && index == 0) {
-                                    return const SizedBox(height: 16);
-                                  }
-                                  return const SizedBox(height: 8);
-                                },
-                                itemBuilder: (context, index) {
-                                  if (_messages.length == 1 && index == 1) {
-                                    return _QuickPromptsPanel(
-                                      onPromptTapped: _sendQuickPrompt,
-                                    );
-                                  }
-                                  final msg = _messages[index];
-                                  DateTime? prevAt;
-                                  for (var i = index - 1; i >= 0; i--) {
-                                    final t = _messages[i].createdAt;
-                                    if (t != null) {
-                                      prevAt = t;
-                                      break;
-                                    }
-                                  }
-                                  return _ChatBubble(
-                                    message: msg,
-                                    previousCreatedAt: prevAt,
-                                    bubbleMaxWidth: bubbleMaxWidth,
-                                    surfaceColor: surfaceColor,
-                                    borderColor: borderColor,
-                                    titleColor: titleColor,
-                                    subtitleColor: subtitleColor,
-                                    onCommandTapped: _sendToApi,
-                                  );
-                                },
-                              ),
+                        child: _buildChatMessageList(
+                          bubbleMaxWidth: bubbleMaxWidth,
+                          surfaceColor: surfaceColor,
+                          borderColor: borderColor,
+                          titleColor: titleColor,
+                          subtitleColor: subtitleColor,
+                          showQuickPrompts:
+                              !_isVoiceInteractionMode && _messages.length == 1,
+                        ),
                       ),
 
                       // ── Composer: voice (ChatGPT-style) or text ────
@@ -2116,7 +2208,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           titleColor: titleColor,
                           subtitleColor: subtitleColor,
                           messageController: _messageController,
-                          onMicTap: _toggleVoiceInput,
+                          onMicTap: _toggleVoiceMicInVoiceMode,
                           onVoicePick: _showVoicePicker,
                           onExitVoice: _exitVoiceMode,
                           onSendText: _sendMessage,
@@ -2130,10 +2222,12 @@ class _RevenChatPageState extends State<RevenChatPage>
                           titleColor: titleColor,
                           subtitleColor: subtitleColor,
                           showMic: _voiceInAiChatEnabled && !_humanHandoffActive,
-                          isListening: _isListening,
-                          isSpeaking: _isSpeaking,
+                          isListening:
+                              _isListening && !_isVoiceInteractionMode,
+                          isSpeaking:
+                              _isSpeaking && !_isVoiceInteractionMode,
                           micPulse: _micPulseController,
-                          onMicTap: _toggleVoiceInput,
+                          onMicTap: _openVoiceConversation,
                           onSend: _sendMessage,
                           onFieldTap: _scrollToBottom,
                         ),
@@ -2564,7 +2658,7 @@ class _RevenVoiceComposer extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(4, 5, 5, 5),
                       child: _RevenComposerCircleButton(
-                        icon: Icons.close_rounded,
+                        icon: Icons.keyboard_alt_rounded,
                         backgroundColor: Colors.white,
                         iconColor: const Color(0xFF0F172A),
                         onTap: onExitVoice,
