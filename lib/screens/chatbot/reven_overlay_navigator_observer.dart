@@ -8,25 +8,25 @@ class RevenOverlayNavigatorObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    RevenRouteTracker.update(route);
+    RevenRouteTracker.instance.update(route);
     RevenChatOverlay.minimizeIfExpanded();
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    RevenRouteTracker.update(previousRoute);
+    RevenRouteTracker.instance.update(previousRoute);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    RevenRouteTracker.update(newRoute);
+    RevenRouteTracker.instance.update(newRoute);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
-    RevenRouteTracker.update(previousRoute);
+    RevenRouteTracker.instance.update(previousRoute);
   }
 }

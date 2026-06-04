@@ -11,9 +11,26 @@ class RevenChatOverlay {
   );
 
   static bool _pendingStartVoice = false;
+  static final ValueNotifier<bool> panelExpanded = ValueNotifier(false);
 
   static bool get isVisible => ui.value.visible;
   static bool get isMinimized => ui.value.minimized;
+
+  static void setPanelExpanded(bool expanded) {
+    if (panelExpanded.value == expanded) {
+      return;
+    }
+    panelExpanded.value = expanded;
+  }
+
+  /// System back while full-screen chat → shrink panel first (chat page listens).
+  static bool consumePanelExpandedBack() {
+    if (!panelExpanded.value) {
+      return false;
+    }
+    panelExpanded.value = false;
+    return true;
+  }
 
   static bool consumeStartVoice() {
     final v = _pendingStartVoice;
@@ -36,12 +53,6 @@ class RevenChatOverlay {
     return Future.value();
   }
 
-  static void minimize() {
-    final s = ui.value;
-    if (!s.visible) return;
-    ui.value = s.copyWith(minimized: true);
-  }
-
   static void minimizeIfExpanded() {
     if (isVisible && !isMinimized) {
       minimize();
@@ -55,7 +66,15 @@ class RevenChatOverlay {
   }
 
   static void hide() {
+    panelExpanded.value = false;
     ui.value = const RevenOverlayUiState.hidden();
+  }
+
+  static void minimize() {
+    final s = ui.value;
+    if (!s.visible) return;
+    panelExpanded.value = false;
+    ui.value = s.copyWith(minimized: true);
   }
 
   static void updateCallStatus(RevenOverlayCallStatus status) {

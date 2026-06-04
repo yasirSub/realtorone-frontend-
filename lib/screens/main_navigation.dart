@@ -15,6 +15,7 @@ import 'dart:ui';
 import '../l10n/app_localizations.dart';
 import '../theme/realtorone_brand.dart';
 import 'chatbot/reven_chat_overlay.dart';
+import 'chatbot/reven_route_tracker.dart';
 
 class _TourStepConfig {
   const _TourStepConfig({
@@ -108,6 +109,10 @@ class _MainNavigationState extends State<MainNavigation> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(AppWarmCacheService.warmAfterLogin());
+      final route = ModalRoute.of(context);
+      if (route != null) {
+        RevenRouteTracker.instance.update(route);
+      }
     });
     _activitiesTourSync = ValueNotifier<ActivitiesTourSync?>(null);
     _tourActive = ValueNotifier<bool>(false);

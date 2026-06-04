@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 
-/// Current named route (MaterialApp builder cannot read [ModalRoute] reliably).
-class RevenRouteTracker {
+/// Tracks the active named route so the global Reven FAB can show/hide reliably.
+class RevenRouteTracker extends ChangeNotifier {
   RevenRouteTracker._();
 
-  static String? routeName;
+  static final RevenRouteTracker instance = RevenRouteTracker._();
 
-  static void update(Route<dynamic>? route) {
-    routeName = route?.settings.name;
+  String? routeName;
+
+  void update(Route<dynamic>? route) {
+    final next = route?.settings.name;
+    if (next == routeName) {
+      return;
+    }
+    routeName = next;
+    notifyListeners();
   }
 }

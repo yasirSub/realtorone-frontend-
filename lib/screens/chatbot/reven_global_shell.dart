@@ -32,59 +32,88 @@ class RevenGlobalShell extends StatelessWidget {
     return !hidden.contains(routeName);
   }
 
+  static void handleSystemBack() {
+    if (!RevenChatOverlay.isVisible) {
+      return;
+    }
+    if (RevenChatOverlay.consumePanelExpandedBack()) {
+      return;
+    }
+    if (!RevenChatOverlay.isMinimized) {
+      RevenChatOverlay.minimize();
+    }
+  }
+
+  static bool get canSystemPop {
+    if (!RevenChatOverlay.isVisible) {
+      return true;
+    }
+    if (RevenChatOverlay.isMinimized) {
+      return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final routeName =
-        RevenRouteTracker.routeName ?? ModalRoute.of(context)?.settings.name;
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        RevenRouteTracker.instance,
+        RevenChatOverlay.ui,
+      ]),
+      builder: (context, _) {
+        final routeName = RevenRouteTracker.instance.routeName;
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        child ?? const SizedBox.shrink(),
-        const RevenChatOverlayHost(),
-        if (routeAllowsGlobalFab(routeName)) const RevenGlobalFloatingButton(),
-      ],
+        return PopScope(
+          canPop: canSystemPop,
+          onPopInvokedWithResult: (didPop, result) {
+            if (didPop) {
+              return;
+            }
+            handleSystemBack();
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child ?? const SizedBox.shrink(),
+              const RevenChatOverlayHost(),
+              if (routeAllowsGlobalFab(routeName) && !RevenChatOverlay.isVisible)
+                const RevenGlobalFloatingButton(),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-/// Reven launcher on every in-app screen (hidden while chat panel or bubble is open).
+/// Reven launcher on in-app screens (hidden while chat panel or bubble is open).
 class RevenGlobalFloatingButton extends StatelessWidget {
   const RevenGlobalFloatingButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<RevenOverlayUiState>(
-      valueListenable: RevenChatOverlay.ui,
-      builder: (context, state, _) {
-        if (state.visible) return const SizedBox.shrink();
+    final routeName = RevenRouteTracker.instance.routeName;
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final onMainTabs = routeName == AppRoutes.main;
 
-        final routeName =
-            RevenRouteTracker.routeName ?? ModalRoute.of(context)?.settings.name;
-        if (!RevenGlobalShell.routeAllowsGlobalFab(routeName)) {
-          return const SizedBox.shrink();
-        }
-
-        final bottom = MediaQuery.paddingOf(context).bottom;
-
-        // Match original Home placement (above bottom nav).
-        final onMainTabs = routeName == AppRoutes.main;
-        return Positioned(
-          right: 16,
-          bottom: onMainTabs ? 140 : bottom + 88,
-          child: Material(
-            color: Colors.transparent,
-            child: Tooltip(
-              message: 'Talk to Reven',
-              child: ChatbotFloatingButton(
-                onOpen: () => RevenChatOverlay.show(context),
-                onOpenVoice: () =>
-                    RevenChatOverlay.show(context, startVoice: true),
-              ),
-            ),
+    return Positioned(
+      right: 16,
+      bottom: onMainTabs ? 140 : bottom + 88,
+      child: Material(
+        color: Colors.transparent,
+        elevation: 8,
+        shadowColor: Colors.black26,
+        shape: const CircleBorder(),
+        child: Tooltip(
+          message: 'Talk to Reven',
+          child: ChatbotFloatingButton(
+            onOpen: () => RevenChatOverlay.show(context),
+            onOpenVoice: () =>
+                RevenChatOverlay.show(context, startVoice: true),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

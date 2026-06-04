@@ -14,6 +14,8 @@ import '../../utils/responsive_helper.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../widgets/marquee_text.dart';
 import '../../services/app_preferences_service.dart';
+import '../chatbot/chatbot_floating_button.dart';
+import '../chatbot/reven_chat_overlay.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onOpenActivitiesTab});
@@ -831,6 +833,17 @@ class _HomePageState extends State<HomePage> {
             EliteLoader.top(
               color: _getTierColor(_userData?['membership_tier']),
             ),
+          ValueListenableBuilder<RevenOverlayUiState>(
+            valueListenable: RevenChatOverlay.ui,
+            builder: (context, overlay, _) {
+              if (overlay.visible) return const SizedBox.shrink();
+              return const Positioned(
+                right: 16,
+                bottom: 140,
+                child: ChatbotFloatingButton(),
+              );
+            },
+          ),
         ],
       ),
     );

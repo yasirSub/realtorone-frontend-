@@ -126,6 +126,9 @@ class _RevenChatPageState extends State<RevenChatPage>
   @override
   void initState() {
     super.initState();
+    if (widget.embedded) {
+      RevenChatOverlay.panelExpanded.addListener(_syncPanelExpandedFromOverlay);
+    }
     _micPulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -169,9 +172,24 @@ class _RevenChatPageState extends State<RevenChatPage>
     RevenChatOverlay.updateCallStatus(mapped);
   }
 
+  void _syncPanelExpandedFromOverlay() {
+    if (!widget.embedded || !mounted) return;
+    final expanded = RevenChatOverlay.panelExpanded.value;
+    if (_isExpanded != expanded) {
+      setState(() => _isExpanded = expanded);
+    }
+  }
+
+  void _setPanelExpanded(bool expanded) {
+    setState(() => _isExpanded = expanded);
+    if (widget.embedded) {
+      RevenChatOverlay.setPanelExpanded(expanded);
+    }
+  }
+
   void _closeChat() {
     if (widget.embedded) {
-      RevenChatOverlay.hide();
+      RevenChatOverlay.minimize();
       return;
     }
     Navigator.of(context).pop();
@@ -1431,6 +1449,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
     if (widget.embedded) {
+      RevenChatOverlay.panelExpanded.removeListener(_syncPanelExpandedFromOverlay);
       RevenChatOverlay.updateCallStatus(RevenOverlayCallStatus.idle);
     }
     _handoffPollTimer?.cancel();
@@ -2118,7 +2137,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   ? 'Exit full screen'
                                   : 'Full screen',
                               onPressed: () =>
-                                  setState(() => _isExpanded = !_isExpanded),
+                                  _setPanelExpanded(!_isExpanded),
                               icon: Icon(
                                 _isExpanded
                                     ? Icons.close_fullscreen_rounded
@@ -2127,21 +2146,17 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 size: 18,
                               ),
                             ),
-                            if (widget.embedded)
-                              IconButton(
-                                tooltip: 'Minimize',
-                                onPressed: _minimizeChat,
-                                icon: Icon(
-                                  Icons.minimize_rounded,
-                                  color: subtitleColor,
-                                  size: 20,
-                                ),
-                              ),
                             IconButton(
-                              tooltip: 'Close',
-                              onPressed: _closeChat,
+                              tooltip: widget.embedded
+                                  ? 'Minimize to bubble'
+                                  : 'Close',
+                              onPressed: widget.embedded
+                                  ? _minimizeChat
+                                  : _closeChat,
                               icon: Icon(
-                                Icons.close_rounded,
+                                widget.embedded
+                                    ? Icons.minimize_rounded
+                                    : Icons.close_rounded,
                                 color: subtitleColor,
                                 size: 20,
                               ),
