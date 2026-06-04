@@ -92,6 +92,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   static const _prefVoiceKey = 'reven_preferred_voice_id';
   String _voiceTranscript = '';
   String _lastVoiceCaption = '';
+  /// Shown on the voice orb while cloud audio loads (text not in transcript yet).
+  String _pendingAssistantReply = '';
   /// User tapped mic to mute; blocks hands-free auto re-listen until they tap again.
   bool _voiceMicPausedByUser = false;
   bool _wasExpandedBeforeVoice = false;
@@ -575,19 +577,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     Map<String, dynamic>? voiceRes = apiRes;
     var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
 
-    // Voice call: cloud voice only (no phone TTS preview — avoids speaking twice).
-    if (_isVoiceInteractionMode && audioB64.isEmpty) {
-      if (mounted) setState(() => _isSpeaking = true);
-      voiceRes = await ChatApi.synthesizeVoice(
-        text,
-        voiceId: _activeVoiceIdForApi,
-      );
-      if (!mounted) return;
-      audioB64 = voiceRes['reply_audio_base64']?.toString() ?? '';
-    }
-
-    final needsSeparateTts = audioB64.isEmpty && !_isVoiceInteractionMode;
-    if (needsSeparateTts) {
+    // Fallback TTS if /chat did not return inline audio.
+    if (audioB64.isEmpty) {
       if (mounted) setState(() => _isSpeaking = true);
       voiceRes = await ChatApi.synthesizeVoice(
         text,
@@ -683,6 +674,9 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   String get _voiceSpeakingCaption {
     if (!_isSpeaking) return '';
+    if (_pendingAssistantReply.trim().isNotEmpty) {
+      return _pendingAssistantReply.trim();
+    }
     for (var i = _messages.length - 1; i >= 0; i--) {
       final m = _messages[i];
       if (!m.isUser && !m.isLoading && m.text.trim().isNotEmpty) {
@@ -1463,21 +1457,24 @@ class _RevenChatPageState extends State<RevenChatPage>
     _startWaitElapsedTicker();
     _scrollToBottom();
 
-    // Voice call: fast text-only /chat, then /chat/voice-audio (parallel with phone preview).
+    final voiceTurn = _isVoiceInteractionMode;
+    final inlineCloudVoice = voiceTurn &&
+        _voiceReadAloud &&
+        _effectiveVoiceCloudEnabled;
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: false,
-      voiceMode: _isVoiceInteractionMode,
+      voiceReply: inlineCloudVoice,
+      voiceMode: voiceTurn,
       voiceId: _activeVoiceIdForApi,
     );
 
     if (!mounted) return;
     String? ttsReply;
     Map<String, dynamic>? ttsRes;
+    String? deferredVoiceReply;
     final shouldSpeak = _voiceReadAloud &&
-        (_isVoiceInteractionMode || _lastTurnWasVoice);
-    final voiceTurn = _isVoiceInteractionMode;
+        (voiceTurn || _lastTurnWasVoice);
     _stopWaitElapsedTicker();
     setState(() {
       _messages.removeLast();
@@ -1549,16 +1546,27 @@ class _RevenChatPageState extends State<RevenChatPage>
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
 
-        _messages.add(
-          _RevenMessage(
-            text: replyText,
-            isUser: false,
-            courses: voiceTurn ? null : courses,
-            commands: voiceTurn ? null : commands,
-            clients: voiceTurn ? null : clients,
-            createdAt: DateTime.now(),
-          ),
-        );
+        final holdTextForVoice = voiceTurn &&
+            shouldSpeak &&
+            inlineCloudVoice &&
+            replyText.isNotEmpty;
+
+        if (holdTextForVoice) {
+          deferredVoiceReply = replyText;
+          _pendingAssistantReply = replyText;
+          _isSpeaking = true;
+        } else {
+          _messages.add(
+            _RevenMessage(
+              text: replyText,
+              isUser: false,
+              courses: voiceTurn ? null : courses,
+              commands: voiceTurn ? null : commands,
+              clients: voiceTurn ? null : clients,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
 
         // --- Auto-fetch clients/courses if promised but not sent ---
         if (voiceTurn) {
@@ -1570,6 +1578,7 @@ class _RevenChatPageState extends State<RevenChatPage>
           _lastTurnWasVoice = false;
         }
 
+        if (!holdTextForVoice) {
         final lastMsg = _messages.last;
         final replyLower = lastMsg.text.toLowerCase();
 
@@ -1616,6 +1625,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (!voiceTurn) {
           _lastTurnWasVoice = false;
         }
+        }
       } else {
         final unavailable = res['service_unavailable'] == true;
         final errMsg = (res['message'] as String?)?.trim();
@@ -1632,8 +1642,9 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     });
     if (res['success'] == true) {
-      var speakText = (res['reply'] as String? ?? '').trim();
-      if (voiceTurn) {
+      var speakText = deferredVoiceReply ??
+          (res['reply'] as String? ?? '').trim();
+      if (voiceTurn && deferredVoiceReply == null) {
         speakText = speakText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
       }
       if (speakText.isEmpty) {
@@ -1650,6 +1661,26 @@ class _RevenChatPageState extends State<RevenChatPage>
     _scrollToBottom();
     if (ttsReply != null) {
       await _speakReply(ttsReply, apiRes: ttsRes);
+      if (deferredVoiceReply != null && mounted) {
+        final reply = deferredVoiceReply!;
+        setState(() {
+          _pendingAssistantReply = '';
+          _isSpeaking = false;
+          final exists = _messages.any(
+            (m) => !m.isUser && !m.isLoading && m.text == reply,
+          );
+          if (!exists) {
+            _messages.add(
+              _RevenMessage(
+                text: reply,
+                isUser: false,
+                createdAt: DateTime.now(),
+              ),
+            );
+          }
+        });
+        _scrollToBottom();
+      }
     }
     // Hands-free: re-open mic after reply unless the user muted it with the mic button.
     if (_isVoiceInteractionMode &&
