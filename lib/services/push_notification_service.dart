@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api/api_client.dart';
 import '../firebase_options.dart';
 import '../routes/app_routes.dart';
+import '../screens/chatbot/reven_chat_page.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -64,6 +65,16 @@ class PushNotificationService {
     Map<String, dynamic> data,
     String deepLink,
   ) async {
+    final type = (data['type'] ?? '').toString();
+    if (type == 'ai_chat_human' ||
+        deepLink.contains('reven-chat') ||
+        deepLink.contains('reven_chat')) {
+      final ctx = _navigatorKey?.currentContext;
+      if (ctx != null && ctx.mounted) {
+        await RevenChatPage.show(ctx);
+      }
+      return;
+    }
     if ((data['kind'] ?? '').toString() == 'home_announcement') {
       _navigatorKey?.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
       return;

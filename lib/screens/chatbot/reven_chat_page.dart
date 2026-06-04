@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' show lerpDouble;
 
@@ -87,6 +88,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   List<Map<String, dynamic>> _sessions = [];
 
   final List<_RevenMessage> _messages = [];
+  Timer? _handoffPollTimer;
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
   String _voiceTranscript = '';
@@ -103,6 +105,46 @@ class _RevenChatPageState extends State<RevenChatPage>
     _initSpeech();
     _initTts();
     _loadHistory();
+  }
+
+  void _syncHandoffPolling() {
+    _handoffPollTimer?.cancel();
+    if (!_humanHandoffActive || _sessionId == null) return;
+    _handoffPollTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _pollHistoryForHumanReplies(),
+    );
+  }
+
+  Future<void> _pollHistoryForHumanReplies() async {
+    final sid = _sessionId;
+    if (sid == null || !_humanHandoffActive || !mounted) return;
+    try {
+      final res = await ChatApi.getHistory(sid);
+      if (res['success'] != true || res['messages'] is! List) return;
+      final msgs = res['messages'] as List;
+      final parsed = <_RevenMessage>[];
+      for (final m in msgs) {
+        if (m is Map<String, dynamic>) {
+          parsed.add(_messageFromApiRow(m));
+        }
+      }
+      if (!mounted) return;
+      final hadNew = parsed.length > _messages.length ||
+          (parsed.isNotEmpty &&
+              _messages.isNotEmpty &&
+              parsed.last.text != _messages.last.text);
+      setState(() {
+        _humanHandoffActive = res['human_handoff_active'] == true;
+        _messages
+          ..clear()
+          ..addAll(parsed);
+      });
+      if (hadNew) _scrollToBottom();
+      if (!_humanHandoffActive) {
+        _handoffPollTimer?.cancel();
+      }
+    } catch (_) {}
   }
 
   static bool _configFlag(dynamic v, {bool defaultValue = true}) {
@@ -304,6 +346,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                 }
               }
             });
+            _syncHandoffPolling();
             _scrollToBottom();
             return;
           }
@@ -420,6 +463,7 @@ class _RevenChatPageState extends State<RevenChatPage>
             }
           }
         });
+        _syncHandoffPolling();
         _scrollToBottom();
       }
     } catch (_) {}
@@ -649,6 +693,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   @override
   void dispose() {
+    _handoffPollTimer?.cancel();
     _micPulseController.dispose();
     if (_isListening) {
       _speech.stop();
@@ -772,10 +817,12 @@ class _RevenChatPageState extends State<RevenChatPage>
         final sid = res['session_id'];
         if (sid is int) _sessionId = sid;
         else if (sid != null) _sessionId = int.tryParse(sid.toString());
+        _syncHandoffPolling();
         return;
       }
       if (res['success'] == true) {
         _humanHandoffActive = res['human_handoff_active'] == true;
+        if (_humanHandoffActive) _syncHandoffPolling();
         List<Map<String, dynamic>>? courses = res['courses'] is List
             ? (res['courses'] as List)
                   .map(
@@ -1702,6 +1749,18 @@ class _ChatBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isHuman) ...[
+                    Text(
+                      'Human support',
+                      style: TextStyle(
+                        color: const Color(0xFFF59E0B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    if (message.text.isNotEmpty) const SizedBox(height: 4),
+                  ],
                   if (message.text.isNotEmpty)
                     Text(
                       message.text,
