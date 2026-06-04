@@ -560,16 +560,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
   }
 
-  /// First sentence for instant phone TTS while cloud Grok audio loads.
-  String _instantVoicePreview(String text) {
-    final t = text.trim();
-    if (t.isEmpty) return t;
-    if (t.length <= 160) return t;
-    final match = RegExp(r'^[\s\S]{1,200}?[.!?](?:\s|$)').firstMatch(t);
-    if (match != null) return match.group(0)!.trim();
-    return '${t.substring(0, 160).trim()}…';
-  }
-
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
 
@@ -585,18 +575,13 @@ class _RevenChatPageState extends State<RevenChatPage>
     Map<String, dynamic>? voiceRes = apiRes;
     var audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
 
-    // Voice call: text already returned — preview on phone, fetch Grok audio in parallel.
+    // Voice call: cloud voice only (no phone TTS preview — avoids speaking twice).
     if (_isVoiceInteractionMode && audioB64.isEmpty) {
-      final preview = _instantVoicePreview(text);
-      if (preview.isNotEmpty) {
-        unawaited(_speakDeviceTts(preview));
-      }
       if (mounted) setState(() => _isSpeaking = true);
       voiceRes = await ChatApi.synthesizeVoice(
         text,
         voiceId: _activeVoiceIdForApi,
       );
-      await _stopTts();
       if (!mounted) return;
       audioB64 = voiceRes['reply_audio_base64']?.toString() ?? '';
     }
@@ -659,23 +644,28 @@ class _RevenChatPageState extends State<RevenChatPage>
       return;
     }
 
-    if (engine == 'failed' || _isVoiceInteractionMode || _preferAiVoiceOnly) {
+    if (engine == 'failed' || _preferAiVoiceOnly) {
       final err = voiceRes?['reply_audio_error']?.toString() ??
           voiceRes?['message']?.toString();
-      final spoke = await _speakDeviceTts(text);
+      _showVoiceSnack(
+        err != null && err.isNotEmpty
+            ? err
+            : 'Cloud voice ($_voiceModelLabel) unavailable. Enable cloud voice in admin and choose a speaker for this model.',
+      );
+      if (_isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+      }
+    } else if (_isVoiceInteractionMode && audioB64.isEmpty) {
       if (mounted) setState(() => _isSpeaking = false);
+      final err = voiceRes?['message']?.toString().trim() ?? '';
+      final spoke = await _speakDeviceTts(text);
       if (spoke) {
-        if (err != null && err.isNotEmpty) {
+        if (err.isNotEmpty) {
           _showVoiceSnack('$err — using device voice.');
         }
-      } else {
-        _showVoiceSnack(
-          err != null && err.isNotEmpty
-              ? err
-              : 'Cloud voice ($_voiceModelLabel) unavailable. Enable cloud voice in admin and choose a speaker for this model.',
-        );
-      }
-      if (_isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
+      } else if (err.isNotEmpty) {
+        _showVoiceSnack(err);
         await _scheduleVoiceListenAfterReply();
       }
     }
