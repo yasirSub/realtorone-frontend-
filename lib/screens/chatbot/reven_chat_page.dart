@@ -21,6 +21,8 @@ import 'data/reven_quick_prompts.dart';
 
 enum _RevenInteractionMode { text, voice }
 
+enum _VoiceCallStatus { idle, listening, processing, speaking }
+
 class RevenChatPage extends StatefulWidget {
   const RevenChatPage({super.key});
 
@@ -108,7 +110,18 @@ class _RevenChatPageState extends State<RevenChatPage>
   final AudioPlayer _cloudPlayer = AudioPlayer();
   static const _prefVoiceKey = 'reven_preferred_voice_id';
   String _voiceTranscript = '';
+  String _lastVoiceCaption = '';
+  bool _wasExpandedBeforeVoice = false;
   late final AnimationController _micPulseController;
+
+  _VoiceCallStatus get _voiceCallStatus {
+    if (_isListening) return _VoiceCallStatus.listening;
+    if (_isSpeaking) return _VoiceCallStatus.speaking;
+    if (_isLoading && _isVoiceInteractionMode) {
+      return _VoiceCallStatus.processing;
+    }
+    return _VoiceCallStatus.idle;
+  }
 
   @override
   void initState() {
@@ -231,7 +244,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (_isVoiceInteractionMode) return;
     await _stopTts();
     if (!mounted) return;
-    setState(() => _interactionMode = _RevenInteractionMode.voice);
+    setState(() {
+      _wasExpandedBeforeVoice = _isExpanded;
+      _isExpanded = true; // full-screen call experience
+      _interactionMode = _RevenInteractionMode.voice;
+    });
     await _loadVoiceSettings();
   }
 
@@ -240,7 +257,29 @@ class _RevenChatPageState extends State<RevenChatPage>
     await _cancelVoiceInput();
     await _stopTts();
     if (!mounted) return;
-    setState(() => _interactionMode = _RevenInteractionMode.text);
+    setState(() {
+      _interactionMode = _RevenInteractionMode.text;
+      _isExpanded = _wasExpandedBeforeVoice;
+      _lastVoiceCaption = '';
+      _voiceTranscript = '';
+    });
+  }
+
+  Future<void> _scheduleVoiceListenAfterReply() async {
+    if (!_isVoiceInteractionMode ||
+        _humanHandoffActive ||
+        !_voiceInAiChatEnabled) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 550));
+    if (!mounted ||
+        !_isVoiceInteractionMode ||
+        _isListening ||
+        _isSpeaking ||
+        _isLoading) {
+      return;
+    }
+    await _startVoiceInput();
   }
 
   bool get _isVoiceInteractionMode =>
@@ -332,6 +371,9 @@ class _RevenChatPageState extends State<RevenChatPage>
       await _tts.setPitch(1.0);
       _tts.setCompletionHandler(() {
         if (mounted) setState(() => _isSpeaking = false);
+        if (_isVoiceInteractionMode) {
+          unawaited(_scheduleVoiceListenAfterReply());
+        }
       });
       _tts.setCancelHandler(() {
         if (mounted) setState(() => _isSpeaking = false);
@@ -350,20 +392,23 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (mounted) setState(() => _isSpeaking = false);
   }
 
-  Future<void> _speakCloudAudio(String base64, String mime) async {
+  Future<bool> _speakCloudAudio(String base64, String mime) async {
     final bytes = base64Decode(base64);
-    if (bytes.isEmpty) return;
+    if (bytes.isEmpty) return false;
     await _cloudPlayer.stop();
-    if (!mounted) return;
+    if (!mounted) return false;
     setState(() => _isSpeaking = true);
-    unawaited(
-      _cloudPlayer.onPlayerComplete.first.then((_) {
-        if (mounted) setState(() => _isSpeaking = false);
-      }),
-    );
-    await _cloudPlayer.play(
-      BytesSource(bytes, mimeType: mime.contains('mpeg') ? 'audio/mpeg' : mime),
-    );
+    try {
+      await _cloudPlayer.play(
+        BytesSource(bytes, mimeType: mime.contains('mpeg') ? 'audio/mpeg' : mime),
+      );
+      await _cloudPlayer.onPlayerComplete.first;
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      if (mounted) setState(() => _isSpeaking = false);
+    }
   }
 
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
@@ -373,21 +418,20 @@ class _RevenChatPageState extends State<RevenChatPage>
     final audioB64 = apiRes?['reply_audio_base64']?.toString() ?? '';
     final audioMime = apiRes?['reply_audio_mime']?.toString() ?? 'audio/mpeg';
     final engine = apiRes?['reply_audio_engine']?.toString() ?? '';
+    var spoke = false;
 
     if (audioB64.isNotEmpty && engine == 'cloud') {
       await _stopTts();
-      try {
-        await _speakCloudAudio(audioB64, audioMime);
-        return;
-      } catch (e) {
-        if (mounted) setState(() => _isSpeaking = false);
-        if (useAiVoiceOnly) {
-          _showVoiceSnack(
-            'Could not play AI voice audio. Check connection and try again.',
-          );
-          return;
-        }
+      spoke = await _speakCloudAudio(audioB64, audioMime);
+      if (!spoke && useAiVoiceOnly) {
+        _showVoiceSnack(
+          'Could not play AI voice audio. Check connection and try again.',
+        );
       }
+      if (spoke) {
+        await _scheduleVoiceListenAfterReply();
+      }
+      return;
     }
 
     if (useAiVoiceOnly) {
@@ -395,7 +439,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _showVoiceSnack(
         err?.isNotEmpty == true
             ? err!
-            : 'AI voice (${_voiceModelLabel}) was not returned. Enable OpenRouter MAI-Voice-2 in admin and redeploy backend.',
+            : 'AI voice ($_voiceModelLabel) was not returned. Enable OpenRouter MAI-Voice-2 in admin and redeploy backend.',
       );
       return;
     }
@@ -408,8 +452,12 @@ class _RevenChatPageState extends State<RevenChatPage>
       setState(() => _isSpeaking = true);
       try {
         await _tts.speak(spoken);
+        spoke = true;
       } catch (_) {
         if (mounted) setState(() => _isSpeaking = false);
+      }
+      if (spoke && !_isVoiceInteractionMode) {
+        await _scheduleVoiceListenAfterReply();
       }
     }
   }
@@ -445,6 +493,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _toggleVoiceInput() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isLoading && _isVoiceInteractionMode) return;
     if (!_isVoiceInteractionMode) {
       await _enterVoiceMode();
       if (!mounted) return;
@@ -469,7 +518,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _startVoiceInput() async {
-    if (_isListening || !_voiceInAiChatEnabled) return;
+    if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
 
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
@@ -488,6 +537,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     _voiceTranscript = '';
+    if (mounted) {
+      setState(() {
+        _lastVoiceCaption = '';
+      });
+    }
 
     final locales = await _speech.locales();
     final localeId = locales.isNotEmpty ? locales.first.localeId : null;
@@ -525,6 +579,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() {
       _isListening = false;
       _voiceTranscript = '';
+      if (text.isNotEmpty) _lastVoiceCaption = text;
     });
     if (text.isEmpty) return;
     if (_voiceAutoSend) {
@@ -1190,6 +1245,10 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (ttsReply != null) {
       await _speakReply(ttsReply!, apiRes: ttsRes);
     }
+    // Keep the call hands-free: re-open the mic even if no audio played.
+    if (_isVoiceInteractionMode && !_isSpeaking && !_isListening) {
+      await _scheduleVoiceListenAfterReply();
+    }
   }
 
   Future<void> _autoFetchClientsForLastMessage() async {
@@ -1499,32 +1558,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
-                      if (_voiceInAiChatEnabled &&
-                          _isVoiceInteractionMode &&
-                          !_humanHandoffActive)
-                        _RevenVoiceModeBar(
-                          voiceModelLabel: _voiceModelLabel,
-                          activeVoiceLabel: _activeVoiceLabel,
-                          showVoicePicker:
-                              _voiceCloudEnabled && _voiceAllowUserPick,
-                          isDark: isDark,
-                          borderColor: borderColor,
-                          subtitleColor: subtitleColor,
-                          titleColor: titleColor,
-                          onVoicePick: _showVoicePicker,
-                          onExitVoice: _exitVoiceMode,
-                        ),
-
-                      if (_voiceInAiChatEnabled && (_isListening || _isSpeaking))
-                        _VoiceStatusBanner(
-                          isListening: _isListening,
-                          isSpeaking: _isSpeaking,
-                          transcript: _voiceTranscript,
-                          onCancel: _isListening ? _cancelVoiceInput : _stopTts,
-                          isDark: isDark,
-                        ),
-
-                      // ── Messages ──────────────────────────────────────
+                      // ── Messages (always visible) ──────────────────
                       Expanded(
                         child: ListView.separated(
                           controller: _scrollController,
@@ -1558,91 +1592,117 @@ class _RevenChatPageState extends State<RevenChatPage>
                         ),
                       ),
 
-                      // ── Input ─────────────────────────────────────────
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-                        decoration: BoxDecoration(
-                          color: surfaceColor,
-                          border: Border(top: BorderSide(color: borderColor)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 11,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: backgroundColor,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: borderColor),
-                                ),
-                                child: TextField(
-                                  controller: _messageController,
-                                  minLines: 1,
-                                  maxLines: 4,
-                                  textInputAction: TextInputAction.send,
-                                  onSubmitted: (_) => _sendMessage(),
-                                  decoration: InputDecoration(
-                                    hintText: _isVoiceInteractionMode
-                                        ? 'Or type a message...'
-                                        : 'Message Reven...',
-                                    hintStyle: TextStyle(color: subtitleColor),
-                                    border: InputBorder.none,
-                                    isCollapsed: true,
+                      // ── Composer: voice (ChatGPT-style) or text ────
+                      if (_isVoiceInteractionMode &&
+                          _voiceInAiChatEnabled &&
+                          !_humanHandoffActive)
+                        _RevenVoiceComposer(
+                          status: _voiceCallStatus,
+                          voiceModelLabel: _voiceModelLabel,
+                          activeVoiceLabel: _activeVoiceLabel,
+                          showVoicePicker:
+                              _voiceCloudEnabled && _voiceAllowUserPick,
+                          liveCaption: _isListening
+                              ? _voiceTranscript
+                              : _lastVoiceCaption,
+                          pulse: _micPulseController,
+                          isDark: isDark,
+                          backgroundColor: backgroundColor,
+                          surfaceColor: surfaceColor,
+                          borderColor: borderColor,
+                          titleColor: titleColor,
+                          subtitleColor: subtitleColor,
+                          messageController: _messageController,
+                          onMicTap: _toggleVoiceInput,
+                          onVoicePick: _showVoicePicker,
+                          onExitVoice: _exitVoiceMode,
+                          onSendText: _sendMessage,
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                          decoration: BoxDecoration(
+                            color: surfaceColor,
+                            border: Border(top: BorderSide(color: borderColor)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 11,
                                   ),
-                                  style: TextStyle(
-                                    color: titleColor,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                  decoration: BoxDecoration(
+                                    color: backgroundColor,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: borderColor),
+                                  ),
+                                  child: TextField(
+                                    controller: _messageController,
+                                    minLines: 1,
+                                    maxLines: 4,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (_) => _sendMessage(),
+                                    decoration: InputDecoration(
+                                      hintText: 'Message Reven...',
+                                      hintStyle:
+                                          TextStyle(color: subtitleColor),
+                                      border: InputBorder.none,
+                                      isCollapsed: true,
+                                    ),
+                                    style: TextStyle(
+                                      color: titleColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            if (_voiceInAiChatEnabled && !_humanHandoffActive) ...[
+                              if (_voiceInAiChatEnabled &&
+                                  !_humanHandoffActive) ...[
+                                const SizedBox(width: 8),
+                                _VoiceMicButton(
+                                  isListening: _isListening,
+                                  isSpeaking: _isSpeaking,
+                                  voiceModeActive: false,
+                                  pulse: _micPulseController,
+                                  backgroundColor: backgroundColor,
+                                  borderColor: borderColor,
+                                  subtitleColor: subtitleColor,
+                                  onTap: _toggleVoiceInput,
+                                ),
+                              ],
                               const SizedBox(width: 8),
-                              _VoiceMicButton(
-                                isListening: _isListening,
-                                isSpeaking: _isSpeaking,
-                                voiceModeActive: _isVoiceInteractionMode,
-                                pulse: _micPulseController,
-                                backgroundColor: backgroundColor,
-                                borderColor: borderColor,
-                                subtitleColor: subtitleColor,
-                                onTap: _toggleVoiceInput,
+                              GestureDetector(
+                                onTap: _sendMessage,
+                                child: Container(
+                                  width: 46,
+                                  height: 46,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF4F7CFF),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF4F7CFF,
+                                        ).withValues(alpha: 0.35),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.send_rounded,
+                                    color: Colors.white,
+                                    size: 19,
+                                  ),
+                                ),
                               ),
                             ],
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: _sendMessage,
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF4F7CFF),
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFF4F7CFF,
-                                      ).withValues(alpha: 0.35),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.send_rounded,
-                                  color: Colors.white,
-                                  size: 19,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -1657,92 +1717,340 @@ class _RevenChatPageState extends State<RevenChatPage>
 
 // ── Voice UI ─────────────────────────────────────────────────────────────
 
-class _VoiceStatusBanner extends StatelessWidget {
-  const _VoiceStatusBanner({
-    required this.isListening,
-    required this.isSpeaking,
-    required this.transcript,
-    required this.onCancel,
+/// ChatGPT-style voice composer: small floating orb + status above a pill
+/// row with a Type field, a mic, and a white End button. Chat stays visible.
+class _RevenVoiceComposer extends StatelessWidget {
+  const _RevenVoiceComposer({
+    required this.status,
+    required this.voiceModelLabel,
+    required this.activeVoiceLabel,
+    required this.showVoicePicker,
+    required this.liveCaption,
+    required this.pulse,
     required this.isDark,
+    required this.backgroundColor,
+    required this.surfaceColor,
+    required this.borderColor,
+    required this.titleColor,
+    required this.subtitleColor,
+    required this.messageController,
+    required this.onMicTap,
+    required this.onVoicePick,
+    required this.onExitVoice,
+    required this.onSendText,
   });
 
-  final bool isListening;
-  final bool isSpeaking;
-  final String transcript;
-  final VoidCallback onCancel;
+  final _VoiceCallStatus status;
+  final String voiceModelLabel;
+  final String activeVoiceLabel;
+  final bool showVoicePicker;
+  final String liveCaption;
+  final AnimationController pulse;
   final bool isDark;
+  final Color backgroundColor;
+  final Color surfaceColor;
+  final Color borderColor;
+  final Color titleColor;
+  final Color subtitleColor;
+  final TextEditingController messageController;
+  final VoidCallback onMicTap;
+  final VoidCallback onVoicePick;
+  final VoidCallback onExitVoice;
+  final VoidCallback onSendText;
+
+  Color get _accent {
+    switch (status) {
+      case _VoiceCallStatus.listening:
+        return const Color(0xFF22C55E);
+      case _VoiceCallStatus.processing:
+        return const Color(0xFFF59E0B);
+      case _VoiceCallStatus.speaking:
+        return RealtorOneBrand.accentIndigo;
+      case _VoiceCallStatus.idle:
+        return const Color(0xFF4F7CFF);
+    }
+  }
+
+  String get _statusText {
+    switch (status) {
+      case _VoiceCallStatus.listening:
+        return liveCaption.trim().isNotEmpty
+            ? liveCaption.trim()
+            : 'Listening…';
+      case _VoiceCallStatus.processing:
+        return 'Thinking…';
+      case _VoiceCallStatus.speaking:
+        return 'Speaking…';
+      case _VoiceCallStatus.idle:
+        return 'Tap the mic to talk';
+    }
+  }
+
+  bool get _micIsListening => status == _VoiceCallStatus.listening;
 
   @override
   Widget build(BuildContext context) {
-    final label = isListening
-        ? 'Listening…'
-        : 'Speaking…';
-    final sub = isListening && transcript.isNotEmpty
-        ? transcript
-        : (isListening
-            ? 'Tap mic again or pause to send'
-            : 'Tap mic to stop');
+    final active = status != _VoiceCallStatus.idle;
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            RealtorOneBrand.accentIndigo.withValues(alpha: isDark ? 0.28 : 0.14),
-            RealtorOneBrand.accentIndigo.withValues(alpha: isDark ? 0.12 : 0.06),
-          ],
-        ),
-        border: Border(
-          bottom: BorderSide(
-            color: RealtorOneBrand.accentIndigo.withValues(alpha: 0.35),
-          ),
-        ),
+        color: surfaceColor,
+        border: Border(top: BorderSide(color: borderColor)),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _VoiceWaveBars(active: isListening || isSpeaking),
-          const SizedBox(width: 10),
-          Expanded(
+          // ── Floating orb + live status ─────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
+                _VoiceCallOrb(
+                  accent: _accent,
+                  active: active,
+                  pulse: pulse,
+                  isListening: _micIsListening,
+                  size: 72,
                 ),
-                if (sub.isNotEmpty)
-                  Text(
-                    sub,
+                const SizedBox(height: 10),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    _statusText,
+                    key: ValueKey(_statusText),
+                    textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                      color: _micIsListening ? titleColor : subtitleColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
                     ),
                   ),
+                ),
               ],
             ),
           ),
-          TextButton(
-            onPressed: onCancel,
-            style: TextButton.styleFrom(
-              foregroundColor: RealtorOneBrand.accentIndigo,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+
+          // ── Pill: + · Type · mic · End ─────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 2, 10, 14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: borderColor),
+              ),
+              child: Row(
+                children: [
+                  if (showVoicePicker)
+                    _RoundIconButton(
+                      icon: Icons.tune_rounded,
+                      bg: surfaceColor,
+                      fg: subtitleColor,
+                      tooltip: 'Change voice ($activeVoiceLabel)',
+                      onTap: onVoicePick,
+                    )
+                  else
+                    const SizedBox(width: 4),
+                  Expanded(
+                    child: TextField(
+                      controller: messageController,
+                      minLines: 1,
+                      maxLines: 3,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => onSendText(),
+                      decoration: InputDecoration(
+                        hintText: 'Type',
+                        hintStyle: TextStyle(color: subtitleColor),
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Mic — tap to talk / stop listening
+                  GestureDetector(
+                    onTap: onMicTap,
+                    child: AnimatedBuilder(
+                      animation: pulse,
+                      builder: (_, child) {
+                        final scale =
+                            _micIsListening ? 1.0 + (pulse.value * 0.12) : 1.0;
+                        return Transform.scale(scale: scale, child: child);
+                      },
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _micIsListening
+                              ? const Color(0xFF22C55E)
+                              : surfaceColor,
+                          border: Border.all(
+                            color: _micIsListening
+                                ? const Color(0xFF22C55E)
+                                : borderColor,
+                          ),
+                        ),
+                        child: Icon(
+                          _micIsListening
+                              ? Icons.mic_rounded
+                              : Icons.mic_none_rounded,
+                          color: _micIsListening ? Colors.white : subtitleColor,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // White End button
+                  GestureDetector(
+                    onTap: onExitVoice,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF0F172A),
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Text(isListening ? 'Cancel' : 'Stop'),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({
+    required this.icon,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: bg),
+        child: Icon(icon, color: fg, size: 20),
+      ),
+    );
+    return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
+  }
+}
+
+class _VoiceCallOrb extends StatelessWidget {
+  const _VoiceCallOrb({
+    required this.accent,
+    required this.active,
+    required this.pulse,
+    required this.isListening,
+    this.size = 88,
+  });
+
+  final Color accent;
+  final bool active;
+  final AnimationController pulse;
+  final bool isListening;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final core = size * 0.72;
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (_, __) {
+        final ring = isListening ? 0.12 + pulse.value * 0.18 : 0.08;
+        return SizedBox(
+          width: size + ring * 60,
+          height: size + ring * 60,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (active) ...[
+                Container(
+                  width: size + ring * 60,
+                  height: size + ring * 60,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withValues(alpha: 0.06),
+                  ),
+                ),
+                Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.28),
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ],
+              Container(
+                width: core,
+                height: core,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: 0.92),
+                      const Color(0xFF6366F1),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.45),
+                      blurRadius: 28,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(core * 0.18),
+                  child: Image.asset(
+                    'assets/images/chat-bot.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -1808,83 +2116,6 @@ class _VoiceWaveBarsState extends State<_VoiceWaveBars>
           }),
         );
       },
-    );
-  }
-}
-
-class _RevenVoiceModeBar extends StatelessWidget {
-  const _RevenVoiceModeBar({
-    required this.voiceModelLabel,
-    required this.activeVoiceLabel,
-    required this.showVoicePicker,
-    required this.isDark,
-    required this.borderColor,
-    required this.subtitleColor,
-    required this.titleColor,
-    required this.onVoicePick,
-    required this.onExitVoice,
-  });
-
-  final String voiceModelLabel;
-  final String activeVoiceLabel;
-  final bool showVoicePicker;
-  final bool isDark;
-  final Color borderColor;
-  final Color subtitleColor;
-  final Color titleColor;
-  final VoidCallback onVoicePick;
-  final VoidCallback onExitVoice;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: borderColor)),
-        color: const Color(0xFF22C55E).withValues(alpha: isDark ? 0.08 : 0.06),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.mic_rounded, size: 16, color: const Color(0xFF22C55E)),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'Voice · $voiceModelLabel',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: titleColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (showVoicePicker)
-            TextButton(
-              onPressed: onVoicePick,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                activeVoiceLabel,
-                style: TextStyle(
-                  color: subtitleColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          IconButton(
-            tooltip: 'Back to text',
-            onPressed: onExitVoice,
-            icon: Icon(Icons.keyboard_rounded, size: 20, color: subtitleColor),
-            padding: const EdgeInsets.all(6),
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          ),
-        ],
-      ),
     );
   }
 }

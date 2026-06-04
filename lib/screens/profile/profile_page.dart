@@ -56,7 +56,9 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final results = await Future.wait([
         UserApi.getProfile(useCache: false),
-        ChatApi.getAiQuota().catchError((_) => <String, dynamic>{'success': false}),
+        ChatApi.getAiQuota().catchError(
+          (_) => <String, dynamic>{'success': false},
+        ),
       ]);
       final response = results[0];
       final quotaRes = results[1];
@@ -404,67 +406,71 @@ class _ProfilePageState extends State<ProfilePage> {
                                   .slideY(begin: 0.2),
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    _userData?['email'] ?? '',
-                                    style: const TextStyle(
-                                      color: Colors.white60,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Icon(
-                                    isVerifiedTimestamp(
-                                          _userData?['email_verified_at'],
-                                        )
-                                        ? Icons.verified_user_rounded
-                                        : Icons.warning_amber_rounded,
-                                    color: isVerifiedTimestamp(
-                                          _userData?['email_verified_at'],
-                                        )
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFFEF4444),
-                                    size: 14,
-                                  ),
-                                ],
-                              )
-                              .animate()
-                              .fadeIn(delay: 300.ms)
-                              .slideY(begin: 0.2),
-                              if (_userData?['mobile']?.toString().isNotEmpty == true) ...[
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        _userData?['email'] ?? '',
+                                        style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        isVerifiedTimestamp(
+                                              _userData?['email_verified_at'],
+                                            )
+                                            ? Icons.verified_user_rounded
+                                            : Icons.warning_amber_rounded,
+                                        color:
+                                            isVerifiedTimestamp(
+                                              _userData?['email_verified_at'],
+                                            )
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFFEF4444),
+                                        size: 14,
+                                      ),
+                                    ],
+                                  )
+                                  .animate()
+                                  .fadeIn(delay: 300.ms)
+                                  .slideY(begin: 0.2),
+                              if (_userData?['mobile']?.toString().isNotEmpty ==
+                                  true) ...[
                                 const SizedBox(height: 4),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      _userData!['mobile'].toString(),
-                                      style: const TextStyle(
-                                        color: Colors.white60,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Icon(
-                                      isVerifiedTimestamp(
-                                            _userData?['mobile_verified_at'],
-                                          )
-                                          ? Icons.verified_user_rounded
-                                          : Icons.warning_amber_rounded,
-                                      color: isVerifiedTimestamp(
-                                            _userData?['mobile_verified_at'],
-                                          )
-                                          ? const Color(0xFF10B981)
-                                          : const Color(0xFFEF4444),
-                                      size: 14,
-                                    ),
-                                  ],
-                                )
-                                .animate()
-                                .fadeIn(delay: 350.ms)
-                                .slideY(begin: 0.2),
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          _userData!['mobile'].toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white60,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Icon(
+                                          isVerifiedTimestamp(
+                                                _userData?['mobile_verified_at'],
+                                              )
+                                              ? Icons.verified_user_rounded
+                                              : Icons.warning_amber_rounded,
+                                          color:
+                                              isVerifiedTimestamp(
+                                                _userData?['mobile_verified_at'],
+                                              )
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444),
+                                          size: 14,
+                                        ),
+                                      ],
+                                    )
+                                    .animate()
+                                    .fadeIn(delay: 350.ms)
+                                    .slideY(begin: 0.2),
                               ],
                               const SizedBox(height: 20),
                               _buildStatusBadge(l10n),
@@ -477,119 +483,125 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
 
                 SliverPadding(
-                  padding: ResponsiveHelper.contentPadding(context, top: 24, bottom: 140),
+                  padding: ResponsiveHelper.contentPadding(
+                    context,
+                    top: 24,
+                    bottom: 140,
+                  ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       ResponsiveHelper.constrainWidth(
                         child: Column(
                           children: [
-                      _buildStatsRow(isDark, l10n),
-                      const SizedBox(height: 16),
-                      _buildVerificationCard(isDark, l10n),
-                      const SizedBox(height: 32),
-                      _buildMenuSection(l10n.profileSectionSettings, [
-                        _MenuItem(
-                          icon: Icons.person_outline,
-                          title: l10n.profileEditTitle,
-                          subtitle: l10n.profileEditSubtitle,
-                          onTap: () async {
-                            final result = await Navigator.pushNamed(
-                              context,
-                              AppRoutes.editProfile,
-                            );
-                            if (result == true) {
-                              _loadUserData();
-                            }
-                          },
-                        ),
-                      ], isDark),
-                      const SizedBox(height: 24),
-                      _buildMenuSection(l10n.profileSectionPerformance, [
-                        _MenuItem(
-                          icon: Icons.emoji_events_outlined,
-                          title: l10n.profileTopRealtorTitle,
-                          subtitle: l10n.profileTopRealtorSubtitle,
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            AppRoutes.leaderboard,
-                          ),
-                        ),
-                      ], isDark),
-                      const SizedBox(height: 24),
+                            _buildStatsRow(isDark, l10n),
+                            const SizedBox(height: 16),
+                            _buildVerificationCard(isDark, l10n),
+                            const SizedBox(height: 32),
+                            _buildMenuSection(l10n.profileSectionSettings, [
+                              _MenuItem(
+                                icon: Icons.person_outline,
+                                title: l10n.profileEditTitle,
+                                subtitle: l10n.profileEditSubtitle,
+                                onTap: () async {
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.editProfile,
+                                  );
+                                  if (result == true) {
+                                    _loadUserData();
+                                  }
+                                },
+                              ),
+                            ], isDark),
+                            const SizedBox(height: 24),
+                            _buildMenuSection(l10n.profileSectionPerformance, [
+                              _MenuItem(
+                                icon: Icons.emoji_events_outlined,
+                                title: l10n.profileTopRealtorTitle,
+                                subtitle: l10n.profileTopRealtorSubtitle,
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.leaderboard,
+                                ),
+                              ),
+                            ], isDark),
+                            const SizedBox(height: 24),
 
-                      if (_aiQuota != null) ...[
-                        _buildAiUsageCard(isDark),
-                        const SizedBox(height: 24),
-                      ],
+                            if (_aiQuota != null) ...[
+                              _buildAiUsageCard(isDark),
+                              const SizedBox(height: 24),
+                            ],
 
-                      // My Plan Section
-                      _buildMenuSection(l10n.profileSectionMyPlan, [
-                        _MenuItem(
-                          icon: Icons.workspace_premium_rounded,
-                          title: _userData?['is_premium'] == true
-                              ? '${(_userData?['membership_tier'] ?? 'Premium').toString().replaceAll(' - GOLD', '').replaceAll('- GOLD', '').replaceAll(' GOLD', '').replaceAll('GOLD', '').trim()}${l10n.profilePlanSuffix}'
-                              : l10n.profileConsultantPlan,
-                          subtitle: _userData?['is_premium'] == true
-                              ? l10n.profilePremiumSubtitle
-                              : l10n.profileUpgradeSubtitle,
-                          onTap: () async {
-                            final result = await Navigator.pushNamed(
-                              context,
-                              AppRoutes.subscriptionPlans,
-                            );
-                            if (result == true) {
-                              _loadUserData();
-                            }
-                          },
-                        ),
-                      ], isDark),
-                      const SizedBox(height: 24),
+                            // My Plan Section
+                            _buildMenuSection(l10n.profileSectionMyPlan, [
+                              _MenuItem(
+                                icon: Icons.workspace_premium_rounded,
+                                title: _userData?['is_premium'] == true
+                                    ? '${(_userData?['membership_tier'] ?? 'Premium').toString().replaceAll(' - GOLD', '').replaceAll('- GOLD', '').replaceAll(' GOLD', '').replaceAll('GOLD', '').trim()}${l10n.profilePlanSuffix}'
+                                    : l10n.profileConsultantPlan,
+                                subtitle: _userData?['is_premium'] == true
+                                    ? l10n.profilePremiumSubtitle
+                                    : l10n.profileUpgradeSubtitle,
+                                onTap: () async {
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.subscriptionPlans,
+                                  );
+                                  if (result == true) {
+                                    _loadUserData();
+                                  }
+                                },
+                              ),
+                            ], isDark),
+                            const SizedBox(height: 24),
 
-                      _buildMenuSection(l10n.profileSectionAccount, [
-                        _MenuItem(
-                          icon: Icons.settings_outlined,
-                          title: l10n.profileAppSettingsTitle,
-                          subtitle: l10n.profileAppSettingsSubtitle,
-                          onTap: () =>
-                              Navigator.pushNamed(context, AppRoutes.settings),
-                        ),
-                        if (_userData?['is_admin'] == true)
-                          _MenuItem(
-                            icon: Icons.admin_panel_settings_outlined,
-                            title: 'Manage user subscriptions',
-                            subtitle:
-                                'Change tier manually (recorded as admin)',
-                            onTap: () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.adminManageSubscription,
+                            _buildMenuSection(l10n.profileSectionAccount, [
+                              _MenuItem(
+                                icon: Icons.settings_outlined,
+                                title: l10n.profileAppSettingsTitle,
+                                subtitle: l10n.profileAppSettingsSubtitle,
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.settings,
+                                ),
+                              ),
+                              if (_userData?['is_admin'] == true)
+                                _MenuItem(
+                                  icon: Icons.admin_panel_settings_outlined,
+                                  title: 'Manage user subscriptions',
+                                  subtitle:
+                                      'Change tier manually (recorded as admin)',
+                                  onTap: () => Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.adminManageSubscription,
+                                  ),
+                                ),
+                            ], isDark),
+                            const SizedBox(height: 48),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: TextButton.icon(
+                                onPressed: () => _showLogoutDialog(),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red[700],
+                                  backgroundColor: Colors.red[50],
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.logout_rounded),
+                                label: Text(
+                                  l10n.profileLogout,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                      ], isDark),
-                      const SizedBox(height: 48),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: TextButton.icon(
-                          onPressed: () => _showLogoutDialog(),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.red[700],
-                            backgroundColor: Colors.red[50],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          icon: const Icon(Icons.logout_rounded),
-                          label: Text(
-                            l10n.profileLogout,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                      _buildFooter(l10n),
+                            const SizedBox(height: 40),
+                            _buildFooter(l10n),
                           ],
                         ),
                       ),
@@ -670,9 +682,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final sessions = q['recent_sessions'];
     final List<Map<String, dynamic>> recent = sessions is List
         ? sessions
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList()
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
         : [];
 
     return Container(
@@ -695,7 +707,11 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome, color: RealtorOneBrand.accentIndigo, size: 20),
+              Icon(
+                Icons.auto_awesome,
+                color: RealtorOneBrand.accentIndigo,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'AI Coach usage',
@@ -721,7 +737,11 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: Text(
                 'Limit reached — resets ${q['exceeded'] == 'monthly' ? 'next month' : 'tomorrow'}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.amber),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.amber,
+                ),
               ),
             ),
           ],
@@ -730,7 +750,9 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'Today',
             used: todayUsed,
             limitLabel: fmtLimit(dailyLimit),
-            remaining: remainDay is int ? remainDay : int.tryParse('$remainDay'),
+            remaining: remainDay is int
+                ? remainDay
+                : int.tryParse('$remainDay'),
             fraction: barFrac(todayUsed, dailyLimit),
             isDark: isDark,
           ),
@@ -739,7 +761,9 @@ class _ProfilePageState extends State<ProfilePage> {
             label: 'This month',
             used: monthUsed,
             limitLabel: fmtLimit(monthlyLimit),
-            remaining: remainMonth is int ? remainMonth : int.tryParse('$remainMonth'),
+            remaining: remainMonth is int
+                ? remainMonth
+                : int.tryParse('$remainMonth'),
             fraction: barFrac(monthUsed, monthlyLimit),
             isDark: isDark,
             accent: Colors.amber,
@@ -770,7 +794,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Text(
@@ -806,10 +833,17 @@ class _ProfilePageState extends State<ProfilePage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            ),
             Text(
               '$used / $limitLabel TK${remaining != null ? ' · $remaining left' : ''}',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
             ),
           ],
         ),
@@ -1367,7 +1401,8 @@ class _ProfilePageState extends State<ProfilePage> {
       final upper = msg.toUpperCase();
 
       // Firebase device/number temporary block (too-many-requests / unusual activity).
-      final firebaseBlocked = upper.contains('TOO MANY REQUESTS') ||
+      final firebaseBlocked =
+          upper.contains('TOO MANY REQUESTS') ||
           upper.contains('TOO-MANY-REQUESTS') ||
           upper.contains('TOO_MANY_REQUESTS') ||
           upper.contains('UNUSUAL ACTIVITY') ||
@@ -1450,10 +1485,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showSnackBar(String message, Color backgroundColor) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: backgroundColor,
-      ),
+      SnackBar(content: Text(message), backgroundColor: backgroundColor),
     );
   }
 
@@ -1578,7 +1610,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (isEmail) {
                   final response = await UserApi.sendEmailOtp(email);
                   if (!dCtx.mounted) return;
-                  if (response['status'] == 'ok' || response['success'] == true) {
+                  if (response['status'] == 'ok' ||
+                      response['success'] == true) {
                     setDialogState(() {
                       isResending = false;
                       errorMessage = '';
@@ -1604,7 +1637,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 }
 
                 if (currentUsesFirebase) {
-                  final ready = await FirebasePhoneAuthHelper.ensureInitialized();
+                  final ready =
+                      await FirebasePhoneAuthHelper.ensureInitialized();
                   if (!ready) {
                     setDialogState(() {
                       isResending = false;
@@ -1625,7 +1659,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     });
                     _showSnackBar('New code sent via SMS.', Colors.green);
                   } else {
-                    final smsResponse = await UserApi.sendPhoneOtp(email, phone);
+                    final smsResponse = await UserApi.sendPhoneOtp(
+                      email,
+                      phone,
+                    );
                     if (!dCtx.mounted) return;
                     if (smsResponse['status'] == 'ok') {
                       currentUsesFirebase = false;
@@ -1648,7 +1685,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 } else {
                   final smsResponse = await UserApi.sendPhoneOtp(email, phone);
                   if (!dCtx.mounted) return;
-                  if (smsResponse['status'] == 'ok' || smsResponse['success'] == true) {
+                  if (smsResponse['status'] == 'ok' ||
+                      smsResponse['success'] == true) {
                     setDialogState(() {
                       isResending = false;
                       errorMessage = '';
@@ -1681,9 +1719,7 @@ class _ProfilePageState extends State<ProfilePage> {
               title: isEmail ? 'Verify Email' : 'Verify Phone Number',
               actions: [
                 TextButton(
-                  onPressed: isVerifying
-                      ? null
-                      : () => Navigator.pop(dCtx),
+                  onPressed: isVerifying ? null : () => Navigator.pop(dCtx),
                   child: const Text(
                     'CANCEL',
                     style: TextStyle(
@@ -1776,7 +1812,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       TextButton(
-                        onPressed: (isResending || isVerifying) ? null : handleResend,
+                        onPressed: (isResending || isVerifying)
+                            ? null
+                            : handleResend,
                         child: Text(
                           isResending ? 'Sending…' : 'Resend code',
                           style: const TextStyle(
@@ -1865,8 +1903,9 @@ class _ProfilePageState extends State<ProfilePage> {
       } else if (mounted) {
         setState(() => _isLoading = false);
         if (showSnackBarFeedback) {
-          final msg =
-              (response['message'] ?? response['error'] ?? '').toString().trim();
+          final msg = (response['message'] ?? response['error'] ?? '')
+              .toString()
+              .trim();
           if (msg.isNotEmpty) {
             _showSnackBar(msg, Colors.red);
           } else {
@@ -1887,7 +1926,10 @@ class _ProfilePageState extends State<ProfilePage> {
           _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
         }
       }
-      return {'status': 'error', 'message': '${e.code}: ${e.message ?? ''}'.trim()};
+      return {
+        'status': 'error',
+        'message': '${e.code}: ${e.message ?? ''}'.trim(),
+      };
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1900,10 +1942,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildVerificationCard(bool isDark, AppLocalizations l10n) {
-    final emailVerified =
-        isVerifiedTimestamp(_userData?['email_verified_at']);
-    final phoneVerified =
-        isVerifiedTimestamp(_userData?['mobile_verified_at']);
+    final emailVerified = isVerifiedTimestamp(_userData?['email_verified_at']);
+    final phoneVerified = isVerifiedTimestamp(_userData?['mobile_verified_at']);
     final hasEmail = (_userData?['email']?.toString() ?? '').trim().isNotEmpty;
     final showEmailVerify = hasEmail && !emailVerified;
     final showPhoneVerify = !phoneVerified;
@@ -2013,17 +2053,17 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ],
           ),
         ),
         isVerified
             ? Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -2060,8 +2100,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   elevation: 0,
