@@ -19,6 +19,8 @@ import 'data/reven_quick_prompts.dart';
 
 // ignore_for_file: unused_element
 
+enum _RevenInteractionMode { text, voice }
+
 class RevenChatPage extends StatefulWidget {
   const RevenChatPage({super.key});
 
@@ -93,6 +95,9 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _isListening = false;
   bool _isSpeaking = false;
   bool _lastTurnWasVoice = false;
+  _RevenInteractionMode _interactionMode = _RevenInteractionMode.text;
+  String _voiceModelLabel = 'MAI-Voice-2';
+  String _textAiModelLabel = '';
   int? _sessionId;
   List<Map<String, dynamic>> _sessions = [];
 
@@ -213,8 +218,23 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceAllowUserPick = _configFlag(data['voice_allow_user_pick']);
         _defaultVoiceId = data['voice_id']?.toString() ?? 'nova';
         if (opts.isNotEmpty) _voiceOptions = opts;
+        _voiceModelLabel = data['voice_model_label']?.toString() ?? 'Voice AI';
+        _configuredVoiceModel = data['voice_model']?.toString() ?? '';
+        final textModel = data['text_ai_model']?.toString() ?? '';
+        final textProvider = data['text_ai_provider']?.toString() ?? '';
+        _textAiModelLabel = textModel.isNotEmpty
+            ? (textProvider.isNotEmpty ? '$textProvider · $textModel' : textModel)
+            : 'Text AI';
       });
     } catch (_) {}
+  }
+
+  void _setInteractionMode(_RevenInteractionMode mode) {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    setState(() => _interactionMode = mode);
+    if (mode == _RevenInteractionMode.voice) {
+      _stopTts();
+    }
   }
 
   String? get _activeVoiceId {
@@ -964,7 +984,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     final res = await ChatApi.sendMessage(
       text,
       sessionId: _sessionId,
-      voiceReply: fromVoice && _voiceReadAloud && _voiceCloudEnabled,
+      voiceReply: (_interactionMode == _RevenInteractionMode.voice || fromVoice) &&
+          _voiceReadAloud &&
+          _voiceCloudEnabled,
       voiceId: _activeVoiceId,
     );
 
@@ -1332,11 +1354,15 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   Text(
                                     _humanHandoffActive
                                         ? 'Human support is chatting'
-                                        : (_isExpanded ? 'Full view' : 'AI assistant'),
+                                        : _interactionMode == _RevenInteractionMode.voice
+                                            ? 'Voice · $_voiceModelLabel'
+                                            : (_isExpanded ? 'Full view' : 'Text · $_textAiModelLabel'),
                                     style: TextStyle(
                                       color: _humanHandoffActive
                                           ? const Color(0xFFF59E0B)
-                                          : subtitleColor,
+                                          : _interactionMode == _RevenInteractionMode.voice
+                                              ? const Color(0xFF22C55E)
+                                              : subtitleColor,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1418,6 +1444,16 @@ class _RevenChatPageState extends State<RevenChatPage>
                           ),
                         ),
 
+                      if (_voiceInAiChatEnabled && !_humanHandoffActive)
+                        _RevenInteractionModeBar(
+                          mode: _interactionMode,
+                          voiceModelLabel: _voiceModelLabel,
+                          textModelLabel: _textAiModelLabel,
+                          isDark: isDark,
+                          borderColor: borderColor,
+                          onModeChanged: _setInteractionMode,
+                        ),
+
                       if (_voiceInAiChatEnabled && (_isListening || _isSpeaking))
                         _VoiceStatusBanner(
                           isListening: _isListening,
@@ -1468,7 +1504,22 @@ class _RevenChatPageState extends State<RevenChatPage>
                           color: surfaceColor,
                           border: Border(top: BorderSide(color: borderColor)),
                         ),
-                        child: Row(
+                        child: _interactionMode == _RevenInteractionMode.voice &&
+                                _voiceInAiChatEnabled &&
+                                !_humanHandoffActive
+                            ? _RevenVoiceModeComposer(
+                                isListening: _isListening,
+                                isSpeaking: _isSpeaking,
+                                voiceLabel: _activeVoiceLabel,
+                                modelLabel: _voiceModelLabel,
+                                pulse: _micPulseController,
+                                onMicTap: _toggleVoiceInput,
+                                onVoicePick: _showVoicePicker,
+                                isDark: isDark,
+                                titleColor: titleColor,
+                                subtitleColor: subtitleColor,
+                              )
+                            : Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Expanded(
@@ -1738,6 +1789,198 @@ class _VoiceWaveBarsState extends State<_VoiceWaveBars>
           }),
         );
       },
+    );
+  }
+}
+
+class _RevenInteractionModeBar extends StatelessWidget {
+  const _RevenInteractionModeBar({
+    required this.mode,
+    required this.voiceModelLabel,
+    required this.textModelLabel,
+    required this.isDark,
+    required this.borderColor,
+    required this.onModeChanged,
+  });
+
+  final _RevenInteractionMode mode;
+  final String voiceModelLabel;
+  final String textModelLabel;
+  final bool isDark;
+  final Color borderColor;
+  final ValueChanged<_RevenInteractionMode> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor)),
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _modeChip(
+              label: 'Text',
+              sub: textModelLabel,
+              selected: mode == _RevenInteractionMode.text,
+              onTap: () => onModeChanged(_RevenInteractionMode.text),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _modeChip(
+              label: 'Voice',
+              sub: voiceModelLabel,
+              selected: mode == _RevenInteractionMode.voice,
+              onTap: () => onModeChanged(_RevenInteractionMode.voice),
+              accent: const Color(0xFF22C55E),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeChip({
+    required String label,
+    required String sub,
+    required bool selected,
+    required VoidCallback onTap,
+    Color accent = const Color(0xFF4F7CFF),
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? accent.withValues(alpha: 0.55) : borderColor,
+              width: selected ? 1.5 : 1,
+            ),
+            color: selected ? accent.withValues(alpha: 0.12) : Colors.transparent,
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: selected ? accent : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                sub,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RevenVoiceModeComposer extends StatelessWidget {
+  const _RevenVoiceModeComposer({
+    required this.isListening,
+    required this.isSpeaking,
+    required this.voiceLabel,
+    required this.modelLabel,
+    required this.pulse,
+    required this.onMicTap,
+    required this.onVoicePick,
+    required this.isDark,
+    required this.titleColor,
+    required this.subtitleColor,
+  });
+
+  final bool isListening;
+  final bool isSpeaking;
+  final String voiceLabel;
+  final String modelLabel;
+  final AnimationController pulse;
+  final VoidCallback onMicTap;
+  final VoidCallback onVoicePick;
+  final bool isDark;
+  final Color titleColor;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = isListening || isSpeaking;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          isListening
+              ? 'Listening…'
+              : isSpeaking
+                  ? 'Speaking · $modelLabel'
+                  : 'Tap to talk · $modelLabel',
+          style: TextStyle(
+            color: subtitleColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: onMicTap,
+          child: AnimatedBuilder(
+            animation: pulse,
+            builder: (_, child) {
+              final scale = isListening ? 1.0 + (pulse.value * 0.12) : 1.0;
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: active
+                      ? [const Color(0xFF22C55E), const Color(0xFF4F7CFF)]
+                      : [const Color(0xFF4F7CFF), const Color(0xFF6366F1)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4F7CFF).withValues(alpha: active ? 0.45 : 0.25),
+                    blurRadius: active ? 24 : 14,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Icon(
+                active ? Icons.mic_rounded : Icons.mic_none_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: onVoicePick,
+          child: Text(
+            'Voice: $voiceLabel',
+            style: TextStyle(color: titleColor, fontSize: 11, fontWeight: FontWeight.w700),
+          ),
+        ),
+      ],
     );
   }
 }
