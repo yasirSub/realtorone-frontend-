@@ -106,6 +106,12 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   /// How long after mic goes quiet before we send (voice hands-free).
   static const Duration _voiceSilenceSendDelay = Duration(milliseconds: 450);
+
+  /// End voice mode if the user does not speak for this long.
+  static const Duration _voiceInactivityTimeout = Duration(minutes: 2);
+  Timer? _voiceInactivityTimer;
+  DateTime? _lastUserVoiceActivityAt;
+
   bool _voiceFinalizeInProgress = false;
 
   _VoiceCallStatus get _voiceCallStatus {
@@ -128,6 +134,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     super.initState();
     if (widget.embedded) {
       RevenChatOverlay.panelExpanded.addListener(_syncPanelExpandedFromOverlay);
+      RevenChatOverlay.voiceToggleSignal.addListener(_onOverlayVoiceToggleRequest);
     }
     _micPulseController = AnimationController(
       vsync: this,
@@ -152,24 +159,74 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (mounted) await _startVoiceInput();
   }
 
-  void _syncOverlayCallStatus() {
-    if (!widget.embedded) return;
-    RevenOverlayCallStatus mapped;
-    switch (_voiceCallStatus) {
-      case _VoiceCallStatus.listening:
-        mapped = RevenOverlayCallStatus.listening;
-        break;
-      case _VoiceCallStatus.speaking:
-        mapped = RevenOverlayCallStatus.speaking;
-        break;
-      case _VoiceCallStatus.processing:
-        mapped = RevenOverlayCallStatus.processing;
-        break;
-      case _VoiceCallStatus.idle:
-        mapped = RevenOverlayCallStatus.idle;
-        break;
+  void _onOverlayVoiceToggleRequest() {
+    if (!mounted || !widget.embedded) return;
+    unawaited(_toggleVoiceFromMinimizedBubble());
+  }
+
+  Future<void> _toggleVoiceFromMinimizedBubble() async {
+    if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
+    if (_isVoiceInteractionMode) {
+      await _exitVoiceMode();
+      return;
     }
-    RevenChatOverlay.updateCallStatus(mapped);
+    await _enterVoiceMode();
+    if (mounted) await _startVoiceInput();
+  }
+
+  static String _truncateOverlayCaption(String text, {int max = 120}) {
+    final t = text.trim();
+    if (t.length <= max) return t;
+    return '${t.substring(0, max - 1)}…';
+  }
+
+  void _syncOverlayPresentation() {
+    if (!widget.embedded) return;
+
+    RevenOverlayCallStatus mapped;
+    String caption = '';
+    RevenOverlayCaptionRole role = RevenOverlayCaptionRole.none;
+
+    if (_isVoiceInteractionMode && !_humanHandoffActive && _voiceInAiChatEnabled) {
+      switch (_voiceCallStatus) {
+        case _VoiceCallStatus.listening:
+          mapped = RevenOverlayCallStatus.listening;
+          final live = (_isListening ? _voiceTranscript : _lastVoiceCaption)
+              .trim();
+          if (live.isNotEmpty) {
+            caption = _truncateOverlayCaption(live);
+            role = RevenOverlayCaptionRole.user;
+          } else if (_voiceUserSpeaking) {
+            caption = '';
+            role = RevenOverlayCaptionRole.user;
+          }
+          break;
+        case _VoiceCallStatus.speaking:
+          mapped = RevenOverlayCallStatus.speaking;
+          final cap = _voiceSpeakingCaption.trim();
+          caption = cap.isNotEmpty
+              ? _truncateOverlayCaption(cap, max: 100)
+              : '';
+          role = RevenOverlayCaptionRole.assistant;
+          break;
+        case _VoiceCallStatus.processing:
+          mapped = RevenOverlayCallStatus.processing;
+          caption = '';
+          role = RevenOverlayCaptionRole.thinking;
+          break;
+        case _VoiceCallStatus.idle:
+          mapped = RevenOverlayCallStatus.idle;
+          break;
+      }
+    } else {
+      mapped = RevenOverlayCallStatus.idle;
+    }
+
+    RevenChatOverlay.updatePresentation(
+      callStatus: mapped,
+      caption: caption,
+      captionRole: role,
+    );
   }
 
   void _syncPanelExpandedFromOverlay() {
@@ -334,10 +391,56 @@ class _RevenChatPageState extends State<RevenChatPage>
     );
   }
 
+  void _cancelVoiceInactivityTimer() {
+    _voiceInactivityTimer?.cancel();
+    _voiceInactivityTimer = null;
+  }
+
+  void _markUserVoiceActivity() {
+    _lastUserVoiceActivityAt = DateTime.now();
+    if (_voiceUserSpeaking || _isSpeaking || _isLoading) {
+      _cancelVoiceInactivityTimer();
+      return;
+    }
+    _armVoiceInactivityTimer();
+  }
+
+  void _armVoiceInactivityTimer() {
+    _cancelVoiceInactivityTimer();
+    if (!_isVoiceInteractionMode || _humanHandoffActive) return;
+    if (_isSpeaking || _isLoading || _voiceUserSpeaking) return;
+    _voiceInactivityTimer = Timer(_voiceInactivityTimeout, () {
+      unawaited(_onVoiceInactivityTimeout());
+    });
+  }
+
+  Future<void> _onVoiceInactivityTimeout() async {
+    if (!mounted || !_isVoiceInteractionMode) return;
+    if (_voiceUserSpeaking || _isSpeaking || _isLoading) {
+      _armVoiceInactivityTimer();
+      return;
+    }
+    final last = _lastUserVoiceActivityAt;
+    if (last != null &&
+        DateTime.now().difference(last) < _voiceInactivityTimeout) {
+      _armVoiceInactivityTimer();
+      return;
+    }
+    await _exitVoiceMode();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Voice ended after 2 minutes with no speech.'),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
   /// Stops mic, timers, and playback — safe to call before switching text ↔ voice.
   Future<void> _stopAllVoiceActivity() async {
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
+    _cancelVoiceInactivityTimer();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
     try {
@@ -368,7 +471,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _lastVoiceCaption = '';
     });
     await _loadVoiceSettings();
-    _syncOverlayCallStatus();
+    _syncOverlayPresentation();
   }
 
   Future<void> _exitVoiceMode() async {
@@ -385,7 +488,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _isSpeaking = false;
       _voiceMicPausedByUser = false;
     });
-    _syncOverlayCallStatus();
+    _syncOverlayPresentation();
     _scrollToBottom();
   }
 
@@ -443,6 +546,9 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   bool get _isVoiceInteractionMode =>
       _interactionMode == _RevenInteractionMode.voice;
+
+  /// Floating panel has no Navigator Overlay; Material tooltips crash without this.
+  String? _iconTooltip(String message) => widget.embedded ? null : message;
 
   String? get _activeVoiceIdForApi {
     final id = _voiceAllowUserPick
@@ -630,6 +736,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     await _cloudPlayer.stop();
     if (!mounted) return false;
     setState(() => _isSpeaking = true);
+    _cancelVoiceInactivityTimer();
 
     String playMime = mime;
     if (_bytesLookLikeMp3(bytes)) {
@@ -664,6 +771,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     await _stopTts();
     if (!mounted) return false;
     setState(() => _isSpeaking = true);
+    _cancelVoiceInactivityTimer();
     try {
       await _tts.speak(spoken);
       return true;
@@ -691,6 +799,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     // Fallback TTS if /chat did not return inline audio.
     if (audioB64.isEmpty) {
       if (mounted) setState(() => _isSpeaking = true);
+      _cancelVoiceInactivityTimer();
       voiceRes = await ChatApi.synthesizeVoice(
         text,
         voiceId: _activeVoiceIdForApi,
@@ -819,13 +928,15 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceSoundLevel = level;
         _voiceUserSpeaking = speaking;
       });
-      _syncOverlayCallStatus();
+      _syncOverlayPresentation();
       if (speaking) {
+        _markUserVoiceActivity();
         if (!_micPulseController.isAnimating) {
           _micPulseController.repeat(reverse: true);
         }
       } else {
         _micPulseController.stop();
+        _armVoiceInactivityTimer();
       }
     }
 
@@ -920,6 +1031,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _voiceTranscript = '';
       if (partial.isNotEmpty) _lastVoiceCaption = partial;
     });
+    _armVoiceInactivityTimer();
   }
 
   Future<void> _cancelVoiceInput() async {
@@ -977,7 +1089,8 @@ class _RevenChatPageState extends State<RevenChatPage>
       _voiceSoundLevel = 0;
     });
     _micPulseController.stop();
-    _syncOverlayCallStatus();
+    _syncOverlayPresentation();
+    _markUserVoiceActivity();
 
     await _speech.listen(
       onResult: (result) {
@@ -985,6 +1098,8 @@ class _RevenChatPageState extends State<RevenChatPage>
         final words = result.recognizedWords.trim();
         if (words.isNotEmpty) {
           setState(() => _voiceTranscript = words);
+          _markUserVoiceActivity();
+          _syncOverlayPresentation();
         }
         if (_isVoiceInteractionMode) {
           if (result.finalResult && words.isNotEmpty) {
@@ -1033,6 +1148,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         return;
       }
       if (_voiceAutoSend) {
+        _markUserVoiceActivity();
         await _sendToApi(text, fromVoice: true);
       } else {
         _messageController.text = text;
@@ -1448,9 +1564,15 @@ class _RevenChatPageState extends State<RevenChatPage>
     _stopWaitElapsedTicker();
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
+    _cancelVoiceInactivityTimer();
     if (widget.embedded) {
       RevenChatOverlay.panelExpanded.removeListener(_syncPanelExpandedFromOverlay);
-      RevenChatOverlay.updateCallStatus(RevenOverlayCallStatus.idle);
+      RevenChatOverlay.voiceToggleSignal.removeListener(_onOverlayVoiceToggleRequest);
+      RevenChatOverlay.updatePresentation(
+        callStatus: RevenOverlayCallStatus.idle,
+        caption: '',
+        captionRole: RevenOverlayCaptionRole.none,
+      );
     }
     _handoffPollTimer?.cancel();
     _micPulseController.dispose();
@@ -1567,6 +1689,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       );
       _isLoading = true;
     });
+    _cancelVoiceInactivityTimer();
     _startWaitElapsedTicker();
     _scrollToBottom();
 
@@ -1954,7 +2077,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   Widget build(BuildContext context) {
     if (widget.embedded) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _syncOverlayCallStatus();
+        if (mounted) _syncOverlayPresentation();
       });
     }
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1970,49 +2093,50 @@ class _RevenChatPageState extends State<RevenChatPage>
         ? const Color(0xFF94A3B8)
         : const Color(0xFF64748B);
 
+    final embeddedFullscreen = widget.embedded && _isExpanded;
+
     return Material(
       type: MaterialType.transparency,
+      color: embeddedFullscreen ? backgroundColor : null,
       child: SafeArea(
+        bottom: !embeddedFullscreen,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compactWidth = constraints.maxWidth > 460
-                ? 420.0
-                : constraints.maxWidth - 28;
-            final compactHeight = constraints.maxHeight > 760
-                ? 560.0
-                : constraints.maxHeight * 0.55;
+            final voiceModePanel = _isVoiceInteractionMode;
+            final compactWidth = widget.embedded
+                ? constraints.maxWidth - 16
+                : (constraints.maxWidth > 460
+                      ? 420.0
+                      : constraints.maxWidth - 28);
+            final minPanelHeight = voiceModePanel ? 480.0 : 380.0;
+            final compactHeight = widget.embedded
+                ? constraints.maxHeight *
+                      (voiceModePanel ? 0.56 : 0.48)
+                : (constraints.maxHeight > 760
+                      ? (voiceModePanel ? 640.0 : 560.0)
+                      : constraints.maxHeight *
+                            (voiceModePanel ? 0.72 : 0.55));
             final windowWidth = _isExpanded
                 ? constraints.maxWidth
                 : compactWidth.clamp(300.0, constraints.maxWidth);
             final windowHeight = _isExpanded
                 ? constraints.maxHeight
-                : compactHeight.clamp(420.0, constraints.maxHeight);
+                : compactHeight.clamp(minPanelHeight, constraints.maxHeight);
+            final compactVoiceUi = widget.embedded || windowHeight < 560;
             final bubbleMaxWidth = _isExpanded
                 ? 400.0
                 : (windowWidth - 80).clamp(180.0, 310.0);
 
             final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              padding: EdgeInsets.fromLTRB(
-                _isExpanded ? 0 : 20,
-                _isExpanded ? 0 : 14,
-                _isExpanded ? 0 : 24,
-                keyboardInset + (_isExpanded ? 0 : (widget.embedded ? 12 : 185)),
-              ),
-              child: Align(
-                alignment: Alignment.bottomRight,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  width: windowWidth,
-                  height: windowHeight,
-                  decoration: BoxDecoration(
-                    color: backgroundColor,
-                    borderRadius: BorderRadius.circular(_isExpanded ? 0 : 24),
-                    border: Border.all(color: borderColor, width: 1.4),
-                    boxShadow: [
+            final panelDecoration = BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(_isExpanded ? 0 : 24),
+              border: _isExpanded
+                  ? null
+                  : Border.all(color: borderColor, width: 1.4),
+              boxShadow: _isExpanded
+                  ? null
+                  : [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.20),
                         blurRadius: 40,
@@ -2026,9 +2150,9 @@ class _RevenChatPageState extends State<RevenChatPage>
                         offset: const Offset(0, 8),
                       ),
                     ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
+            );
+
+            final panelBody = Column(
                     children: [
                       // ── Header ────────────────────────────────────────
                       Container(
@@ -2115,7 +2239,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 _voiceInAiChatEnabled &&
                                 !_humanHandoffActive)
                               IconButton(
-                                tooltip: 'Keyboard',
+                                tooltip: _iconTooltip('Keyboard'),
                                 onPressed: _exitVoiceMode,
                                 icon: Icon(
                                   Icons.keyboard_alt_outlined,
@@ -2124,7 +2248,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 ),
                               ),
                             IconButton(
-                              tooltip: 'Chat history',
+                              tooltip: _iconTooltip('Chat history'),
                               onPressed: _showChatList,
                               icon: Icon(
                                 Icons.history_rounded,
@@ -2133,9 +2257,11 @@ class _RevenChatPageState extends State<RevenChatPage>
                               ),
                             ),
                             IconButton(
-                              tooltip: _isExpanded
-                                  ? 'Exit full screen'
-                                  : 'Full screen',
+                              tooltip: _iconTooltip(
+                                _isExpanded
+                                    ? 'Exit full screen'
+                                    : 'Full screen',
+                              ),
                               onPressed: () =>
                                   _setPanelExpanded(!_isExpanded),
                               icon: Icon(
@@ -2147,9 +2273,11 @@ class _RevenChatPageState extends State<RevenChatPage>
                               ),
                             ),
                             IconButton(
-                              tooltip: widget.embedded
-                                  ? 'Minimize to bubble'
-                                  : 'Close',
+                              tooltip: _iconTooltip(
+                                widget.embedded
+                                    ? 'Minimize to bubble'
+                                    : 'Close',
+                              ),
                               onPressed: widget.embedded
                                   ? _minimizeChat
                                   : _closeChat,
@@ -2205,6 +2333,8 @@ class _RevenChatPageState extends State<RevenChatPage>
                           _voiceInAiChatEnabled &&
                           !_humanHandoffActive)
                         _RevenVoiceComposer(
+                          compact: compactVoiceUi,
+                          embedded: widget.embedded,
                           status: _voiceCallStatus,
                           processingSince: () {
                             if (!_isLoading) return null;
@@ -2261,8 +2391,62 @@ class _RevenChatPageState extends State<RevenChatPage>
                           onFieldTap: _scrollToBottom,
                         ),
                     ],
-                  ),
+            );
+
+            final panelChrome = Container(
+              decoration: panelDecoration,
+              clipBehavior: Clip.antiAlias,
+              child: panelBody,
+            );
+
+            if (widget.embedded) {
+              final floatBottom = MediaQuery.paddingOf(context).bottom + 88;
+              return Padding(
+                padding: EdgeInsets.only(bottom: keyboardInset),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      left: embeddedFullscreen ? 0 : 8,
+                      right: embeddedFullscreen ? 0 : 8,
+                      top: embeddedFullscreen ? 0 : null,
+                      bottom: embeddedFullscreen ? 0 : floatBottom,
+                      height: embeddedFullscreen ? null : windowHeight,
+                      child: panelChrome,
+                    ),
+                  ],
                 ),
+              );
+            }
+
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.fromLTRB(
+                _isExpanded ? 0 : 20,
+                _isExpanded ? 0 : 14,
+                _isExpanded ? 0 : 24,
+                keyboardInset + (_isExpanded ? 0 : 185),
+              ),
+              child: Align(
+                alignment: _isExpanded
+                    ? Alignment.topCenter
+                    : Alignment.bottomRight,
+                child: _isExpanded
+                    ? SizedBox(
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                        child: panelChrome,
+                      )
+                    : AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        width: windowWidth,
+                        height: windowHeight,
+                        child: panelChrome,
+                      ),
               ),
             );
           },
@@ -2445,6 +2629,8 @@ class _RevenComposerCircleButton extends StatelessWidget {
 /// row with a Type field, a mic, and a white End button. Chat stays visible.
 class _RevenVoiceComposer extends StatelessWidget {
   const _RevenVoiceComposer({
+    this.compact = false,
+    this.embedded = false,
     required this.status,
     this.processingSince,
     this.micPaused = false,
@@ -2469,6 +2655,8 @@ class _RevenVoiceComposer extends StatelessWidget {
     required this.onSendText,
   });
 
+  final bool compact;
+  final bool embedded;
   final _VoiceCallStatus status;
   final DateTime? processingSince;
   final bool micPaused;
@@ -2549,7 +2737,7 @@ class _RevenVoiceComposer extends StatelessWidget {
         children: [
           // ── Floating orb + live status ─────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+            padding: EdgeInsets.fromLTRB(16, compact ? 8 : 14, 16, compact ? 4 : 6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2558,9 +2746,9 @@ class _RevenVoiceComposer extends StatelessWidget {
                   active: userSpeaking,
                   pulse: pulse,
                   isListening: userSpeaking,
-                  size: 72,
+                  size: compact ? 56 : 72,
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: compact ? 6 : 10),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: Text(
@@ -2606,7 +2794,9 @@ class _RevenVoiceComposer extends StatelessWidget {
                           icon: Icons.tune_rounded,
                           bg: surfaceColor,
                           fg: subtitleColor,
-                          tooltip: 'Change voice ($activeVoiceLabel)',
+                          tooltip: embedded
+                              ? null
+                              : 'Change voice ($activeVoiceLabel)',
                           onTap: onVoicePick,
                           size: _kComposerBtnSize,
                         ),
@@ -2741,7 +2931,14 @@ class _RoundIconButton extends StatelessWidget {
         child: Icon(icon, color: fg, size: 20),
       ),
     );
-    return tooltip != null ? Tooltip(message: tooltip!, child: button) : button;
+    if (tooltip == null || tooltip!.isEmpty) {
+      return button;
+    }
+    // Floating chat sits above Navigator; Tooltips need a local Overlay.
+    if (Overlay.maybeOf(context) != null) {
+      return Tooltip(message: tooltip!, child: button);
+    }
+    return Semantics(label: tooltip, button: true, child: button);
   }
 }
 
@@ -2921,14 +3118,14 @@ class _VoiceMicButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = isListening || isSpeaking;
     final fill = isListening
-        ? const Color(0xFFEF4444)
+        ? const Color(0xFF22C55E)
         : isSpeaking
         ? RealtorOneBrand.accentIndigo
         : voiceModeActive
         ? const Color(0xFF22C55E).withValues(alpha: 0.14)
         : backgroundColor;
     final border = active
-        ? (isListening ? const Color(0xFFEF4444) : RealtorOneBrand.accentIndigo)
+        ? (isListening ? const Color(0xFF22C55E) : RealtorOneBrand.accentIndigo)
         : voiceModeActive
         ? const Color(0xFF22C55E)
         : borderColor;
@@ -2957,7 +3154,7 @@ class _VoiceMicButton extends StatelessWidget {
                     BoxShadow(
                       color:
                           (isListening
-                                  ? const Color(0xFFEF4444)
+                                  ? const Color(0xFF22C55E)
                                   : RealtorOneBrand.accentIndigo)
                               .withValues(alpha: 0.35),
                       blurRadius: 12,

@@ -7,10 +7,14 @@ class ChatbotFloatingButton extends StatefulWidget {
     super.key,
     this.onOpen,
     this.onOpenVoice,
+    this.delegateGesturesToParent = false,
   });
 
   final VoidCallback? onOpen;
   final VoidCallback? onOpenVoice;
+
+  /// When true, only renders the animated icon (parent handles tap / double-tap).
+  final bool delegateGesturesToParent;
 
   @override
   State<ChatbotFloatingButton> createState() => _ChatbotFloatingButtonState();
@@ -56,32 +60,38 @@ class _ChatbotFloatingButtonState extends State<ChatbotFloatingButton>
           child: Transform.scale(scale: _scale.value, child: child),
         );
       },
-      child: GestureDetector(
-        onTap: () {
-          if (widget.onOpenVoice != null) {
-            widget.onOpenVoice!();
-          } else {
-            RevenChatPage.show(context, startVoice: true);
-          }
-        },
-        onLongPress: () {
-          if (widget.onOpen != null) {
-            widget.onOpen!();
-          } else {
-            RevenChatPage.show(context);
-          }
-        },
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 68,
-          height: 68,
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: Image.asset(
-              'assets/images/chat-bot.png',
-              fit: BoxFit.contain,
+      child: widget.delegateGesturesToParent
+          ? _botIcon()
+          : GestureDetector(
+              onTap: () {
+                if (widget.onOpen != null) {
+                  widget.onOpen!();
+                } else {
+                  RevenChatPage.show(context);
+                }
+              },
+              onDoubleTap: () {
+                if (widget.onOpenVoice != null) {
+                  widget.onOpenVoice!();
+                } else {
+                  RevenChatPage.show(context, startVoice: true);
+                }
+              },
+              behavior: HitTestBehavior.opaque,
+              child: _botIcon(),
             ),
-          ),
+    );
+  }
+
+  Widget _botIcon() {
+    return SizedBox(
+      width: 68,
+      height: 68,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Image.asset(
+          'assets/images/chat-bot.png',
+          fit: BoxFit.contain,
         ),
       ),
     );

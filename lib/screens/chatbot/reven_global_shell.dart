@@ -100,13 +100,14 @@ class RevenGlobalFloatingButton extends StatelessWidget {
     return Positioned(
       right: 16,
       bottom: onMainTabs ? 140 : bottom + 88,
-      child: Material(
-        color: Colors.transparent,
-        elevation: 8,
-        shadowColor: Colors.black26,
-        shape: const CircleBorder(),
-        child: Tooltip(
-          message: 'Talk to Reven',
+      child: Semantics(
+        button: true,
+        label: 'Talk to Reven. Double-tap for voice.',
+        child: Material(
+          color: Colors.transparent,
+          elevation: 8,
+          shadowColor: Colors.black26,
+          shape: const CircleBorder(),
           child: ChatbotFloatingButton(
             onOpen: () => RevenChatOverlay.show(context),
             onOpenVoice: () =>
