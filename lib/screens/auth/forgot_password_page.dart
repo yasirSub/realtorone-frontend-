@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/auth_api.dart';
 import '../../utils/phone_utils.dart';
 import '../../routes/app_routes.dart';
-import '../../widgets/elite_loader.dart';
+import '../../widgets/auth/auth_form_ui.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -59,16 +57,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _errorMessage = null;
     });
 
-    debugPrint('----------------------------------------------');
     final identifier = _usePhone
         ? PhoneUtils.composeE164(_selectedDialCode, _phoneController.text)
         : _emailController.text.trim();
-    debugPrint('[FORGOT PASSWORD] Attempting for: $identifier');
+
     try {
       final response = await AuthApi.forgotPassword(identifier);
-      
-      debugPrint('[FORGOT PASSWORD] Server Response: $response');
-      debugPrint('----------------------------------------------');
 
       if (response['status'] == 'ok') {
         setState(() {
@@ -81,8 +75,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         });
       }
     } catch (e) {
-      debugPrint('[FORGOT PASSWORD] ERROR: $e');
-      debugPrint('----------------------------------------------');
       setState(() {
         _errorMessage = 'Connection error. Please try again.';
       });
@@ -93,24 +85,27 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E293B)),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Stack(
+    return AuthFormUi.scaffold(
+      context: context,
+      isLoading: _isLoading,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_isLoading) EliteLoader.top(),
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: _isSent ? _buildSuccessState() : _buildRequestState(),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 20,
+                color: AuthFormUi.titleColor,
+              ),
+              onPressed: () => Navigator.pop(context),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ),
+          const SizedBox(height: 8),
+          _isSent ? _buildSuccessState() : _buildRequestState(),
         ],
       ),
     );
@@ -122,49 +117,61 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(height: 40),
-          const Icon(Icons.lock_reset_rounded, size: 80, color: Color(0xFF667eea))
-              .animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
-          const SizedBox(height: 32),
-          const Text(
-            'Forgot Password?',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+          AuthFormUi.header(
+            title: 'Forgot password?',
+            subtitle: _usePhone
+                ? "Enter your phone number and we'll start secure recovery."
+                : "Enter your email and we'll send a reset code.",
+            leading: Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AuthFormUi.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.lock_reset_rounded,
+                size: 28,
+                color: AuthFormUi.primary,
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          Text(
-            _usePhone
-                ? "Choose country code and phone number, we'll start secure phone recovery."
-                : "Enter your email address and we'll send you an OTP/Link to reset your password.",
-            style: TextStyle(fontSize: 15, color: Color(0xFF64748B)),
-            textAlign: TextAlign.center,
+          const SizedBox(height: 24),
+          if (_errorMessage != null) AuthFormUi.errorBanner(_errorMessage!),
+          AuthFormUi.modeToggle(
+            usePhone: _usePhone,
+            onEmail: () => setState(() => _usePhone = false),
+            onPhone: () => setState(() => _usePhone = true),
           ),
-          const SizedBox(height: 48),
-          if (_errorMessage != null)
-            _buildErrorBox(_errorMessage!),
-
-          _buildModeSelector(),
+          const SizedBox(height: 14),
+          if (_usePhone)
+            AuthFormUi.phoneField(
+              dialCode: _selectedDialCode,
+              controller: _phoneController,
+              onDialCodeChanged: (v) => setState(() => _selectedDialCode = v),
+              validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
+            )
+          else
+            AuthFormUi.textField(
+              controller: _emailController,
+              label: 'Email',
+              hint: 'you@example.com',
+              icon: Icons.mail_outline_rounded,
+              keyboardType: TextInputType.emailAddress,
+              validator: (v) {
+                final value = (v ?? '').trim();
+                if (value.isEmpty) return 'Required';
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Enter a valid email';
+                }
+                return null;
+              },
+            ),
           const SizedBox(height: 16),
-          _usePhone ? _buildPhoneField() : _buildEmailField(),
-          const SizedBox(height: 32),
-          SizedBox(
-            height: 60,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleForgotPassword,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF667eea),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: const Text(
-                'SEND RESET CODE',
-                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
-              ),
-            ),
+          AuthFormUi.primaryButton(
+            label: 'Send reset code',
+            onPressed: _isLoading ? null : _handleForgotPassword,
           ),
         ],
       ),
@@ -175,250 +182,58 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 60),
-        const Icon(Icons.mark_email_read_outlined, size: 80, color: Colors.green)
-            .animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
-        const SizedBox(height: 32),
-        const Text(
-          'Request Submitted',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+        AuthFormUi.header(
+          title: 'Request submitted',
+          subtitle: _isPhoneMode
+              ? 'Use Firebase phone OTP in app, then continue reset with phone verification.'
+              : "We've sent a 6-digit reset code to ${_emailController.text.trim()}.",
+          leading: Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.green.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.mark_email_read_outlined,
+              size: 28,
+              color: Colors.green,
+            ),
           ),
-          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 24),
+        AuthFormUi.primaryButton(
+          label: _isPhoneMode ? 'Go to login' : 'Enter reset code',
+          onPressed: _isPhoneMode
+              ? () => Navigator.pushReplacementNamed(context, AppRoutes.login)
+              : () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.verifyOtp,
+                    arguments: _emailController.text.trim(),
+                  ),
         ),
         const SizedBox(height: 12),
-        Text(
-          _isPhoneMode
-              ? "Use Firebase phone OTP in app, then continue reset with phone verification."
-              : "We've sent a 6-digit reset code to ${_emailController.text.trim()}. Please check your inbox.",
-          style: TextStyle(fontSize: 15, color: Color(0xFF64748B)),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 48),
-        SizedBox(
-          height: 60,
-          child: ElevatedButton(
-            onPressed: _isPhoneMode
-                ? () => Navigator.pushReplacementNamed(context, AppRoutes.login)
-                : () => Navigator.pushNamed(
-                      context,
-                      AppRoutes.verifyOtp,
-                      arguments: _emailController.text.trim(),
-                    ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF667eea),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            child: Text(_isPhoneMode ? 'GO TO LOGIN' : 'ENTER RESET CODE'),
-          ),
-        ),
-        const SizedBox(height: 16),
-        TextButton(
-          onPressed: () async {
-            if (_isPhoneMode) {
-              setState(() => _isSent = false);
-              return;
-            }
-            await _handleForgotPassword();
-          },
-          child: Text(
-            _isPhoneMode ? 'Try Again' : 'Resend Email',
-            style: const TextStyle(color: Color(0xFF667eea)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildModeSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _modeChip(
-              title: 'Email',
-              selected: !_usePhone,
-              onTap: () => setState(() => _usePhone = false),
-            ),
-          ),
-          Expanded(
-            child: _modeChip(
-              title: 'Phone',
-              selected: _usePhone,
-              onTap: () => setState(() => _usePhone = true),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _modeChip({
-    required String title,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF667eea) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Text(
-          title,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: selected ? Colors.white : const Color(0xFF475569),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmailField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'EMAIL ADDRESS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF64748B)),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'agent@example.com',
-            prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF667eea)),
-            filled: true,
-            fillColor: Colors.grey[50],
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-          ),
-          validator: (v) =>
-              (v == null || !v.trim().contains('@') || !v.trim().contains('.'))
-                  ? 'Invalid email'
-                  : null,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPhoneField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'PHONE NUMBER',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF64748B),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            SizedBox(
-              width: 128,
-              child: DropdownButtonFormField<String>(
-                value: _selectedDialCode,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-                items: PhoneUtils.countryOptions
-                    .map(
-                      (item) => DropdownMenuItem<String>(
-                        value: item['code'],
-                        child: Text(item['label']!, style: const TextStyle(fontSize: 12)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _selectedDialCode = v);
-                  _formKey.currentState?.validate();
-                },
+        Center(
+          child: TextButton(
+            onPressed: () async {
+              if (_isPhoneMode) {
+                setState(() => _isSent = false);
+                return;
+              }
+              await _handleForgotPassword();
+            },
+            child: Text(
+              _isPhoneMode ? 'Try again' : 'Resend email',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AuthFormUi.primary,
+                fontSize: 13,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextFormField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(
-                    PhoneUtils.maxInputLengthFor(_selectedDialCode),
-                  ),
-                ],
-                decoration: InputDecoration(
-                  hintText: 'Enter phone number',
-                  prefixIcon: const Icon(
-                    Icons.phone_android_rounded,
-                    color: Color(0xFF667eea),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-                validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
-              ),
-            ),
-          ],
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildErrorBox(String message) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 24),
-      decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red[100]!),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(color: Colors.red[900], fontSize: 13, fontWeight: FontWeight.bold),
-        textAlign: TextAlign.center,
-      ),
     );
   }
 }

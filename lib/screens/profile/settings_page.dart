@@ -15,6 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../services/app_preferences_service.dart';
 import '../../theme/realtorone_brand.dart';
+import '../chatbot/reven_chat_overlay.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -27,6 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _pushNotifications = true;
   bool _emailUpdates = true;
+  bool _chatbotEnabled = true;
   Map<String, dynamic>? _userData;
   String _appVersionShort = '';
 
@@ -43,6 +45,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     setState(() {
       _emailUpdates = AppPreferencesService.weeklyReportsEnabled.value;
+      _chatbotEnabled = AppPreferencesService.chatbotEnabled.value;
     });
   }
 
@@ -535,6 +538,20 @@ class _SettingsPageState extends State<SettingsPage> {
                   onChanged: (v) async {
                     setState(() => _emailUpdates = v);
                     await AppPreferencesService.setWeeklyReportsEnabled(v);
+                  },
+                  isDark: isDark,
+                ),
+                _buildSwitchItem(
+                  icon: Icons.smart_toy_outlined,
+                  title: l10n.settingsChatbotTitle,
+                  subtitle: l10n.settingsChatbotSubtitle,
+                  value: _chatbotEnabled,
+                  onChanged: (v) async {
+                    setState(() => _chatbotEnabled = v);
+                    await AppPreferencesService.setChatbotEnabled(v);
+                    if (!v) {
+                      RevenChatOverlay.hide();
+                    }
                   },
                   isDark: isDark,
                 ),

@@ -45,6 +45,8 @@ app.*.map.json
 /android/app/release
 
 # Secrets & local signing — do not commit (client Firebase configs are often tracked; admin SDK is not)
+**/*.p8
+**/AuthKey_*.p8
 **/*firebase-adminsdk*.json
 **/key.properties
 **/*.jks

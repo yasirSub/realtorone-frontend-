@@ -58,6 +58,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsWeeklyReportsSubtitle => 'Get growth insights via email';
 
   @override
+  String get settingsChatbotTitle => 'Reven AI Assistant';
+
+  @override
+  String get settingsChatbotSubtitle =>
+      'Show the floating chatbot button in the app';
+
+  @override
   String get settingsDarkModeTitle => 'Dark Mode';
 
   @override

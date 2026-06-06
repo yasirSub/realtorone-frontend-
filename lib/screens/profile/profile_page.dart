@@ -1222,21 +1222,43 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 16),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SizedBox(
-                        width: 128,
+                        width: 88,
                         child: DropdownButtonFormField<String>(
                           value: _verificationDialCode,
+                          isExpanded: true,
                           decoration: InputDecoration(
                             filled: true,
                             fillColor: isDark
                                 ? const Color(0xFF1E293B)
                                 : const Color(0xFFF8FAFC),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 12,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide.none,
                             ),
                           ),
+                          selectedItemBuilder: (context) =>
+                              PhoneUtils.countryOptions
+                                  .map(
+                                    (item) => Text(
+                                      item['code']!,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                           items: PhoneUtils.countryOptions
                               .map(
                                 (item) => DropdownMenuItem<String>(
@@ -1279,11 +1301,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                 : const Color(0xFF0F172A),
                           ),
                           decoration: InputDecoration(
-                            labelText: 'PHONE NUMBER',
-                            labelStyle: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                            hintText: 'Phone number',
+                            hintStyle: const TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 14,
                             ),
                             filled: true,
                             fillColor: isDark
@@ -1409,8 +1430,15 @@ class _ProfilePageState extends State<ProfilePage> {
           upper.contains('UNUSUAL ACTIVITY') ||
           upper.contains('17010');
 
-      if (result.billingBlocked) {
-        _showSnackBar(msg, Colors.orange);
+      if (result.billingBlocked || result.notificationNotForwarded) {
+        if (result.notificationNotForwarded) {
+          _showSnackBar(
+            'Firebase push verification unavailable. Trying server SMS instead…',
+            Colors.orange,
+          );
+        } else {
+          _showSnackBar(msg, Colors.orange);
+        }
         await _tryBrevoPhoneOtp(email: email, phone: phone);
         return;
       }

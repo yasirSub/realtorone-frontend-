@@ -194,6 +194,18 @@ abstract class AppLocalizations {
   /// **'Get growth insights via email'**
   String get settingsWeeklyReportsSubtitle;
 
+  /// No description provided for @settingsChatbotTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reven AI Assistant'**
+  String get settingsChatbotTitle;
+
+  /// No description provided for @settingsChatbotSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the floating chatbot button in the app'**
+  String get settingsChatbotSubtitle;
+
   /// No description provided for @settingsDarkModeTitle.
   ///
   /// In en, this message translates to:

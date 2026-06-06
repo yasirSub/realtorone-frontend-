@@ -102,7 +102,7 @@ jobs:
           flutter build ipa \
             --release \
             --export-options-plist=ios/ExportOptions.plist \
-            --build-name=1.0.8 \
+            --build-name=1.0.10 \
             --build-number=${{ github.run_number }}
 
       - name: Upload to TestFlight

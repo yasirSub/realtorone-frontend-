@@ -16,6 +16,8 @@
   "settingsNewLeadAlertsSubtitle": "Instant notification for new leads",
   "settingsWeeklyReportsTitle": "Weekly Performance Reports",
   "settingsWeeklyReportsSubtitle": "Get growth insights via email",
+  "settingsChatbotTitle": "Reven AI Assistant",
+  "settingsChatbotSubtitle": "Show the floating chatbot button in the app",
   "settingsDarkModeTitle": "Dark Mode",
   "settingsDarkModeSubtitle": "Switch to a darker interface",
   "settingsPrivacyTitle": "Privacy Policy",

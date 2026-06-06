@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 import '../firebase_options.dart';
@@ -14,6 +16,22 @@ class FirebasePhoneAuthHelper {
   /// Debug keystore SHA-1 for this machine (add in Firebase if `flutter run` fails SMS).
   static const String debugSha1Hint =
       '56:05:05:CB:32:76:4B:6C:88:8B:54:0E:AD:64:04:AB:5F:DA:8B:C7';
+
+  /// iOS phone auth needs a registered APNs token before verifyPhoneNumber.
+  static Future<bool> _ensureIosApnsToken() async {
+    if (!Platform.isIOS) return true;
+    final messaging = FirebaseMessaging.instance;
+    for (var attempt = 0; attempt < 12; attempt++) {
+      final token = await messaging.getAPNSToken();
+      if (token != null && token.isNotEmpty) {
+        debugPrint('Firebase phone: APNs token ready (attempt ${attempt + 1})');
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    debugPrint('Firebase phone: APNs token not available after 6s');
+    return false;
+  }
 
   static Future<bool> ensureInitialized() async {
     final ok = await PushNotificationService.initializeApp();
@@ -68,6 +86,21 @@ class FirebasePhoneAuthHelper {
       );
     });
 
+    if (Platform.isIOS) {
+      final apnsReady = await _ensureIosApnsToken();
+      if (!apnsReady) {
+        return FirebasePhoneSendResult.failure(
+          'iOS push token not ready. Fully quit the app, reopen it, allow notifications, '
+          'then try again. Also upload your APNs .p8 key in Firebase Console → Cloud Messaging.',
+        );
+      }
+      try {
+        await auth.initializeRecaptchaConfig();
+      } catch (e) {
+        debugPrint('Firebase phone: initializeRecaptchaConfig: $e');
+      }
+    }
+
     try {
       await auth.verifyPhoneNumber(
         phoneNumber: trimmed,
@@ -83,6 +116,7 @@ class FirebasePhoneAuthHelper {
             FirebasePhoneSendResult.failure(
               userMessage(e),
               billingBlocked: isBillingNotEnabled(e),
+              notificationNotForwarded: isNotificationNotForwarded(e),
             ),
           );
         },
@@ -111,6 +145,10 @@ class FirebasePhoneAuthHelper {
     return blob.contains('BILLING_NOT_ENABLED') || e.code == 'billing-not-enabled';
   }
 
+  static bool isNotificationNotForwarded(FirebaseAuthException e) =>
+      e.code == 'notification-not-forwarded' ||
+      (e.message ?? '').toLowerCase().contains('notification-not-forwarded');
+
   static String billingNotEnabledMessage() =>
       'Firebase Phone SMS still reports billing off for project realtor-one (790178174861). '
       'Enabling billing in Google Cloud is not enough — open Firebase Console → realtor-one → '
@@ -137,6 +175,10 @@ class FirebasePhoneAuthHelper {
         return 'Firebase security check failed. Use a real phone (not emulator), stable internet, and correct SHA keys.';
       case 'network-request-failed':
         return 'Network error. Check internet and try again.';
+      case 'notification-not-forwarded':
+        return 'iOS could not verify via push (notification-not-forwarded). '
+            'Upload your APNs .p8 key in Firebase Console → realtor-one → Project settings → '
+            'Cloud Messaging → Apple app. Then fully quit the app, reopen, and try again on a real iPhone.';
       default:
         final msg = e.message?.trim() ?? '';
         if (msg.toUpperCase().contains('BILLING_NOT_ENABLED')) {
@@ -162,6 +204,7 @@ class FirebasePhoneSendResult {
     this.autoCredential,
     this.errorMessage,
     this.billingBlocked = false,
+    this.notificationNotForwarded = false,
   });
 
   final bool ok;
@@ -170,6 +213,7 @@ class FirebasePhoneSendResult {
   final PhoneAuthCredential? autoCredential;
   final String? errorMessage;
   final bool billingBlocked;
+  final bool notificationNotForwarded;
 
   factory FirebasePhoneSendResult.codeSent({
     required String verificationId,
@@ -187,10 +231,12 @@ class FirebasePhoneSendResult {
   factory FirebasePhoneSendResult.failure(
     String message, {
     bool billingBlocked = false,
+    bool notificationNotForwarded = false,
   }) =>
       FirebasePhoneSendResult._(
         ok: false,
         errorMessage: message,
         billingBlocked: billingBlocked,
+        notificationNotForwarded: notificationNotForwarded,
       );
 }

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/app_preferences_service.dart';
 import '../../theme/realtorone_brand.dart';
 import 'chatbot_floating_button.dart';
 import 'reven_chat_page.dart';
@@ -52,6 +53,9 @@ class RevenChatOverlay {
     bool startVoice = false,
     bool startMinimized = false,
   }) {
+    if (!AppPreferencesService.chatbotEnabled.value) {
+      return Future.value();
+    }
     _pendingStartVoice = startVoice;
     ui.value = RevenOverlayUiState(
       visible: true,

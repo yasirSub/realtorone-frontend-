@@ -11,6 +11,7 @@ import 'screens/chatbot/reven_global_shell.dart';
 import 'screens/chatbot/reven_overlay_navigator_observer.dart';
 import 'api/api_endpoints.dart';
 import 'api/api_client.dart';
+import 'services/app_preferences_service.dart';
 import 'services/support_contact_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
@@ -64,6 +65,7 @@ Future<void> main() async {
     }
   }
 
+  await AppPreferencesService.ensureLoaded();
   await DeepLinkService.initialize(appNavigatorKey);
   IapService().initialize();
   runApp(

@@ -58,6 +58,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsWeeklyReportsSubtitle => 'احصل على رؤى النمو عبر البريد';
 
   @override
+  String get settingsChatbotTitle => 'مساعد ريفين الذكي';
+
+  @override
+  String get settingsChatbotSubtitle => 'إظهار زر الدردشة العائم في التطبيق';
+
+  @override
   String get settingsDarkModeTitle => 'الوضع الداكن';
 
   @override

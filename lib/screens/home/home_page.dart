@@ -231,127 +231,232 @@ class _HomePageState extends State<HomePage> {
         ? () => widget.onOpenActivitiesTab!(0)
         : () => Navigator.pushNamed(context, AppRoutes.activities);
     final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final mutedColor = isDark ? Colors.white70 : const Color(0xFF64748B);
-    final ctaSurface = isDark
-        ? RealtorOneBrand.seed.withValues(alpha: 0.14)
-        : const Color(0xFFEEF2FF);
+    final mutedColor = isDark ? Colors.white60 : const Color(0xFF64748B);
+    final tileSurface = isDark
+        ? Colors.white.withValues(alpha: 0.04)
+        : const Color(0xFFF8FAFC);
+    final tileBorder = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : const Color(0xFFE2E8F0);
+    const accent = Color(0xFF667EEA);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0F172A) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: isDark ? Colors.white10 : const Color(0xFFE2E8F0),
         ),
+        boxShadow: [
+          if (!isDark)
+            BoxShadow(
+              color: accent.withValues(alpha: 0.06),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 44,
+                height: 44,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: RealtorOneBrand.seed.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(9),
+                  gradient: LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: 0.18),
+                      RealtorOneBrand.seed.withValues(alpha: 0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
-                  Icons.checklist_rounded,
-                  size: 16,
-                  color: RealtorOneBrand.seed,
+                  Icons.checklist_rtl_rounded,
+                  size: 22,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.homeTasksProgress(_todayDone, _todayTotal, pct),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: titleColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.homeOpenFocusHint,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: mutedColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 54,
+                height: 54,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progressValue,
+                      strokeWidth: 5,
+                      backgroundColor:
+                          isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+                      valueColor: const AlwaysStoppedAnimation(accent),
+                    ),
+                    Text(
+                      '$pct%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: titleColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 6,
+              backgroundColor: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
+              valueColor: const AlwaysStoppedAnimation(accent),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _focusMetricTile(
+                  label: l10n.homeHotLeads,
+                  value: _hotLeads,
+                  color: const Color(0xFF2563EB),
+                  icon: Icons.local_fire_department_rounded,
+                  surface: tileSurface,
+                  border: tileBorder,
+                  isDark: isDark,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _focusMetricTile(
+                  label: l10n.homeAtRisk4x,
+                  value: _atRiskFour,
+                  color: const Color(0xFFEF4444),
+                  icon: Icons.warning_amber_rounded,
+                  surface: tileSurface,
+                  border: tileBorder,
+                  isDark: isDark,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(
-            l10n.homeTasksProgress(_todayDone, _todayTotal, pct),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: titleColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            l10n.homeOpenFocusHint,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-              color: mutedColor,
-            ),
-          ),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: progressValue,
-            minHeight: 7,
-            borderRadius: BorderRadius.circular(8),
-            backgroundColor: isDark ? Colors.white12 : const Color(0xFFE5E7EB),
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF667EEA)),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              _metricChip(
-                l10n.homeHotLeads,
-                _hotLeads,
-                const Color(0xFF2563EB),
+              Expanded(
+                child: _focusMetricTile(
+                  label: l10n.homeNurture,
+                  value: _nurtureCount,
+                  color: const Color(0xFFEA580C),
+                  icon: Icons.eco_rounded,
+                  surface: tileSurface,
+                  border: tileBorder,
+                  isDark: isDark,
+                ),
               ),
-              _metricChip(
-                l10n.homeAtRisk4x,
-                _atRiskFour,
-                const Color(0xFFEF4444),
-              ),
-              _metricChip(
-                l10n.homeNurture,
-                _nurtureCount,
-                const Color(0xFFEA580C),
-              ),
-              _metricChip(
-                l10n.homeRemaining,
-                remaining,
-                const Color(0xFF10B981),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _focusMetricTile(
+                  label: l10n.homeRemaining,
+                  value: remaining,
+                  color: const Color(0xFF10B981),
+                  icon: Icons.pending_actions_rounded,
+                  surface: tileSurface,
+                  border: tileBorder,
+                  isDark: isDark,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: onOpenTasks,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               child: Ink(
                 decoration: BoxDecoration(
-                  color: ctaSurface,
-                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    colors: [
+                      RealtorOneBrand.seed.withValues(alpha: isDark ? 0.22 : 0.14),
+                      accent.withValues(alpha: isDark ? 0.16 : 0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: RealtorOneBrand.seed.withValues(alpha: 0.25),
+                    color: RealtorOneBrand.seed.withValues(alpha: 0.28),
                   ),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          l10n.homeOpenTasks,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.1,
-                            color: titleColor,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.homeOpenTasks,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: titleColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _todayTotal == 0
+                                  ? 'Start your daily pipeline work'
+                                  : remaining == 0
+                                      ? 'All tasks complete — great job'
+                                      : '$remaining task${remaining == 1 ? '' : 's'} left today',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: mutedColor,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       Container(
-                        width: 28,
-                        height: 28,
+                        width: 36,
+                        height: 36,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: RealtorOneBrand.seed,
@@ -359,16 +464,16 @@ class _HomePageState extends State<HomePage> {
                           boxShadow: [
                             BoxShadow(
                               color: RealtorOneBrand.seed.withValues(
-                                alpha: isDark ? 0.22 : 0.18,
+                                alpha: isDark ? 0.28 : 0.22,
                               ),
-                              blurRadius: 10,
+                              blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
                           ],
                         ),
                         child: const Icon(
                           Icons.arrow_forward_rounded,
-                          size: 16,
+                          size: 18,
                           color: Colors.white,
                         ),
                       ),
@@ -376,6 +481,68 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _focusMetricTile({
+    required String label,
+    required int value,
+    required Color color,
+    required IconData icon,
+    required Color surface,
+    required Color border,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$value',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.2,
+                    color: color,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -513,25 +680,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _metricChip(String label, int value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          color: color,
         ),
       ),
     );

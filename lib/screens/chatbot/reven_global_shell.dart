@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
+import '../../services/app_preferences_service.dart';
 import 'chatbot_floating_button.dart';
 import 'reven_chat_overlay.dart';
 import 'reven_route_tracker.dart';
@@ -60,9 +61,11 @@ class RevenGlobalShell extends StatelessWidget {
       listenable: Listenable.merge([
         RevenRouteTracker.instance,
         RevenChatOverlay.ui,
+        AppPreferencesService.chatbotEnabled,
       ]),
       builder: (context, _) {
         final routeName = RevenRouteTracker.instance.routeName;
+        final chatbotOn = AppPreferencesService.chatbotEnabled.value;
 
         return PopScope(
           canPop: canSystemPop,
@@ -76,8 +79,10 @@ class RevenGlobalShell extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               child ?? const SizedBox.shrink(),
-              const RevenChatOverlayHost(),
-              if (routeAllowsGlobalFab(routeName) && !RevenChatOverlay.isVisible)
+              if (chatbotOn) const RevenChatOverlayHost(),
+              if (chatbotOn &&
+                  routeAllowsGlobalFab(routeName) &&
+                  !RevenChatOverlay.isVisible)
                 const RevenGlobalFloatingButton(),
             ],
           ),

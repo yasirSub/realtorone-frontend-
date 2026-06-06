@@ -5,10 +5,13 @@ class AppPreferencesService {
   AppPreferencesService._();
 
   static const String weeklyReportsEnabledKey = 'weekly_reports_enabled';
+  static const String chatbotEnabledKey = 'chatbot_enabled';
 
   static final ValueNotifier<bool> weeklyReportsEnabled = ValueNotifier<bool>(
     true,
   );
+
+  static final ValueNotifier<bool> chatbotEnabled = ValueNotifier<bool>(true);
 
   static bool _loaded = false;
 
@@ -17,6 +20,7 @@ class AppPreferencesService {
     final prefs = await SharedPreferences.getInstance();
     weeklyReportsEnabled.value =
         prefs.getBool(weeklyReportsEnabledKey) ?? true;
+    chatbotEnabled.value = prefs.getBool(chatbotEnabledKey) ?? true;
     _loaded = true;
   }
 
@@ -24,5 +28,11 @@ class AppPreferencesService {
     weeklyReportsEnabled.value = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(weeklyReportsEnabledKey, enabled);
+  }
+
+  static Future<void> setChatbotEnabled(bool enabled) async {
+    chatbotEnabled.value = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(chatbotEnabledKey, enabled);
   }
 }
