@@ -272,6 +272,15 @@ class ApiClient {
     }
   }
 
+  static Future<void> invalidateEndpointCache(String endpoint) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_cacheStorageKey(endpoint));
+    } catch (e) {
+      debugPrint('Cache Invalidate Error: $e');
+    }
+  }
+
   /// Fetch active webinars for the authenticated user.
   static Future<Map<String, dynamic>> getWebinars() async {
     return get('/webinars', requiresAuth: true, useCache: true);

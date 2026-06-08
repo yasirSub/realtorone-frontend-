@@ -128,6 +128,49 @@ class PushNotificationService {
     }
   }
 
+  /// iOS Firebase Phone Auth needs APNs (silent push) before [verifyPhoneNumber].
+  /// Android does not — this mirrors the extra native setup iOS requires.
+  static Future<bool> ensureIosReadyForPhoneAuth() async {
+    if (kIsWeb || !Platform.isIOS) return true;
+
+    if (!_firebaseReady) {
+      final ok = await initializeApp();
+      if (!ok) return false;
+    }
+
+    try {
+      final settings = await _messaging
+          .requestPermission(alert: true, badge: true, sound: true)
+          .timeout(const Duration(seconds: 12));
+
+      final authorized =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
+      if (!authorized) {
+        debugPrint('iOS phone auth: notification permission denied');
+        return false;
+      }
+
+      await _messaging.setAutoInitEnabled(true);
+      await _messaging.getToken().timeout(const Duration(seconds: 12));
+
+      for (var attempt = 0; attempt < 8; attempt++) {
+        final apns = await _messaging.getAPNSToken();
+        if (apns != null && apns.isNotEmpty) {
+          debugPrint('iOS phone auth: APNs token ready');
+          return true;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 350));
+      }
+
+      debugPrint('iOS phone auth: APNs token pending — AppDelegate will set it');
+      return true;
+    } catch (e) {
+      debugPrint('ensureIosReadyForPhoneAuth: $e');
+      return false;
+    }
+  }
+
   static Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     notificationsEnabled.value = prefs.getBool('notifications_enabled') ?? true;

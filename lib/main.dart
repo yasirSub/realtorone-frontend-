@@ -5,8 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'l10n/app_localizations.dart';
 import 'providers/locale_provider.dart';
 import 'providers/theme_provider.dart';
+import 'navigation/app_navigator_key.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_config.dart';
+import 'screens/chatbot/reven_chat_overlay.dart';
 import 'screens/chatbot/reven_global_shell.dart';
 import 'screens/chatbot/reven_overlay_navigator_observer.dart';
 import 'api/api_endpoints.dart';
@@ -17,11 +19,12 @@ import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/iap_service.dart';
 
-final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  ApiClient.beforeClearToken = PushNotificationService.unregisterBackendToken;
+  ApiClient.beforeClearToken = () async {
+    RevenChatOverlay.hide();
+    await PushNotificationService.unregisterBackendToken();
+  };
   ApiClient.onSessionExpired = () async {
     final navigator = appNavigatorKey.currentState;
     if (navigator == null) return;

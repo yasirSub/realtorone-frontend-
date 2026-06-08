@@ -16,7 +16,6 @@ class HomeActivityLogWidget extends StatefulWidget {
 
 class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
   bool _isLoading = true;
-  int _currentStreak = 0;
   int _todayPoints = 0;
   List<Map<String, dynamic>> _todayActivities = [];
 
@@ -33,7 +32,6 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
 
     try {
       final activitiesResponse = await ActivitiesApi.getActivities();
-      final progressResponse = await ActivitiesApi.getProgress();
 
       if (!mounted) {
         return;
@@ -60,10 +58,6 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
               _todayPoints += int.tryParse(rawPoints) ?? 0;
             }
           }
-        }
-
-        if (progressResponse['success'] == true) {
-          _currentStreak = progressResponse['data']?['current_streak'] ?? 0;
         }
 
         _isLoading = false;
@@ -125,11 +119,6 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _buildStatChip(
-                      label: l10n.activityLogStreak,
-                      value: '$_currentStreak',
-                      color: const Color(0xFFF59E0B),
-                    ),
                     _buildStatChip(
                       label: l10n.activityLogPoints,
                       value: '$_todayPoints',

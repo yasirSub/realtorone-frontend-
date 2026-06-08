@@ -17,7 +17,6 @@ class ReviewTrackerPage extends StatefulWidget {
 
 class _ReviewTrackerPageState extends State<ReviewTrackerPage> {
   bool _isLoading = true;
-  int _currentStreak = 0;
   int _todayPoints = 0;
   int _resultsScore = 0;
   Map<String, dynamic> _summary = {};
@@ -54,7 +53,6 @@ class _ReviewTrackerPageState extends State<ReviewTrackerPage> {
         setState(() {
           _resultsScore = (d['results'] ?? 0).toInt();
           _todayPoints = (d['momentum_score'] ?? 0).toInt();
-          _currentStreak = (d['streak'] ?? 0).toInt();
         });
       }
     } catch (_) {}
@@ -166,11 +164,6 @@ class _ReviewTrackerPageState extends State<ReviewTrackerPage> {
                             padding: const EdgeInsets.fromLTRB(24, 50, 24, 0),
                             child: Row(
                               children: [
-                                _buildBadge(
-                                  'STREAK: $_currentStreak',
-                                  const Color(0xFFFFB347),
-                                ),
-                                const SizedBox(width: 10),
                                 _buildBadge(
                                   'POINTS: $_todayPoints',
                                   const Color(0xFF10B981),

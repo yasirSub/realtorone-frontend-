@@ -35,20 +35,25 @@ class FirebasePhoneAuthHelper {
 
   static Future<bool> ensureInitialized() async {
     final ok = await PushNotificationService.initializeApp();
-    if (ok) return true;
-    if (Firebase.apps.isNotEmpty) return true;
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      return true;
-    } catch (e) {
-      if (e.toString().contains('duplicate-app') && Firebase.apps.isNotEmpty) {
-        return true;
+    if (!ok && Firebase.apps.isEmpty) {
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      } catch (e) {
+        if (e.toString().contains('duplicate-app') && Firebase.apps.isNotEmpty) {
+          return await _ensureIosPhoneAuthReady();
+        }
+        debugPrint('FirebasePhoneAuthHelper.ensureInitialized failed: $e');
+        return false;
       }
-      debugPrint('FirebasePhoneAuthHelper.ensureInitialized failed: $e');
-      return false;
     }
+    return _ensureIosPhoneAuthReady();
+  }
+
+  static Future<bool> _ensureIosPhoneAuthReady() async {
+    if (kIsWeb || !Platform.isIOS) return true;
+    return PushNotificationService.ensureIosReadyForPhoneAuth();
   }
 
   /// Sends OTP via Firebase (Google) SMS. Returns verificationId on success.
@@ -77,16 +82,23 @@ class FirebasePhoneAuthHelper {
     }
 
     timer = Timer(timeout, () {
+      final hint = (!kIsWeb && Platform.isIOS)
+          ? 'On iPhone: allow notifications, use a real device (not simulator), '
+              'and upload APNs key in Firebase Console → Cloud Messaging.'
+          : 'Check Firebase Console → Android app SHA-1 (debug: $debugSha1Hint), '
+              'Phone sign-in enabled, and billing on project realtor-one.';
       complete(
         FirebasePhoneSendResult.failure(
-          'No SMS response from Firebase after ${timeout.inSeconds}s. '
-          'Check Firebase Console → Android app SHA-1 (debug: $debugSha1Hint), '
-          'Phone sign-in enabled, and billing on project realtor-one.',
+          'No SMS response from Firebase after ${timeout.inSeconds}s. $hint',
         ),
       );
     });
 
-    if (Platform.isIOS) {
+    if (!kIsWeb && Platform.isIOS) {
+      final iosReady = await PushNotificationService.ensureIosReadyForPhoneAuth();
+      if (!iosReady) {
+        return FirebasePhoneSendResult.failure(_iosNotificationPermissionMessage());
+      }
       final apnsReady = await _ensureIosApnsToken();
       if (!apnsReady) {
         return FirebasePhoneSendResult.failure(
@@ -155,6 +167,11 @@ class FirebasePhoneAuthHelper {
       'Upgrade → Blaze (pay as you go) and link the same billing account. '
       'Wait up to 30 minutes, then try again.';
 
+  static String _iosNotificationPermissionMessage() =>
+      'iPhone needs notification permission for Firebase phone verification. '
+      'Open Settings → RealtorOne → Notifications → Allow Notifications, '
+      'then try again on a real iPhone (simulator does not support this).';
+
   static String userMessage(FirebaseAuthException e) {
     if (isBillingNotEnabled(e)) return billingNotEnabledMessage();
 
@@ -176,9 +193,9 @@ class FirebasePhoneAuthHelper {
       case 'network-request-failed':
         return 'Network error. Check internet and try again.';
       case 'notification-not-forwarded':
-        return 'iOS could not verify via push (notification-not-forwarded). '
-            'Upload your APNs .p8 key in Firebase Console → realtor-one → Project settings → '
-            'Cloud Messaging → Apple app. Then fully quit the app, reopen, and try again on a real iPhone.';
+        return _iosNotificationPermissionMessage() +
+            ' Also confirm APNs key (.p8) is uploaded in Firebase Console → '
+            'Project settings → Cloud Messaging → Apple app configuration.';
       default:
         final msg = e.message?.trim() ?? '';
         if (msg.toUpperCase().contains('BILLING_NOT_ENABLED')) {

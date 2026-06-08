@@ -9,7 +9,6 @@ import '../../widgets/skill_skeleton.dart';
 import '../../widgets/elite_loader.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../api/api_endpoints.dart';
-import '../../api/api_client.dart';
 import '../../api/app_config.dart';
 import 'pdf_viewer_page.dart';
 import '../../utils/authenticated_media_url.dart';
@@ -26,7 +25,6 @@ class _LearningPageState extends State<LearningPage>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String _userTier = 'Consultant';
-  int _currentStreak = 0;
   List<ModuleModel> _modules = [];
   List<EbookModel> _ebooks = [];
   List<Map<String, dynamic>> _certificates = [];
@@ -54,15 +52,6 @@ class _LearningPageState extends State<LearningPage>
       if (ebookRes['success'] == true) {
         final List<dynamic> data = ebookRes['data'] ?? [];
         _ebooks = data.map((json) => EbookModel.fromJson(json)).toList();
-      }
-
-      // Fetch streak info for header
-      final progressRes = await ApiClient.get(
-        '/activities/progress',
-        requiresAuth: true,
-      );
-      if (progressRes['success'] == true) {
-        _currentStreak = progressRes['data']['current_streak'] ?? 0;
       }
 
       final certRes = await LearningApi.getMyCertificates();
@@ -226,12 +215,6 @@ class _LearningPageState extends State<LearningPage>
                           runSpacing: 10,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            _buildMiniBadge(
-                              'STREAK',
-                              '$_currentStreak',
-                              const Color(0xFFFFB347),
-                              Icons.local_fire_department_rounded,
-                            ),
                             _buildMiniBadge(
                               'RANK',
                               _userTier.toUpperCase(),

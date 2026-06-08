@@ -14,6 +14,7 @@ import '../../utils/responsive_helper.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../widgets/marquee_text.dart';
 import '../../services/app_preferences_service.dart';
+import '../../services/app_runtime_config_service.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onOpenActivitiesTab});
 
@@ -72,7 +73,7 @@ class _HomePageState extends State<HomePage> {
     setState(() => _weeklyReportsEnabled = enabled);
   }
 
-  Future<void> _loadUserData() async {
+  Future<void> _loadUserData({bool forceAppConfig = false}) async {
     try {
       final results = await Future.wait([
         ApiClient.get('/user/profile', requiresAuth: true, useCache: false),
@@ -88,20 +89,17 @@ class _HomePageState extends State<HomePage> {
           cacheMaxAge: const Duration(minutes: 10),
         ),
         ApiClient.get('/results?type=hot_lead', requiresAuth: true),
-        ApiClient.getPublic('/app-config'),
+        AppRuntimeConfigService.refresh(force: forceAppConfig),
       ]);
 
-      final response = results[0];
-      final progressRes = results[1];
-      final tasksRes = results[2];
-      final hotLeadRes = results[3];
-      final configRes = results[4];
+      final response = results[0] as Map<String, dynamic>;
+      final progressRes = results[1] as Map<String, dynamic>;
+      final tasksRes = results[2] as Map<String, dynamic>;
+      final hotLeadRes = results[3] as Map<String, dynamic>;
+      final configData = results[4];
 
       String? bannerMessage;
       String bannerType = 'info';
-      final configData = configRes['data'] is Map
-          ? Map<String, dynamic>.from(configRes['data'] as Map)
-          : null;
       if (configData != null &&
           _configFlagEnabled(configData['home_banner_enabled'])) {
         final raw = configData['home_banner_message']?.toString().trim();
@@ -705,7 +703,7 @@ class _HomePageState extends State<HomePage> {
       body: Stack(
         children: [
           RefreshIndicator(
-            onRefresh: _loadUserData,
+            onRefresh: () => _loadUserData(forceAppConfig: true),
             color: const Color(0xFF667eea),
             backgroundColor: Colors.white,
             child: CustomScrollView(

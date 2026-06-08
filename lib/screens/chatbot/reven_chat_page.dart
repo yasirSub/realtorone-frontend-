@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:ui' show lerpDouble;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -9,11 +12,13 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
+import '../../navigation/app_navigator_key.dart';
 import '../../api/api_client.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/chat_api.dart';
 import '../../api/user_api.dart';
+import '../../services/app_runtime_config_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
@@ -53,7 +58,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _isLoading = false;
   Timer? _waitElapsedTimer;
   bool _humanHandoffActive = false;
-  bool _voiceInAiChatEnabled = true;
+  bool _voiceInAiChatEnabled = false;
   bool _voiceAutoSend = true;
   bool _voiceReadAloud = true;
   bool _voiceCloudEnabled = true;
@@ -132,6 +137,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   @override
   void initState() {
     super.initState();
+    AppRuntimeConfigService.config.addListener(_onRuntimeConfigChanged);
     if (widget.embedded) {
       RevenChatOverlay.panelExpanded.addListener(_syncPanelExpandedFromOverlay);
       RevenChatOverlay.voiceToggleSignal.addListener(_onOverlayVoiceToggleRequest);
@@ -140,15 +146,16 @@ class _RevenChatPageState extends State<RevenChatPage>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _loadVoiceSettings();
     _loadMembershipTier();
     _loadPreferredVoice();
     _initSpeech();
     _initTts();
     _loadHistory();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _maybeStartVoiceOnOpen(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadVoiceSettings(forceRefresh: true);
+      if (!mounted) return;
+      await _maybeStartVoiceOnOpen();
+    });
   }
 
   Future<void> _maybeStartVoiceOnOpen() async {
@@ -324,10 +331,22 @@ class _RevenChatPageState extends State<RevenChatPage>
     } catch (_) {}
   }
 
-  Future<void> _loadVoiceSettings() async {
+  void _onRuntimeConfigChanged() {
+    final data = AppRuntimeConfigService.config.value;
+    if (data == null || !mounted) return;
+    unawaited(_applyVoiceSettingsFromConfig(data));
+  }
+
+  Future<void> _loadVoiceSettings({bool forceRefresh = false}) async {
     try {
-      final res = await ApiClient.getPublic('/app-config');
-      final data = (res['data'] as Map?) ?? <String, dynamic>{};
+      final data = await AppRuntimeConfigService.refresh(force: forceRefresh);
+      if (data == null || !mounted) return;
+      await _applyVoiceSettingsFromConfig(data);
+    } catch (_) {}
+  }
+
+  Future<void> _applyVoiceSettingsFromConfig(Map<String, dynamic> data) async {
+    try {
       if (!mounted) return;
       final optsRaw = data['voice_options'];
       final opts = <Map<String, String>>[];
@@ -346,7 +365,10 @@ class _RevenChatPageState extends State<RevenChatPage>
         }
       }
       setState(() {
-        _voiceInAiChatEnabled = _configFlag(data['voice_in_ai_chat']);
+        _voiceInAiChatEnabled = _configFlag(
+          data['voice_in_ai_chat'],
+          defaultValue: false,
+        );
         _voiceAutoSend = _configFlag(data['voice_auto_send']);
         _voiceReadAloud = _configFlag(data['voice_read_aloud']);
         final cloudFlag = data['voice_cloud_enabled'];
@@ -371,7 +393,18 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceModelLabel = data['voice_model_label']?.toString() ?? 'Voice AI';
         _voiceSpeakerFamily =
             data['voice_speaker_family']?.toString() ?? 'Speakers';
+        if (!_voiceInAiChatEnabled) {
+          _interactionMode = _RevenInteractionMode.text;
+          _voiceMicPausedByUser = false;
+          _lastVoiceCaption = '';
+          _pendingAssistantReply = '';
+          _lastTurnWasVoice = false;
+        }
       });
+      if (!_voiceInAiChatEnabled) {
+        await _stopAllVoiceActivity();
+        _syncOverlayPresentation();
+      }
     } catch (_) {}
   }
 
@@ -462,6 +495,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _enterVoiceMode() async {
     if (!_voiceInAiChatEnabled || _humanHandoffActive) return;
     if (_isVoiceInteractionMode) return;
+    await _configureVoiceAudioSession();
     _unfocusComposer();
     await _stopAllVoiceActivity();
     if (!mounted) return;
@@ -470,7 +504,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _voiceMicPausedByUser = false;
       _lastVoiceCaption = '';
     });
-    await _loadVoiceSettings();
+    await _loadVoiceSettings(forceRefresh: true);
     _syncOverlayPresentation();
   }
 
@@ -547,8 +581,20 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool get _isVoiceInteractionMode =>
       _interactionMode == _RevenInteractionMode.voice;
 
+  /// Voice UI (header label, orb composer, mic) — only when admin allows it.
+  bool get _showVoiceChrome =>
+      _voiceInAiChatEnabled &&
+      _isVoiceInteractionMode &&
+      !_humanHandoffActive;
+
   /// Floating panel has no Navigator Overlay; Material tooltips crash without this.
   String? _iconTooltip(String message) => widget.embedded ? null : message;
+
+  BuildContext get _sheetContext => rootNavigatorContext(context);
+
+  void _popSheet() {
+    Navigator.of(_sheetContext, rootNavigator: true).maybePop();
+  }
 
   String? get _activeVoiceIdForApi {
     final id = _voiceAllowUserPick
@@ -579,6 +625,9 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   String get _voicePlaybackLabel {
+    if (!_voiceReadAloud) {
+      return 'Text only';
+    }
     if (!_effectiveVoiceCloudEnabled) {
       return 'Device voice (cloud off)';
     }
@@ -594,7 +643,10 @@ class _RevenChatPageState extends State<RevenChatPage>
       final tier = res['membership_tier']?.toString().trim();
       if (!mounted || tier == null || tier.isEmpty) return;
       setState(() => _membershipTier = tier);
-      await _loadVoiceSettings();
+      final config = AppRuntimeConfigService.config.value;
+      if (config != null) {
+        await _applyVoiceSettingsFromConfig(config);
+      }
     } catch (_) {}
   }
 
@@ -607,9 +659,15 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _showVoicePicker() async {
-    if (!_voiceAllowUserPick || !_effectiveVoiceCloudEnabled) return;
+    if (!_voiceInAiChatEnabled ||
+        !_voiceReadAloud ||
+        !_voiceAllowUserPick ||
+        !_effectiveVoiceCloudEnabled) {
+      return;
+    }
     final picked = await showModalBottomSheet<String>(
-      context: context,
+      context: _sheetContext,
+      useRootNavigator: true,
       backgroundColor: const Color(0xFF0F172A),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
@@ -686,8 +744,52 @@ class _RevenChatPageState extends State<RevenChatPage>
     await _savePreferredVoice(picked);
   }
 
+  /// Keeps Reven voice playback alive when the app is minimized (iOS requires
+  /// UIBackgroundModes audio + AVAudioSession playAndRecord).
+  Future<void> _configureVoiceAudioSession() async {
+    try {
+      final ctx = AudioContext(
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.playAndRecord,
+          options: {
+            AVAudioSessionOptions.defaultToSpeaker,
+            AVAudioSessionOptions.allowBluetooth,
+            AVAudioSessionOptions.allowBluetoothA2DP,
+            AVAudioSessionOptions.mixWithOthers,
+          },
+        ),
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: true,
+          contentType: AndroidContentType.speech,
+          usageType: AndroidUsageType.voiceCommunication,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      );
+      await AudioPlayer.global.setAudioContext(ctx);
+      await _cloudPlayer.setPlayerMode(PlayerMode.mediaPlayer);
+      await _cloudPlayer.setReleaseMode(ReleaseMode.stop);
+
+      if (!kIsWeb && Platform.isIOS) {
+        await _tts.setSharedInstance(true);
+        await _tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playAndRecord,
+          [
+            IosTextToSpeechAudioCategoryOptions.defaultToSpeaker,
+            IosTextToSpeechAudioCategoryOptions.allowBluetooth,
+            IosTextToSpeechAudioCategoryOptions.mixWithOthers,
+          ],
+          IosTextToSpeechAudioMode.spokenAudio,
+        );
+      }
+    } catch (e) {
+      debugPrint('Reven voice audio session setup failed: $e');
+    }
+  }
+
   Future<void> _initTts() async {
     try {
+      await _configureVoiceAudioSession();
       await _tts.setSpeechRate(0.48);
       await _tts.setVolume(1.0);
       await _tts.setPitch(1.0);
@@ -1231,13 +1333,13 @@ class _RevenChatPageState extends State<RevenChatPage>
         ),
       );
     });
-    Navigator.of(context).pop();
+    _popSheet();
     _scrollToBottom();
   }
 
   Future<void> _deleteSession(int sid) async {
     final confirm = await RealtorOneDialogScaffold.show<bool>(
-      context: context,
+      context: _sheetContext,
       semanticsLabel: 'Confirm delete chat',
       builder: (d) {
         final isDark = Theme.of(d).brightness == Brightness.dark;
@@ -1279,7 +1381,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (res['success'] == true && mounted) {
         final wasCurrent = _sessionId == sid;
         if (wasCurrent) {
-          Navigator.of(context).pop();
+          _popSheet();
           setState(() {
             _sessionId = null;
             _messages.clear();
@@ -1299,7 +1401,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   }
 
   Future<void> _switchToSession(int sid) async {
-    Navigator.of(context).pop();
+    _popSheet();
     try {
       final res = await ChatApi.getHistory(sid);
       if (res['success'] == true && res['messages'] is List && mounted) {
@@ -1357,7 +1459,8 @@ class _RevenChatPageState extends State<RevenChatPage>
         : const Color(0xFFDDE5F0);
 
     showModalBottomSheet<void>(
-      context: context,
+      context: _sheetContext,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => DraggableScrollableSheet(
@@ -1561,6 +1664,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   @override
   void dispose() {
+    AppRuntimeConfigService.config.removeListener(_onRuntimeConfigChanged);
     _stopWaitElapsedTicker();
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
@@ -2197,8 +2301,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   Text(
                                     _humanHandoffActive
                                         ? 'Human support is chatting'
-                                        : _interactionMode ==
-                                              _RevenInteractionMode.voice
+                                        : _showVoiceChrome
                                         ? 'Voice · $_voicePlaybackLabel'
                                         : (_isExpanded
                                               ? 'Full view'
@@ -2206,8 +2309,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                     style: TextStyle(
                                       color: _humanHandoffActive
                                           ? const Color(0xFFF59E0B)
-                                          : _interactionMode ==
-                                                _RevenInteractionMode.voice
+                                          : _showVoiceChrome
                                           ? const Color(0xFF22C55E)
                                           : subtitleColor,
                                       fontSize: 11,
@@ -2235,9 +2337,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                                 ],
                               ),
                             ),
-                            if (_isVoiceInteractionMode &&
-                                _voiceInAiChatEnabled &&
-                                !_humanHandoffActive)
+                            if (_showVoiceChrome)
                               IconButton(
                                 tooltip: _iconTooltip('Keyboard'),
                                 onPressed: _exitVoiceMode,
@@ -2329,9 +2429,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                       ),
 
                       // ── Composer: voice (ChatGPT-style) or text ────
-                      if (_isVoiceInteractionMode &&
-                          _voiceInAiChatEnabled &&
-                          !_humanHandoffActive)
+                      if (_showVoiceChrome)
                         _RevenVoiceComposer(
                           compact: compactVoiceUi,
                           embedded: widget.embedded,
@@ -2352,6 +2450,8 @@ class _RevenChatPageState extends State<RevenChatPage>
                           voiceModelLabel: _voicePlaybackLabel,
                           activeVoiceLabel: _activeVoiceLabel,
                           showVoicePicker:
+                              _voiceInAiChatEnabled &&
+                              _voiceReadAloud &&
                               _effectiveVoiceCloudEnabled &&
                               _voiceAllowUserPick,
                           liveCaption: _isListening

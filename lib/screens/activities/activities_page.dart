@@ -63,7 +63,6 @@ class ActivitiesPage extends StatefulWidget {
 class _ActivitiesPageState extends State<ActivitiesPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _currentStreak = 0;
   bool _isLoading = true;
   List<Map<String, dynamic>> _todayActivities = [];
   List<Map<String, dynamic>> _activityTypes = [];
@@ -219,7 +218,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     if (mounted) setState(() => _isLoading = true);
     try {
       final activitiesResponse = await ActivitiesApi.getActivities();
-      final progressResponse = await ActivitiesApi.getProgress();
       final typesResponse = await ActivitiesApi.getActivityTypes();
 
       if (mounted) {
@@ -255,9 +253,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             debugPrint(
               'Revenue Actions Types: ${_activityTypes.where((t) => t['category'] == 'conscious').length}',
             );
-          }
-          if (progressResponse['success'] == true) {
-            _currentStreak = progressResponse['data']['current_streak'] ?? 0;
           }
           _isLoading = false;
         });
@@ -638,25 +633,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                       ),
                     ),
                   ),
-                  // HUD Overlay – stats row
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 52, 20, 0),
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          _buildMiniBadge(
-                            'STREAK',
-                            '$_currentStreak',
-                            const Color(0xFFFFB347),
-                            Icons.local_fire_department_rounded,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -727,54 +703,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMiniBadge(
-    String label,
-    String value,
-    Color color,
-    IconData icon,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              color: color.withValues(alpha: 0.95),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
       ),
     );
   }

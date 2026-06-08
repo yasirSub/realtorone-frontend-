@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
 import '../../services/app_preferences_service.dart';
+import '../../services/app_runtime_config_service.dart';
 import '../../theme/realtorone_brand.dart';
 import 'chatbot_floating_button.dart';
 import 'reven_chat_page.dart';
@@ -57,6 +59,7 @@ class RevenChatOverlay {
       return Future.value();
     }
     _pendingStartVoice = startVoice;
+    unawaited(AppRuntimeConfigService.refresh(force: true));
     ui.value = RevenOverlayUiState(
       visible: true,
       minimized: startMinimized,
@@ -76,6 +79,7 @@ class RevenChatOverlay {
   static void expand() {
     final s = ui.value;
     if (!s.visible) return;
+    unawaited(AppRuntimeConfigService.refresh(force: true));
     panelExpanded.value = false;
     ui.value = s.copyWith(minimized: false);
   }
