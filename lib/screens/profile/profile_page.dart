@@ -1378,7 +1378,6 @@ class _ProfilePageState extends State<ProfilePage> {
         PhoneOtpUserMessage.forInitFailure(technical: technical),
         Colors.red,
       );
-      await _showFirebaseOtpDebugScreen(technical);
       return;
     }
 
@@ -1409,7 +1408,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       if (firebaseBlocked) {
         setState(() => _isLoading = false);
-        await _showFirebaseOtpDebugScreen('Firebase rate-limited this device/number');
         await RealtorOneDialogScaffold.show<void>(
           context: context,
           barrierDismissible: false,
@@ -1453,13 +1451,11 @@ class _ProfilePageState extends State<ProfilePage> {
         PhoneOtpUserMessage.forSendFailure(technical: failMsg),
         Colors.red,
       );
-      await _showFirebaseOtpDebugScreen(failMsg);
       return;
     }
 
     if (result.autoCredential != null) {
       PhoneOtpDebugLog.log('success', 'auto-verified via silent push');
-      await _showFirebaseOtpDebugScreen('SUCCESS: silent APNs push worked');
       await _verifyPhoneWithFirebaseCredential(
         credential: result.autoCredential!,
         email: email,
@@ -1470,7 +1466,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = false);
     PhoneOtpDebugLog.log('success', 'codeSent — SMS dispatched');
-    await _showFirebaseOtpDebugScreen('SUCCESS: Firebase sent SMS — check your phone');
     _showSnackBar(PhoneOtpUserMessage.codeSent, Colors.green);
     _showOtpVerifyDialog(
       email: email,
@@ -1485,49 +1480,6 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: backgroundColor),
-    );
-  }
-
-  /// On-device Firebase OTP trace (debug builds). Also prints [OTP_DEBUG] in terminal.
-  Future<void> _showFirebaseOtpDebugScreen(String summary) async {
-    if (!PhoneOtpDebugLog.enabled || !mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Firebase OTP Debug'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                summary,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Screenshot this and share. Long-press text to copy.',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              SelectableText(
-                PhoneOtpDebugLog.report(),
-                style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
     );
   }
 

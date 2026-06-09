@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// In-memory OTP trace for terminal + optional on-screen debug dialog.
+/// In-memory OTP trace for terminal / Xcode console ([OTP_DEBUG] via debugPrint).
 class PhoneOtpDebugLog {
   PhoneOtpDebugLog._();
 
@@ -52,6 +52,4 @@ class PhoneOtpDebugLog {
 
   static List<String> get lines => List.unmodifiable(_lines);
   static String? get lastError => _lastError;
-
-  static bool get enabled => kDebugMode;
 }
