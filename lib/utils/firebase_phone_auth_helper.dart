@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart';
 
 import '../firebase_options.dart';
 import '../services/push_notification_service.dart';
+import '../services/ios_phone_auth_apns_bridge.dart';
+import 'phone_otp_debug_log.dart';
 
 /// Firebase Phone Auth helpers (init + send OTP + user-facing errors).
 class FirebasePhoneAuthHelper {
@@ -24,27 +26,33 @@ class FirebasePhoneAuthHelper {
     for (var attempt = 0; attempt < 12; attempt++) {
       final token = await messaging.getAPNSToken();
       if (token != null && token.isNotEmpty) {
-        debugPrint('Firebase phone: APNs token ready (attempt ${attempt + 1})');
+        final preview = '${token.substring(0, 8)}…(${token.length} chars)';
+        PhoneOtpDebugLog.log('APNs token', 'ready attempt ${attempt + 1} $preview');
         return true;
       }
+      PhoneOtpDebugLog.log('APNs token', 'waiting attempt ${attempt + 1}/12');
       await Future<void>.delayed(const Duration(milliseconds: 500));
     }
-    debugPrint('Firebase phone: APNs token not available after 6s');
+    PhoneOtpDebugLog.error('APNs token', 'not available after 6s');
     return false;
   }
 
   static Future<bool> ensureInitialized() async {
+    PhoneOtpDebugLog.log('Firebase init', 'checking apps=${Firebase.apps.length}');
     final ok = await PushNotificationService.initializeApp();
+    PhoneOtpDebugLog.log('PushNotificationService.initializeApp', ok ? 'ok' : 'failed');
     if (!ok && Firebase.apps.isEmpty) {
       try {
         await Firebase.initializeApp(
           options: DefaultFirebaseOptions.currentPlatform,
         );
+        PhoneOtpDebugLog.log('Firebase.initializeApp', 'success');
       } catch (e) {
         if (e.toString().contains('duplicate-app') && Firebase.apps.isNotEmpty) {
+          PhoneOtpDebugLog.log('Firebase.initializeApp', 'duplicate-app, continuing');
           return await _ensureIosPhoneAuthReady();
         }
-        debugPrint('FirebasePhoneAuthHelper.ensureInitialized failed: $e');
+        PhoneOtpDebugLog.error('Firebase.initializeApp', e);
         return false;
       }
     }
@@ -65,7 +73,12 @@ class FirebasePhoneAuthHelper {
     int? forceResendingToken,
   }) async {
     final trimmed = phoneE164.trim();
+    PhoneOtpDebugLog.log(
+      'sendOtp',
+      'phone=${PhoneOtpDebugLog.maskPhone(trimmed)} platform=${Platform.operatingSystem}',
+    );
     if (!trimmed.startsWith('+') || trimmed.length < 10) {
+      PhoneOtpDebugLog.error('sendOtp', 'invalid E.164 format');
       return FirebasePhoneSendResult.failure(
         'Use full international format, e.g. +918271819813.',
       );
@@ -82,6 +95,7 @@ class FirebasePhoneAuthHelper {
     }
 
     timer = Timer(timeout, () {
+      PhoneOtpDebugLog.error('timeout', 'no Firebase response in ${timeout.inSeconds}s');
       final hint = (!kIsWeb && Platform.isIOS)
           ? 'On iPhone: allow notifications, use a real device (not simulator), '
               'and upload APNs key in Firebase Console → Cloud Messaging.'
@@ -95,8 +109,10 @@ class FirebasePhoneAuthHelper {
     });
 
     if (!kIsWeb && Platform.isIOS) {
+      PhoneOtpDebugLog.log('iOS preflight', 'checking notification + APNs');
       final iosReady = await PushNotificationService.ensureIosReadyForPhoneAuth();
       if (!iosReady) {
+        PhoneOtpDebugLog.error('iOS preflight', 'notification permission or FCM not ready');
         return FirebasePhoneSendResult.failure(_iosNotificationPermissionMessage());
       }
       final apnsReady = await _ensureIosApnsToken();
@@ -106,24 +122,52 @@ class FirebasePhoneAuthHelper {
           'then try again. Also upload your APNs .p8 key in Firebase Console → Cloud Messaging.',
         );
       }
-      try {
-        await auth.initializeRecaptchaConfig();
-      } catch (e) {
-        debugPrint('Firebase phone: initializeRecaptchaConfig: $e');
+      // Do not call initializeRecaptchaConfig() — requires RecaptchaEnterprise SDK pod.
+      // iOS phone OTP uses silent APNs push, not reCAPTCHA.
+      PhoneOtpDebugLog.log('iOS preflight', 'APNs ready — skipping reCAPTCHA (not linked)');
+
+      final beforeSync = await IosPhoneAuthApnsBridge.debugStatus();
+      PhoneOtpDebugLog.log('native APNs (before sync)', beforeSync.toString());
+
+      final afterSync = await IosPhoneAuthApnsBridge.syncApnsToAuth();
+      PhoneOtpDebugLog.log('native APNs (after sync)', afterSync.toString());
+
+      if (afterSync['authHasApnsToken'] != true) {
+        PhoneOtpDebugLog.error(
+          'native APNs',
+          'Firebase Auth has no APNs token — check Push capability + notification permission',
+        );
+        return FirebasePhoneSendResult.failure(
+          'Firebase Auth on iPhone has no push token yet. '
+          'Settings → RealtorOne → Notifications → Allow, then fully quit and reopen the app.',
+        );
       }
     }
 
+    PhoneOtpDebugLog.log('verifyPhoneNumber', 'calling Firebase Auth…');
     try {
       await auth.verifyPhoneNumber(
         phoneNumber: trimmed,
         timeout: timeout,
         forceResendingToken: forceResendingToken,
         verificationCompleted: (credential) {
-          debugPrint('Firebase phone: verificationCompleted (auto)');
+          PhoneOtpDebugLog.log('verificationCompleted', 'auto-verify (silent push worked)');
           complete(FirebasePhoneSendResult.autoVerified(credential));
         },
         verificationFailed: (e) {
-          debugPrint('Firebase phone: verificationFailed ${e.code} ${e.message}');
+          PhoneOtpDebugLog.error(
+            'verificationFailed',
+            'code=${e.code} message=${e.message}',
+          );
+          if (isNotificationNotForwarded(e)) {
+            PhoneOtpDebugLog.log(
+              'hint',
+              'APNs token ok but silent push not handled — check Firebase Cloud Messaging .p8 key',
+            );
+          }
+          if (isBillingNotEnabled(e)) {
+            PhoneOtpDebugLog.log('hint', 'Firebase Blaze billing required');
+          }
           complete(
             FirebasePhoneSendResult.failure(
               userMessage(e),
@@ -133,7 +177,10 @@ class FirebasePhoneAuthHelper {
           );
         },
         codeSent: (verificationId, resendToken) {
-          debugPrint('Firebase phone: codeSent');
+          PhoneOtpDebugLog.log(
+            'codeSent',
+            'verificationId=${verificationId.substring(0, 8)}… resend=${resendToken != null}',
+          );
           complete(
             FirebasePhoneSendResult.codeSent(
               verificationId: verificationId,
@@ -142,10 +189,11 @@ class FirebasePhoneAuthHelper {
           );
         },
         codeAutoRetrievalTimeout: (verificationId) {
-          debugPrint('Firebase phone: auto retrieval timeout');
+          PhoneOtpDebugLog.log('codeAutoRetrievalTimeout', verificationId);
         },
       );
     } catch (e) {
+      PhoneOtpDebugLog.error('verifyPhoneNumber exception', e);
       complete(FirebasePhoneSendResult.failure(e.toString()));
     }
 

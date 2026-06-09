@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -60,6 +61,11 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _checkLoginStatus() async {
     debugPrint('Splash: _checkLoginStatus started');
     final prefs = await SharedPreferences.getInstance();
+
+    // iOS: ask notification permission early (required for Firebase phone OTP silent push).
+    if (Platform.isIOS && mounted) {
+      await _prepareIosNotificationPermission();
+    }
 
     // --- Fresh Install Detection ---
     // On iOS, SharedPreferences can be restored from iCloud backup after reinstall.
@@ -250,6 +256,45 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint('Splash: generic error, returning to login');
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
+    }
+  }
+
+  /// iOS only — explain why notifications are needed, then request permission + APNs.
+  Future<void> _prepareIosNotificationPermission() async {
+    if (!Platform.isIOS || !mounted) return;
+
+    try {
+      final settings = await PushNotificationService.messagingSettings();
+      final status = settings.authorizationStatus;
+
+      if (status == AuthorizationStatus.notDetermined) {
+        final allow = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Enable notifications'),
+            content: const Text(
+              'RealtorOne uses a secure Apple notification to verify your phone number with Firebase OTP.\n\n'
+              'Please tap Allow on the next screen so phone verification works on iPhone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Not now'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+        if (allow != true || !mounted) return;
+      }
+
+      await PushNotificationService.prepareIosNotificationsAtStartup();
+    } catch (e) {
+      debugPrint('Splash: iOS notification prep failed: $e');
     }
   }
 

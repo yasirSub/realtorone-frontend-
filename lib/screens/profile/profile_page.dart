@@ -16,6 +16,7 @@ import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
+import '../../utils/phone_otp_debug_log.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
 
@@ -1345,6 +1346,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     setState(() => _isLoading = true);
+    PhoneOtpDebugLog.start('profile phone verification');
+    PhoneOtpDebugLog.log('user', 'email=$email phone=${PhoneOtpDebugLog.maskPhone(phone)}');
     _showSnackBar('Sending OTP via Firebase…', const Color(0xFF667eea));
     try {
       await _sendFirebasePhoneOtp(email: email, phone: phone);
@@ -1358,59 +1361,24 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  /// Server SMS when Firebase returns BILLING_NOT_ENABLED (GCP billing ≠ Firebase Blaze).
-  Future<void> _tryBrevoPhoneOtp({
-    required String email,
-    required String phone,
-  }) async {
-    try {
-      final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-      if (!mounted) return;
-      if (smsResponse['status'] == 'ok' && smsResponse['provider'] == 'brevo') {
-        setState(() => _isLoading = false);
-        _showSnackBar(
-          'Firebase billing is not active yet. OTP sent via server SMS instead.',
-          Colors.green,
-        );
-        _showOtpVerifyDialog(
-          email: email,
-          isEmail: false,
-          phone: phone,
-          usesFirebasePhone: false,
-        );
-        return;
-      }
-      setState(() => _isLoading = false);
-      _showSnackBar(
-        smsResponse['message']?.toString() ??
-            'Firebase billing off and server SMS failed. Enable Firebase Blaze for realtor-one.',
-        Colors.red,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showSnackBar(
-        'Enable Firebase Blaze (project realtor-one) or fix BREVO on the API server.',
-        Colors.red,
-      );
-    }
-  }
-
   Future<void> _sendFirebasePhoneOtp({
     required String email,
     required String phone,
   }) async {
+    PhoneOtpDebugLog.log('step', 'ensureInitialized');
     final ready = await FirebasePhoneAuthHelper.ensureInitialized();
     if (!ready) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showSnackBar(
-        'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.',
-        Colors.red,
-      );
+      const msg =
+          'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.';
+      PhoneOtpDebugLog.error('ensureInitialized', msg);
+      _showSnackBar(msg, Colors.red);
+      await _showFirebaseOtpDebugScreen(msg);
       return;
     }
 
+    PhoneOtpDebugLog.log('step', 'sendOtp (Firebase only — no Brevo)');
     final result = await FirebasePhoneAuthHelper.sendOtp(
       auth: _firebaseAuth,
       phoneE164: phone,
@@ -1420,6 +1388,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (!result.ok) {
       final msg = result.errorMessage ?? '';
+      PhoneOtpDebugLog.log(
+        'Firebase result',
+        'ok=false billing=${result.billingBlocked} '
+            'notForwarded=${result.notificationNotForwarded}',
+      );
       final upper = msg.toUpperCase();
 
       // Firebase device/number temporary block (too-many-requests / unusual activity).
@@ -1430,21 +1403,9 @@ class _ProfilePageState extends State<ProfilePage> {
           upper.contains('UNUSUAL ACTIVITY') ||
           upper.contains('17010');
 
-      if (result.billingBlocked || result.notificationNotForwarded) {
-        if (result.notificationNotForwarded) {
-          _showSnackBar(
-            'Firebase push verification unavailable. Trying server SMS instead…',
-            Colors.orange,
-          );
-        } else {
-          _showSnackBar(msg, Colors.orange);
-        }
-        await _tryBrevoPhoneOtp(email: email, phone: phone);
-        return;
-      }
-
       if (firebaseBlocked) {
         setState(() => _isLoading = false);
+        await _showFirebaseOtpDebugScreen('Firebase rate-limited this device/number');
         await RealtorOneDialogScaffold.show<void>(
           context: context,
           barrierDismissible: false,
@@ -1484,14 +1445,16 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       setState(() => _isLoading = false);
-      _showSnackBar(
-        msg.isNotEmpty ? msg : 'Firebase could not send SMS.',
-        Colors.red,
-      );
+      final failMsg = msg.isNotEmpty ? msg : 'Firebase could not send SMS.';
+      PhoneOtpDebugLog.error('Firebase failed', failMsg);
+      _showSnackBar(failMsg, Colors.red);
+      await _showFirebaseOtpDebugScreen(failMsg);
       return;
     }
 
     if (result.autoCredential != null) {
+      PhoneOtpDebugLog.log('success', 'auto-verified via silent push');
+      await _showFirebaseOtpDebugScreen('SUCCESS: silent APNs push worked');
       await _verifyPhoneWithFirebaseCredential(
         credential: result.autoCredential!,
         email: email,
@@ -1501,6 +1464,8 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     setState(() => _isLoading = false);
+    PhoneOtpDebugLog.log('success', 'codeSent — SMS dispatched');
+    await _showFirebaseOtpDebugScreen('SUCCESS: Firebase sent SMS — check your phone');
     _showSnackBar('OTP sent via Firebase SMS.', Colors.green);
     _showOtpVerifyDialog(
       email: email,
@@ -1515,6 +1480,49 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: backgroundColor),
+    );
+  }
+
+  /// On-device Firebase OTP trace (debug builds). Also prints [OTP_DEBUG] in terminal.
+  Future<void> _showFirebaseOtpDebugScreen(String summary) async {
+    if (!PhoneOtpDebugLog.enabled || !mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Firebase OTP Debug'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                summary,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Screenshot this and share. Long-press text to copy.',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                PhoneOtpDebugLog.report(),
+                style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1688,47 +1696,19 @@ class _ProfilePageState extends State<ProfilePage> {
                     });
                     _showSnackBar('New code sent via SMS.', Colors.green);
                   } else {
-                    final smsResponse = await UserApi.sendPhoneOtp(
-                      email,
-                      phone,
-                    );
-                    if (!dCtx.mounted) return;
-                    if (smsResponse['status'] == 'ok') {
-                      currentUsesFirebase = false;
-                      setDialogState(() {
-                        isResending = false;
-                        errorMessage = '';
-                      });
-                      _showSnackBar('New code sent via SMS.', Colors.green);
-                    } else {
-                      setDialogState(() {
-                        isResending = false;
-                        errorMessage =
-                            (result.errorMessage ??
-                                    smsResponse['message'] ??
-                                    'Could not resend code.')
-                                .toString();
-                      });
-                    }
-                  }
-                } else {
-                  final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-                  if (!dCtx.mounted) return;
-                  if (smsResponse['status'] == 'ok' ||
-                      smsResponse['success'] == true) {
-                    setDialogState(() {
-                      isResending = false;
-                      errorMessage = '';
-                    });
-                    _showSnackBar('New code sent via SMS.', Colors.green);
-                  } else {
                     setDialogState(() {
                       isResending = false;
                       errorMessage =
-                          (smsResponse['message'] ?? 'Could not resend code.')
+                          (result.errorMessage ?? 'Could not resend code.')
                               .toString();
                     });
                   }
+                } else {
+                  setDialogState(() {
+                    isResending = false;
+                    errorMessage =
+                        'Phone OTP uses Firebase only. Close and try again.';
+                  });
                 }
               } catch (_) {
                 if (!dCtx.mounted) return;

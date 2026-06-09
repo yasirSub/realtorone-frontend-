@@ -62,7 +62,7 @@ class ProfileContactVerification {
     );
   }
 
-  /// Sends phone OTP (Firebase or server SMS) then shows verify dialog.
+  /// Sends phone OTP via Firebase SMS, then shows verify dialog.
   Future<ProfileContactVerificationResult> verifyPhone({
     required String accountEmail,
     required String phoneE164,
@@ -80,7 +80,7 @@ class ProfileContactVerification {
         'Firebase is not initialized. Rebuild the app and try again.',
         Colors.red,
       );
-      return await _sendBrevoAndShowDialog(email: email, phone: phone);
+      return ProfileContactVerificationResult.notVerified;
     }
 
     final result = await FirebasePhoneAuthHelper.sendOtp(
@@ -90,12 +90,8 @@ class ProfileContactVerification {
     if (!context.mounted) return ProfileContactVerificationResult.notVerified;
 
     if (!result.ok) {
-      if (result.billingBlocked) {
-        return await _sendBrevoAndShowDialog(email: email, phone: phone);
-      }
-      final msg = result.errorMessage ?? 'Could not send SMS.';
-      _snack(msg, Colors.red);
-      return await _sendBrevoAndShowDialog(email: email, phone: phone);
+      _snack(result.errorMessage ?? 'Could not send SMS.', Colors.red);
+      return ProfileContactVerificationResult.notVerified;
     }
 
     if (result.autoCredential != null) {
@@ -118,28 +114,6 @@ class ProfileContactVerification {
       firebaseVerificationId: result.verificationId,
       usesFirebasePhone: true,
     );
-  }
-
-  Future<ProfileContactVerificationResult> _sendBrevoAndShowDialog({
-    required String email,
-    required String phone,
-  }) async {
-    final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-    if (!context.mounted) return ProfileContactVerificationResult.notVerified;
-    if (smsResponse['status'] == 'ok' || smsResponse['success'] == true) {
-      _snack('Verification code sent via SMS.', Colors.green);
-      return _showOtpDialog(
-        email: email,
-        isEmail: false,
-        phone: phone,
-        usesFirebasePhone: false,
-      );
-    }
-    _snack(
-      smsResponse['message']?.toString() ?? 'Could not send SMS verification code.',
-      Colors.red,
-    );
-    return ProfileContactVerificationResult.notVerified;
   }
 
   Future<Map<String, dynamic>> _verifyFirebaseCredential({
@@ -302,35 +276,18 @@ class ProfileContactVerification {
                       errorMessage = '';
                     });
                   } else {
-                    final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-                    if (!dCtx.mounted) return;
-                    if (smsResponse['status'] == 'ok') {
-                      currentUsesFirebase = false;
-                      setDialogState(() {
-                        isResending = false;
-                        errorMessage = '';
-                      });
-                    } else {
-                      setDialogState(() {
-                        isResending = false;
-                        errorMessage =
-                            (result.errorMessage ??
-                                    smsResponse['message'] ??
-                                    'Could not resend code.')
-                                .toString();
-                      });
-                    }
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage =
+                          (result.errorMessage ?? 'Could not resend code.')
+                              .toString();
+                    });
                   }
                 } else {
-                  final smsResponse = await UserApi.sendPhoneOtp(email, phone);
-                  if (!dCtx.mounted) return;
                   setDialogState(() {
                     isResending = false;
-                    errorMessage = smsResponse['status'] == 'ok' ||
-                            smsResponse['success'] == true
-                        ? ''
-                        : (smsResponse['message'] ?? 'Could not resend code.')
-                            .toString();
+                    errorMessage =
+                        'Phone OTP uses Firebase only. Close and try again.';
                   });
                 }
               } catch (_) {

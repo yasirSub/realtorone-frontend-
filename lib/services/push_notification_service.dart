@@ -12,6 +12,8 @@ import '../api/api_client.dart';
 import '../firebase_options.dart';
 import '../routes/app_routes.dart';
 import '../screens/chatbot/reven_chat_page.dart';
+import '../utils/phone_otp_debug_log.dart';
+import 'ios_phone_auth_apns_bridge.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -143,33 +145,68 @@ class PushNotificationService {
           .requestPermission(alert: true, badge: true, sound: true)
           .timeout(const Duration(seconds: 12));
 
+      final status = settings.authorizationStatus;
+      PhoneOtpDebugLog.log('notification permission', status.name);
       final authorized =
-          settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+          status == AuthorizationStatus.authorized ||
+          status == AuthorizationStatus.provisional;
       if (!authorized) {
-        debugPrint('iOS phone auth: notification permission denied');
+        PhoneOtpDebugLog.error('notification permission', 'denied ($status)');
         return false;
       }
 
       await _messaging.setAutoInitEnabled(true);
-      await _messaging.getToken().timeout(const Duration(seconds: 12));
+      final fcmToken = await _messaging.getToken().timeout(const Duration(seconds: 12));
+      PhoneOtpDebugLog.log(
+        'FCM token',
+        fcmToken == null ? 'null' : '${fcmToken.substring(0, 8)}…',
+      );
 
       for (var attempt = 0; attempt < 8; attempt++) {
         final apns = await _messaging.getAPNSToken();
         if (apns != null && apns.isNotEmpty) {
-          debugPrint('iOS phone auth: APNs token ready');
+          PhoneOtpDebugLog.log(
+            'APNs (messaging)',
+            'ready attempt ${attempt + 1} ${apns.substring(0, 8)}…',
+          );
           return true;
         }
         await Future<void>.delayed(const Duration(milliseconds: 350));
       }
 
-      debugPrint('iOS phone auth: APNs token pending — AppDelegate will set it');
-      return true;
+      PhoneOtpDebugLog.log(
+        'APNs (messaging)',
+        'pending after 8 attempts — native AppDelegate may still register',
+      );
+
+      await IosPhoneAuthApnsBridge.syncApnsToAuth();
+      final native = await IosPhoneAuthApnsBridge.debugStatus();
+      if (native['authHasApnsToken'] == true) {
+        return true;
+      }
+      PhoneOtpDebugLog.error(
+        'APNs (messaging)',
+        'no token after sync — check Push capability + notification permission',
+      );
+      return false;
     } catch (e) {
-      debugPrint('ensureIosReadyForPhoneAuth: $e');
+      PhoneOtpDebugLog.error('ensureIosReadyForPhoneAuth', e);
       return false;
     }
   }
+
+  /// Call on splash / app start (iOS). Registers for APNs before phone OTP is needed.
+  static Future<bool> prepareIosNotificationsAtStartup() async {
+    if (kIsWeb || !Platform.isIOS) return true;
+    PhoneOtpDebugLog.log('startup', 'preparing iOS notifications for Firebase OTP');
+    final ok = await ensureIosReadyForPhoneAuth();
+    final status = await IosPhoneAuthApnsBridge.debugStatus();
+    PhoneOtpDebugLog.log('startup APNs status', status.toString());
+    return ok;
+  }
+
+  static Future<NotificationSettings> messagingSettings() =>
+      _messaging.getNotificationSettings();
 
   static Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
