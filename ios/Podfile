@@ -42,6 +42,9 @@ target 'Runner' do
   # Force PromisesObjC to use modular headers to fix symbol mapping
   pod 'PromisesObjC', :modular_headers => true
 
+  # reCAPTCHA Enterprise fallback when silent APNs phone-auth push is not delivered.
+  pod 'RecaptchaEnterprise', '~> 18.9'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

@@ -122,9 +122,15 @@ class FirebasePhoneAuthHelper {
           'then try again. Also upload your APNs .p8 key in Firebase Console → Cloud Messaging.',
         );
       }
-      // Do not call initializeRecaptchaConfig() — requires RecaptchaEnterprise SDK pod.
-      // iOS phone OTP uses silent APNs push, not reCAPTCHA.
-      PhoneOtpDebugLog.log('iOS preflight', 'APNs ready — skipping reCAPTCHA (not linked)');
+      try {
+        await auth.initializeRecaptchaConfig();
+        PhoneOtpDebugLog.log('iOS preflight', 'reCAPTCHA config initialized (silent-push fallback)');
+      } catch (e) {
+        PhoneOtpDebugLog.log(
+          'iOS preflight',
+          'reCAPTCHA config init skipped: $e',
+        );
+      }
 
       final beforeSync = await IosPhoneAuthApnsBridge.debugStatus();
       PhoneOtpDebugLog.log('native APNs (before sync)', beforeSync.toString());

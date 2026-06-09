@@ -9,6 +9,9 @@ import UserNotifications
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var phoneAuthChannel: FlutterMethodChannel?
 
+  /// Firebase recommends `.unknown` so Auth infers sandbox vs production (firebase-ios-sdk #13502).
+  private let authApnsTokenType: AuthAPNSTokenType = .unknown
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -58,26 +61,38 @@ import UserNotifications
       NSLog("[OTP_DEBUG] syncApnsToAuth: Messaging.apnsToken is nil")
       return false
     }
-    #if DEBUG
-    let tokenType: AuthAPNSTokenType = .sandbox
-    #else
-    let tokenType: AuthAPNSTokenType = .prod
-    #endif
-    Auth.auth().setAPNSToken(token, type: tokenType)
-    NSLog("[OTP_DEBUG] syncApnsToAuth: copied token to Auth (type=%@)", tokenType == .sandbox ? "sandbox" : "prod")
+    Auth.auth().setAPNSToken(token, type: authApnsTokenType)
+    NSLog("[OTP_DEBUG] syncApnsToAuth: copied token to Auth (type=unknown)")
     return Auth.auth().apnsToken != nil
+  }
+
+  private func buildTypeLabel() -> String {
+    #if DEBUG
+    return "debug"
+    #elseif PROFILE
+    return "profile"
+    #else
+    return "release"
+    #endif
+  }
+
+  private func apsEnvironmentLabel() -> String {
+    #if DEBUG
+    return "development"
+    #elseif PROFILE
+    return "development"
+    #else
+    return "production"
+    #endif
   }
 
   private func debugApnsStatus() -> [String: Any] {
     let authToken = Auth.auth().apnsToken
     let msgToken = Messaging.messaging().apnsToken
-    #if DEBUG
-    let buildType = "debug"
-    #else
-    let buildType = "release"
-    #endif
     return [
-      "buildType": buildType,
+      "buildType": buildTypeLabel(),
+      "apsEnvironment": apsEnvironmentLabel(),
+      "apnsTokenType": "unknown",
       "authHasApnsToken": authToken != nil,
       "authTokenBytes": authToken?.count ?? 0,
       "messagingHasApnsToken": msgToken != nil,
@@ -85,32 +100,42 @@ import UserNotifications
     ]
   }
 
-  /// Forward silent Firebase Auth verification pushes (phone OTP).
-  private func forwardAuthNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
-    if Auth.auth().canHandleNotification(userInfo) {
-      NSLog("[OTP_DEBUG] Auth handled phone-verification notification")
-      return true
+  private func logRemoteNotification(_ userInfo: [AnyHashable: Any], source: String) {
+    let keys = userInfo.keys.map { "\($0)" }.sorted().joined(separator: ", ")
+    NSLog("[OTP_DEBUG] remoteNotification source=%@ keyCount=%lu keys=[%@]", source, userInfo.count, keys)
+    if let aps = userInfo["aps"] {
+      NSLog("[OTP_DEBUG] remoteNotification source=%@ aps=%@", source, String(describing: aps))
     }
-    return false
+    if let firebaseAuth = userInfo["com.google.firebase.auth"] {
+      NSLog("[OTP_DEBUG] remoteNotification source=%@ firebaseAuth=%@", source, String(describing: firebaseAuth))
+    }
+  }
+
+  /// Forward silent Firebase Auth verification pushes (phone OTP).
+  private func forwardAuthNotification(_ userInfo: [AnyHashable: Any], source: String) -> Bool {
+    logRemoteNotification(userInfo, source: source)
+    let handled = Auth.auth().canHandleNotification(userInfo)
+    NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=%@", source, handled ? "YES" : "NO")
+    if handled {
+      NSLog("[OTP_DEBUG] Auth handled phone-verification notification")
+    }
+    return handled
   }
 
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    #if DEBUG
-    let tokenType: AuthAPNSTokenType = .sandbox
-    #else
-    let tokenType: AuthAPNSTokenType = .prod
-    #endif
-    Auth.auth().setAPNSToken(deviceToken, type: tokenType)
-    Messaging.messaging().apnsToken = deviceToken
-    NSLog(
-      "[OTP_DEBUG] didRegisterForRemoteNotifications tokenBytes=%lu type=%@",
-      deviceToken.count,
-      tokenType == .sandbox ? "sandbox" : "prod"
-    )
+    // Let FlutterFire plugins register first; then ensure Auth has the final token type.
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+    Messaging.messaging().apnsToken = deviceToken
+    Auth.auth().setAPNSToken(deviceToken, type: authApnsTokenType)
+    NSLog(
+      "[OTP_DEBUG] didRegisterForRemoteNotifications tokenBytes=%lu type=unknown build=%@ aps=%@",
+      deviceToken.count,
+      buildTypeLabel(),
+      apsEnvironmentLabel()
+    )
   }
 
   override func application(
@@ -126,7 +151,7 @@ import UserNotifications
     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
-    if forwardAuthNotification(userInfo) {
+    if forwardAuthNotification(userInfo, source: "fetchCompletionHandler") {
       completionHandler(.noData)
       return
     }
@@ -144,7 +169,7 @@ import UserNotifications
     _ application: UIApplication,
     didReceiveRemoteNotification userInfo: [AnyHashable: Any]
   ) {
-    if forwardAuthNotification(userInfo) {
+    if forwardAuthNotification(userInfo, source: "legacy") {
       return
     }
     super.application(application, didReceiveRemoteNotification: userInfo)
@@ -156,7 +181,7 @@ import UserNotifications
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     let userInfo = notification.request.content.userInfo
-    if forwardAuthNotification(userInfo) {
+    if forwardAuthNotification(userInfo, source: "willPresent") {
       completionHandler([])
       return
     }
@@ -173,7 +198,7 @@ import UserNotifications
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
     let userInfo = response.notification.request.content.userInfo
-    if forwardAuthNotification(userInfo) {
+    if forwardAuthNotification(userInfo, source: "didReceiveResponse") {
       completionHandler()
       return
     }
@@ -190,7 +215,7 @@ import UserNotifications
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
     if Auth.auth().canHandle(url) {
-      NSLog("[OTP_DEBUG] Auth handled reCAPTCHA redirect URL")
+      NSLog("[OTP_DEBUG] Auth handled reCAPTCHA redirect URL: %@", url.absoluteString)
       return true
     }
     return super.application(app, open: url, options: options)
