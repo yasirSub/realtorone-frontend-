@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../api/user_api.dart';
 import '../theme/realtorone_brand.dart';
 import '../utils/firebase_phone_auth_helper.dart';
+import '../utils/phone_otp_debug_log.dart';
+import '../utils/phone_otp_user_message.dart';
 import '../widgets/otp_pin_input_row.dart';
 import '../widgets/realtor_one_dialog_scaffold.dart';
 
@@ -76,8 +78,11 @@ class ProfileContactVerification {
 
     final ready = await FirebasePhoneAuthHelper.ensureInitialized();
     if (!ready) {
+      const technical =
+          'Firebase is not initialized. Rebuild the app and try again.';
+      PhoneOtpDebugLog.error('ensureInitialized', technical);
       _snack(
-        'Firebase is not initialized. Rebuild the app and try again.',
+        PhoneOtpUserMessage.forInitFailure(technical: technical),
         Colors.red,
       );
       return ProfileContactVerificationResult.notVerified;
@@ -90,7 +95,10 @@ class ProfileContactVerification {
     if (!context.mounted) return ProfileContactVerificationResult.notVerified;
 
     if (!result.ok) {
-      _snack(result.errorMessage ?? 'Could not send SMS.', Colors.red);
+      _snack(
+        PhoneOtpUserMessage.forSendFailure(technical: result.errorMessage),
+        Colors.red,
+      );
       return ProfileContactVerificationResult.notVerified;
     }
 
@@ -106,7 +114,7 @@ class ProfileContactVerification {
       return ProfileContactVerificationResult.notVerified;
     }
 
-    _snack('Verification code sent to your phone.', Colors.green);
+    _snack(PhoneOtpUserMessage.codeSent, Colors.green);
     return _showOtpDialog(
       email: email,
       isEmail: false,
@@ -125,7 +133,12 @@ class ProfileContactVerification {
       final authResult = await firebaseAuth.signInWithCredential(credential);
       final idToken = await authResult.user?.getIdToken();
       if (idToken == null || idToken.isEmpty) {
-        return {'status': 'error', 'message': 'Missing Firebase id token'};
+        const technical = 'Missing Firebase id token';
+        PhoneOtpDebugLog.error('verify credential', technical);
+        return {
+          'status': 'error',
+          'message': PhoneOtpUserMessage.forVerifyFailure(technical: technical),
+        };
       }
       final response = await UserApi.verifyPhoneOtpWithIdToken(
         email: email,
@@ -136,13 +149,21 @@ class ProfileContactVerification {
       return response;
     } on FirebaseAuthException catch (e) {
       await firebaseAuth.signOut();
+      PhoneOtpDebugLog.error(
+        'verify credential',
+        FirebasePhoneAuthHelper.technicalMessage(e),
+      );
       return {
         'status': 'error',
-        'message': FirebasePhoneAuthHelper.userMessage(e),
+        'message': PhoneOtpUserMessage.forVerifyFailure(exception: e),
       };
     } catch (e) {
       await firebaseAuth.signOut();
-      return {'status': 'error', 'message': e.toString()};
+      PhoneOtpDebugLog.error('verify credential', e);
+      return {
+        'status': 'error',
+        'message': PhoneOtpUserMessage.forVerifyFailure(technical: e.toString()),
+      };
     }
   }
 
@@ -214,9 +235,9 @@ class ProfileContactVerification {
                   setDialogState(() {
                     isVerifying = false;
                     visualState = OtpPinVisualState.error;
-                    errorMessage =
-                        (response['message'] ?? 'Invalid code. Try again.')
-                            .toString();
+                    errorMessage = PhoneOtpUserMessage.forDialogError(
+                      response['message']?.toString(),
+                    );
                   });
                   otpInputKey.currentState?.clear();
                 }
@@ -224,7 +245,7 @@ class ProfileContactVerification {
                 setDialogState(() {
                   isVerifying = false;
                   visualState = OtpPinVisualState.error;
-                  errorMessage = 'Connection error. Please try again.';
+                  errorMessage = PhoneOtpUserMessage.connectionError;
                 });
                 otpInputKey.currentState?.clear();
               }
@@ -278,23 +299,22 @@ class ProfileContactVerification {
                   } else {
                     setDialogState(() {
                       isResending = false;
-                      errorMessage =
-                          (result.errorMessage ?? 'Could not resend code.')
-                              .toString();
+                      errorMessage = PhoneOtpUserMessage.forResendFailure(
+                        technical: result.errorMessage,
+                      );
                     });
                   }
                 } else {
                   setDialogState(() {
                     isResending = false;
-                    errorMessage =
-                        'Phone OTP uses Firebase only. Close and try again.';
+                    errorMessage = PhoneOtpUserMessage.couldNotResend;
                   });
                 }
               } catch (_) {
                 if (!dCtx.mounted) return;
                 setDialogState(() {
                   isResending = false;
-                  errorMessage = 'Could not resend code. Try again.';
+                  errorMessage = PhoneOtpUserMessage.couldNotResend;
                 });
               }
             }

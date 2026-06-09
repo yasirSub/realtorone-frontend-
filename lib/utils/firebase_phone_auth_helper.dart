@@ -11,7 +11,7 @@ import '../services/push_notification_service.dart';
 import '../services/ios_phone_auth_apns_bridge.dart';
 import 'phone_otp_debug_log.dart';
 
-/// Firebase Phone Auth helpers (init + send OTP + user-facing errors).
+/// Firebase Phone Auth helpers (init + send OTP + technical error detail for logs).
 class FirebasePhoneAuthHelper {
   FirebasePhoneAuthHelper._();
 
@@ -176,7 +176,7 @@ class FirebasePhoneAuthHelper {
           }
           complete(
             FirebasePhoneSendResult.failure(
-              userMessage(e),
+              technicalMessage(e),
               billingBlocked: isBillingNotEnabled(e),
               notificationNotForwarded: isNotificationNotForwarded(e),
             ),
@@ -226,7 +226,8 @@ class FirebasePhoneAuthHelper {
       'Open Settings → RealtorOne → Notifications → Allow Notifications, '
       'then try again on a real iPhone (simulator does not support this).';
 
-  static String userMessage(FirebaseAuthException e) {
+  /// Full technical detail for [PhoneOtpDebugLog] — never show directly in UI.
+  static String technicalMessage(FirebaseAuthException e) {
     if (isBillingNotEnabled(e)) return billingNotEnabledMessage();
 
     switch (e.code) {

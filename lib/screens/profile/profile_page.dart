@@ -17,6 +17,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
 import '../../utils/phone_otp_debug_log.dart';
+import '../../utils/phone_otp_user_message.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
 
@@ -1348,7 +1349,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
     PhoneOtpDebugLog.start('profile phone verification');
     PhoneOtpDebugLog.log('user', 'email=$email phone=${PhoneOtpDebugLog.maskPhone(phone)}');
-    _showSnackBar('Sending OTP via Firebase…', const Color(0xFF667eea));
+    _showSnackBar(PhoneOtpUserMessage.sending, const Color(0xFF667eea));
     try {
       await _sendFirebasePhoneOtp(email: email, phone: phone);
     } catch (e) {
@@ -1370,11 +1371,14 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!ready) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      const msg =
+      const technical =
           'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.';
-      PhoneOtpDebugLog.error('ensureInitialized', msg);
-      _showSnackBar(msg, Colors.red);
-      await _showFirebaseOtpDebugScreen(msg);
+      PhoneOtpDebugLog.error('ensureInitialized', technical);
+      _showSnackBar(
+        PhoneOtpUserMessage.forInitFailure(technical: technical),
+        Colors.red,
+      );
+      await _showFirebaseOtpDebugScreen(technical);
       return;
     }
 
@@ -1428,9 +1432,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  msg.isNotEmpty
-                      ? msg
-                      : 'Too many OTP requests. Firebase temporarily blocked this device/number. Try again later.',
+                  PhoneOtpUserMessage.forSendFailure(technical: msg),
                   style: const TextStyle(
                     fontSize: 14,
                     height: 1.35,
@@ -1447,7 +1449,10 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _isLoading = false);
       final failMsg = msg.isNotEmpty ? msg : 'Firebase could not send SMS.';
       PhoneOtpDebugLog.error('Firebase failed', failMsg);
-      _showSnackBar(failMsg, Colors.red);
+      _showSnackBar(
+        PhoneOtpUserMessage.forSendFailure(technical: failMsg),
+        Colors.red,
+      );
       await _showFirebaseOtpDebugScreen(failMsg);
       return;
     }
@@ -1466,7 +1471,7 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = false);
     PhoneOtpDebugLog.log('success', 'codeSent — SMS dispatched');
     await _showFirebaseOtpDebugScreen('SUCCESS: Firebase sent SMS — check your phone');
-    _showSnackBar('OTP sent via Firebase SMS.', Colors.green);
+    _showSnackBar(PhoneOtpUserMessage.codeSent, Colors.green);
     _showOtpVerifyDialog(
       email: email,
       isEmail: false,
@@ -1617,9 +1622,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   setDialogState(() {
                     isVerifying = false;
                     visualState = OtpPinVisualState.error;
-                    errorMessage =
-                        (response['message'] ?? 'Invalid code. Try again.')
-                            .toString();
+                    errorMessage = PhoneOtpUserMessage.forDialogError(
+                      response['message']?.toString(),
+                    );
                   });
                   otpInputKey.currentState?.clear();
                 }
@@ -1627,7 +1632,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 setDialogState(() {
                   isVerifying = false;
                   visualState = OtpPinVisualState.error;
-                  errorMessage = 'Connection error. Please try again.';
+                  errorMessage = PhoneOtpUserMessage.connectionError;
                 });
                 otpInputKey.currentState?.clear();
               }
@@ -1657,9 +1662,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   } else {
                     setDialogState(() {
                       isResending = false;
-                      errorMessage =
-                          (response['message'] ?? 'Could not resend code.')
-                              .toString();
+                      errorMessage = PhoneOtpUserMessage.forDialogError(
+                        response['message']?.toString(),
+                      );
                     });
                   }
                   return;
@@ -1679,7 +1684,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   if (!ready) {
                     setDialogState(() {
                       isResending = false;
-                      errorMessage = 'Firebase is not ready. Try again later.';
+                      errorMessage = PhoneOtpUserMessage.somethingWentWrong;
                     });
                     return;
                   }
@@ -1698,23 +1703,22 @@ class _ProfilePageState extends State<ProfilePage> {
                   } else {
                     setDialogState(() {
                       isResending = false;
-                      errorMessage =
-                          (result.errorMessage ?? 'Could not resend code.')
-                              .toString();
+                      errorMessage = PhoneOtpUserMessage.forResendFailure(
+                        technical: result.errorMessage,
+                      );
                     });
                   }
                 } else {
                   setDialogState(() {
                     isResending = false;
-                    errorMessage =
-                        'Phone OTP uses Firebase only. Close and try again.';
+                    errorMessage = PhoneOtpUserMessage.couldNotResend;
                   });
                 }
               } catch (_) {
                 if (!dCtx.mounted) return;
                 setDialogState(() {
                   isResending = false;
-                  errorMessage = 'Could not resend code. Try again.';
+                  errorMessage = PhoneOtpUserMessage.couldNotResend;
                 });
               }
             }
@@ -1878,13 +1882,21 @@ class _ProfilePageState extends State<ProfilePage> {
       final authResult = await _firebaseAuth.signInWithCredential(credential);
       final idToken = await authResult.user?.getIdToken();
       if (idToken == null || idToken.isEmpty) {
+        const technical = 'Missing Firebase id token';
+        PhoneOtpDebugLog.error('verify credential', technical);
         if (mounted) {
           setState(() => _isLoading = false);
           if (showSnackBarFeedback) {
-            _showSnackBar('Failed to verify phone with Firebase.', Colors.red);
+            _showSnackBar(
+              PhoneOtpUserMessage.forVerifyFailure(technical: technical),
+              Colors.red,
+            );
           }
         }
-        return {'status': 'error', 'message': 'Missing Firebase id token'};
+        return {
+          'status': 'error',
+          'message': PhoneOtpUserMessage.forVerifyFailure(technical: technical),
+        };
       }
 
       final response = await UserApi.verifyPhoneOtpWithIdToken(
@@ -1912,41 +1924,41 @@ class _ProfilePageState extends State<ProfilePage> {
       } else if (mounted) {
         setState(() => _isLoading = false);
         if (showSnackBarFeedback) {
-          final msg = (response['message'] ?? response['error'] ?? '')
+          final technical = (response['message'] ?? response['error'] ?? '')
               .toString()
               .trim();
-          if (msg.isNotEmpty) {
-            _showSnackBar(msg, Colors.red);
-          } else {
-            _showSnackBar(
-              'Phone verification failed. Please try again.',
-              Colors.red,
-            );
-          }
+          _showSnackBar(
+            PhoneOtpUserMessage.forVerifyFailure(technical: technical),
+            Colors.red,
+          );
         }
       }
 
       await _firebaseAuth.signOut();
       return response;
     } on FirebaseAuthException catch (e) {
+      PhoneOtpDebugLog.error(
+        'verify credential',
+        FirebasePhoneAuthHelper.technicalMessage(e),
+      );
+      final friendly = PhoneOtpUserMessage.forVerifyFailure(exception: e);
       if (mounted) {
         setState(() => _isLoading = false);
         if (showSnackBarFeedback) {
-          _showSnackBar(FirebasePhoneAuthHelper.userMessage(e), Colors.red);
+          _showSnackBar(friendly, Colors.red);
         }
       }
-      return {
-        'status': 'error',
-        'message': '${e.code}: ${e.message ?? ''}'.trim(),
-      };
+      return {'status': 'error', 'message': friendly};
     } catch (e) {
+      PhoneOtpDebugLog.error('verify credential', e);
+      final friendly = PhoneOtpUserMessage.forVerifyFailure(technical: e.toString());
       if (mounted) {
         setState(() => _isLoading = false);
         if (showSnackBarFeedback) {
-          _showSnackBar(e.toString(), Colors.red);
+          _showSnackBar(friendly, Colors.red);
         }
       }
-      return {'status': 'error', 'message': e.toString()};
+      return {'status': 'error', 'message': friendly};
     }
   }
 
