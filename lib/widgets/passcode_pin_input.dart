@@ -33,67 +33,44 @@ class PasscodePinInput extends StatefulWidget {
 }
 
 class PasscodePinInputState extends State<PasscodePinInput> {
-  late final List<TextEditingController> _controllers;
-  late final List<FocusNode> _focusNodes;
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(widget.length, (_) => TextEditingController());
-    _focusNodes = List.generate(widget.length, (_) => FocusNode());
-    for (var i = 0; i < widget.length; i++) {
-      _focusNodes[i].addListener(() {
-        if (_focusNodes[i].hasFocus) setState(() {});
-      });
-    }
+    _controller.addListener(_onTextChanged);
+    _focusNode.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusNodes.first.requestFocus();
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
   @override
   void dispose() {
-    for (final c in _controllers) {
-      c.dispose();
-    }
-    for (final n in _focusNodes) {
-      n.dispose();
-    }
+    _controller.removeListener(_onTextChanged);
+    _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  String get value => _controllers.map((c) => c.text).join();
+  String get value => _controller.text;
 
   void clear() {
-    for (final c in _controllers) {
-      c.clear();
-    }
-    _focusNodes.first.requestFocus();
+    _controller.clear();
+    _focusNode.requestFocus();
     widget.onChanged?.call('');
     setState(() {});
   }
 
-  void _notify() {
+  void _onTextChanged() {
     setState(() {});
-    widget.onChanged?.call(value);
-    if (value.length == widget.length) {
-      widget.onCompleted?.call(value);
+    final text = _controller.text;
+    widget.onChanged?.call(text);
+    if (text.length == widget.length) {
+      _focusNode.unfocus();
+      widget.onCompleted?.call(text);
     }
-  }
-
-  void _fillFrom(int start, String digits) {
-    final clean = digits.replaceAll(RegExp(r'\D'), '');
-    if (clean.isEmpty) return;
-    for (var i = 0; i < clean.length && (start + i) < widget.length; i++) {
-      _controllers[start + i].text = clean[i];
-    }
-    final next = (start + clean.length).clamp(0, widget.length - 1);
-    if (value.length == widget.length) {
-      _focusNodes[next].unfocus();
-    } else {
-      _focusNodes[next].requestFocus();
-    }
-    _notify();
   }
 
   Color get _emptyRingColor => widget.hasError
@@ -115,122 +92,161 @@ class PasscodePinInputState extends State<PasscodePinInput> {
     return const Color(0xFFCBD5E1);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final pinRow = Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(widget.length, (index) {
-        final filled = _controllers[index].text.isNotEmpty;
-        final focused = _focusNodes[index].hasFocus;
+  Widget _buildDot(int index, String code) {
+    final filled = index < code.length;
+    final focused = _focusNode.hasFocus && index == code.length;
 
-        return Padding(
-          padding: EdgeInsets.only(
-            right: index == widget.length - 1 ? 0 : 14,
+    return Padding(
+      padding: EdgeInsets.only(
+        right: index == widget.length - 1 ? 0 : 14,
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 58,
+        height: 62,
+        decoration: BoxDecoration(
+          color: _boxFill,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _borderColor(focused: focused, filled: filled),
+            width: focused ? 2.5 : 1.5,
           ),
-          child: SizedBox(
-            width: 58,
-            height: 62,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 58,
-                  height: 62,
-                  decoration: BoxDecoration(
-                    color: _boxFill,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _borderColor(focused: focused, filled: filled),
-                      width: focused ? 2.5 : 1.5,
-                    ),
-                    boxShadow: focused
-                        ? [
-                            BoxShadow(
-                              color: RealtorOneBrand.seed.withValues(alpha: 0.18),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
+          boxShadow: focused
+              ? [
+                  BoxShadow(
+                    color: RealtorOneBrand.seed.withValues(alpha: 0.18),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                ),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: filled ? 16 : 12,
-                  height: filled ? 16 : 12,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: filled ? _filledDotColor : Colors.transparent,
-                    border: Border.all(
-                      color: filled ? _filledDotColor : _emptyRingColor,
-                      width: filled ? 0 : 2,
-                    ),
-                  ),
-                ),
-                TextField(
-                  controller: _controllers[index],
-                  focusNode: _focusNodes[index],
-                  textAlign: TextAlign.center,
-                  keyboardType: TextInputType.number,
-                  maxLength: 1,
-                  showCursor: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  style: const TextStyle(
-                    color: Colors.transparent,
-                    fontSize: 1,
-                    height: 1,
-                  ),
-                  cursorColor: Colors.transparent,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
-                  onChanged: (v) {
-                    if (v.length > 1) {
-                      _fillFrom(index, v);
-                      return;
-                    }
-                    if (v.isEmpty && index > 0) {
-                      _focusNodes[index - 1].requestFocus();
-                    } else if (v.isNotEmpty && index < widget.length - 1) {
-                      _focusNodes[index + 1].requestFocus();
-                    }
-                    _notify();
-                  },
-                  onTap: () => _controllers[index].selection = TextSelection(
-                    baseOffset: 0,
-                    extentOffset: _controllers[index].text.length,
-                  ),
-                ),
-              ],
+                ]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: filled ? 16 : 12,
+          height: filled ? 16 : 12,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: filled ? _filledDotColor : Colors.transparent,
+            border: Border.all(
+              color: filled ? _filledDotColor : _emptyRingColor,
+              width: filled ? 0 : 2,
             ),
           ),
-        );
-      }),
+        ),
+      ),
+    );
+  }
+
+  static const _inputDecoration = InputDecoration(
+    border: InputBorder.none,
+    enabledBorder: InputBorder.none,
+    focusedBorder: InputBorder.none,
+    errorBorder: InputBorder.none,
+    focusedErrorBorder: InputBorder.none,
+    disabledBorder: InputBorder.none,
+    filled: true,
+    fillColor: Colors.transparent,
+    isCollapsed: true,
+    counterText: '',
+    contentPadding: EdgeInsets.zero,
+  );
+
+  Widget _buildHiddenField() {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        inputDecorationTheme: const InputDecorationTheme(
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          filled: true,
+          fillColor: Colors.transparent,
+        ),
+      ),
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        autofocus: true,
+        enableSuggestions: false,
+        autocorrect: false,
+        showCursor: false,
+        style: const TextStyle(
+          color: Colors.transparent,
+          fontSize: 1,
+          height: 1,
+        ),
+        cursorColor: Colors.transparent,
+        decoration: _inputDecoration,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+          LengthLimitingTextInputFormatter(widget.length),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final code = _controller.text;
+
+    final inputWidth = widget.length * 58.0 + (widget.length - 1) * 14.0;
+
+    final content = GestureDetector(
+      onTap: () => _focusNode.requestFocus(),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+      width: inputWidth,
+      height: 62,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // Invisible field behind dots — receives keyboard + backspace.
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0,
+              child: _buildHiddenField(),
+            ),
+          ),
+          // Visual dots only; taps pass through to the field.
+          IgnorePointer(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.length,
+                (index) => _buildDot(index, code),
+              ),
+            ),
+          ),
+        ],
+      ),
+      ),
     );
 
     if (widget.variant == PasscodePinVariant.onDark) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+      return Align(
+        alignment: Alignment.center,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: content,
         ),
-        child: pinRow,
       );
     }
 
@@ -247,7 +263,7 @@ class PasscodePinInputState extends State<PasscodePinInput> {
               : const Color(0xFFE2E8F0),
         ),
       ),
-      child: pinRow,
+      child: content,
     );
   }
 }
@@ -283,6 +299,7 @@ class PasscodeEntryCard extends StatelessWidget {
 
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.all(18),

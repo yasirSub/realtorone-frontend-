@@ -62,23 +62,25 @@ class _AppPasscodeLockScreenState extends State<AppPasscodeLockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF0F172A),
-              RealtorOneBrand.seed.withValues(alpha: 0.12),
-              const Color(0xFF0F172A),
-            ],
+      body: SizedBox.expand(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFF0F172A),
+                RealtorOneBrand.seed.withValues(alpha: 0.12),
+                const Color(0xFF0F172A),
+              ],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 const Spacer(flex: 2),
                 PasscodeEntryCard(
                   onDarkBackground: true,
@@ -109,7 +111,8 @@ class _AppPasscodeLockScreenState extends State<AppPasscodeLockScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-              ],
+                ],
+              ),
             ),
           ),
         ),

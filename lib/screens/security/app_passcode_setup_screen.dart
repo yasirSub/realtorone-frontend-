@@ -93,40 +93,6 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
     }
   }
 
-  Future<void> _disable() async {
-    final current = _currentKey.currentState?.value ?? '';
-    if (current.length < 4) {
-      setState(() => _error = 'Enter your current passcode');
-      return;
-    }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final res = await AppPasscodeApi.disablePasscode(passcode: current);
-      if (!mounted) return;
-      if (res['success'] == true) {
-        AppPasscodeService.instance.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('App passcode removed')),
-        );
-        Navigator.of(context).pop(true);
-        return;
-      }
-      setState(() {
-        _error = res['message']?.toString() ?? 'Could not remove passcode';
-        _loading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Connection error. Try again.';
-        _loading = false;
-      });
-    }
-  }
-
   Widget _buildPinStep() {
     if (widget.hasExistingPasscode && _step == 0) {
       return PasscodePinInput(
@@ -164,8 +130,24 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(
-          widget.hasExistingPasscode ? 'App Passcode' : 'Set App Passcode',
+        title: Column(
+          children: [
+            Text(
+              widget.hasExistingPasscode
+                  ? 'Change passcode'
+                  : 'Enable passcode',
+            ),
+            Text(
+              widget.hasExistingPasscode
+                  ? 'Enter current code first'
+                  : 'Locks app when you leave',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white54 : const Color(0xFF64748B),
+              ),
+            ),
+          ],
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -204,26 +186,11 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
                 pinInput: _buildPinStep(),
               ),
               const Spacer(flex: 3),
-              if (widget.hasExistingPasscode && _step == 0)
-                OutlinedButton(
-                  onPressed: _loading ? null : _disable,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                    side: BorderSide(
-                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
-                    ),
-                  ),
-                  child: Text(
-                    'Remove passcode',
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
               const SizedBox(height: 12),
               Text(
-                'Your passcode locks the app when you leave. Reset with your phone number if you forget it.',
+                widget.hasExistingPasscode
+                    ? 'Turn passcode off anytime from Settings → App Passcode.'
+                    : 'You can turn this off later from Settings. Forgot code? Reset with your phone number.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

@@ -7,6 +7,24 @@ import 'api_client.dart';
 import 'api_endpoints.dart';
 
 class UserApi {
+  static Future<Map<String, dynamic>> updateNotificationPreferences({
+    bool? taskRemindersEnabled,
+  }) async {
+    final data = <String, dynamic>{};
+    if (taskRemindersEnabled != null) {
+      data['task_reminders_enabled'] = taskRemindersEnabled;
+    }
+    final result = await ApiClient.put(
+      ApiEndpoints.userNotificationPreferences,
+      data,
+      requiresAuth: true,
+    );
+    if (result['success'] == true) {
+      await ApiClient.clearCache();
+    }
+    return result;
+  }
+
   static Future<Map<String, dynamic>> getProfile({bool useCache = true}) async {
     return await ApiClient.get(
       ApiEndpoints.userProfile,

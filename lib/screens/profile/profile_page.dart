@@ -564,30 +564,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             _buildMenuSection(l10n.profileSectionAccount, [
                               _MenuItem(
-                                icon: Icons.pin_outlined,
-                                title: (_userData?['has_app_passcode'] == true ||
-                                        _userData?['app_passcode_set_at'] != null)
-                                    ? 'App Passcode'
-                                    : 'Set App Passcode',
-                                subtitle: (_userData?['has_app_passcode'] == true ||
-                                        _userData?['app_passcode_set_at'] != null)
-                                    ? 'Passcode enabled — tap to change'
-                                    : 'Lock app when opening',
-                                onTap: () async {
-                                  final hasPasscode =
-                                      _userData?['has_app_passcode'] == true ||
-                                      _userData?['app_passcode_set_at'] != null;
-                                  final result = await Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.appPasscodeSetup,
-                                    arguments: {
-                                      'hasExistingPasscode': hasPasscode,
-                                    },
-                                  );
-                                  if (result == true) _loadUserData();
-                                },
-                              ),
-                              _MenuItem(
                                 icon: Icons.feedback_outlined,
                                 title: 'Send Feedback',
                                 subtitle: 'Share ideas or report issues',
@@ -597,10 +573,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 icon: Icons.settings_outlined,
                                 title: l10n.profileAppSettingsTitle,
                                 subtitle: l10n.profileAppSettingsSubtitle,
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.settings,
-                                ),
+                                onTap: () =>
+                                    Navigator.pushNamed(context, AppRoutes.settings),
                               ),
                               if (_userData?['is_admin'] == true)
                                 _MenuItem(

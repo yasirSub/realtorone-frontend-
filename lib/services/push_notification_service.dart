@@ -328,10 +328,12 @@ class PushNotificationService {
   static Future<NotificationSettings> messagingSettings() =>
       _messaging.getNotificationSettings();
 
-  static Future<void> _loadSettings() async {
+  static Future<void> ensureSettingsLoaded() async {
     final prefs = await SharedPreferences.getInstance();
     notificationsEnabled.value = prefs.getBool('notifications_enabled') ?? true;
   }
+
+  static Future<void> _loadSettings() => ensureSettingsLoaded();
 
   static Future<void> toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();

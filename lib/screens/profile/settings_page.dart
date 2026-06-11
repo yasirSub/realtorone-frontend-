@@ -14,7 +14,10 @@ import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../services/app_preferences_service.dart';
+import '../../services/app_passcode_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../widgets/app_passcode_settings_tile.dart';
 import '../chatbot/reven_chat_overlay.dart';
 import '../chatbot/reven_feedback_sheet.dart';
 
@@ -28,8 +31,10 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _isLoading = false;
   bool _pushNotifications = true;
+  bool _taskReminders = true;
   bool _emailUpdates = true;
   bool _chatbotEnabled = true;
+  bool _savingTaskReminders = false;
   Map<String, dynamic>? _userData;
   String _appVersionShort = '';
 
@@ -59,14 +64,65 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadProfile() async {
     try {
+      await PushNotificationService.ensureSettingsLoaded();
       final response = await UserApi.getProfile();
       if (mounted && response['success'] == true) {
-        setState(() => _userData = response['data']);
+        final data = response['data'] as Map<String, dynamic>?;
+        AppPasscodeService.instance.configureFromProfile(data);
+        setState(() {
+          _userData = data;
+          _taskReminders = data?['task_reminders_enabled'] != false;
+          _pushNotifications =
+              PushNotificationService.notificationsEnabled.value;
+        });
       }
     } catch (e) {
       debugPrint('Settings: Profile load failed: $e');
     }
   }
+
+  Future<void> _onTaskRemindersChanged(bool value) async {
+    if (_savingTaskReminders) return;
+    final previous = _taskReminders;
+    setState(() {
+      _taskReminders = value;
+      _savingTaskReminders = true;
+    });
+    try {
+      final response = await UserApi.updateNotificationPreferences(
+        taskRemindersEnabled: value,
+      );
+      if (!mounted) return;
+      if (response['success'] != true) {
+        setState(() => _taskReminders = previous);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response['message']?.toString() ??
+                  'Could not update task reminders.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _taskReminders = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) setState(() => _savingTaskReminders = false);
+    }
+  }
+
+  void _onPasscodeUpdated() {
+    _loadProfile();
+  }
+
+  bool get _hasAppPasscode =>
+      _userData?['has_app_passcode'] == true ||
+      _userData?['app_passcode_set_at'] != null;
 
   void _openLegalInApp(String slug) {
     Navigator.of(context).push(
@@ -511,6 +567,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   subtitle: l10n.settingsChangePasswordSubtitle,
                   onTap: _showChangePasswordDialog,
                 ),
+                AppPasscodeSettingsTile(
+                  hasPasscode: _hasAppPasscode,
+                  onUpdated: _onPasscodeUpdated,
+                  showDivider: false,
+                ),
               ], isDark),
               const SizedBox(height: 24),
               _buildSection(l10n.settingsSectionAppPreferences),
@@ -528,7 +589,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: l10n.settingsNewLeadAlertsTitle,
                   subtitle: l10n.settingsNewLeadAlertsSubtitle,
                   value: _pushNotifications,
-                  onChanged: (v) => setState(() => _pushNotifications = v),
+                  onChanged: (v) async {
+                    setState(() => _pushNotifications = v);
+                    await PushNotificationService.toggleNotifications(v);
+                  },
+                  isDark: isDark,
+                ),
+                _buildSwitchItem(
+                  icon: Icons.task_alt_outlined,
+                  title: 'Task reminders',
+                  subtitle: 'Daily task and missed-activity alerts',
+                  value: _taskReminders,
+                  onChanged: _onTaskRemindersChanged,
                   isDark: isDark,
                 ),
                 _buildSwitchItem(
