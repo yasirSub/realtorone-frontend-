@@ -36,8 +36,8 @@ class PhoneOtpDebugLog {
 
   static String report() {
     final buffer = StringBuffer('Firebase OTP Debug Report\n');
-    buffer.writeln('APNs: Auth token type=unknown; Profile uses development entitlements');
-    buffer.writeln('Swizzling: ON + AppDelegate canHandleNotification forwarding');
+    buffer.writeln('APNs: debug=sandbox, release=prod; Firebase proxy ON');
+    buffer.writeln('AppDelegate also forwards silent OTP pushes to Firebase Auth');
     buffer.writeln('Firebase OTP only (no server SMS fallback)');
     buffer.writeln('─' * 40);
     for (final line in _lines) {

@@ -114,6 +114,12 @@ class FirebasePhoneAuthHelper {
 
       final nativePrep = await IosPhoneAuthApnsBridge.prepareForPhoneAuth();
       PhoneOtpDebugLog.log('native prepareForPhoneAuth', nativePrep.toString());
+      if (nativePrep['reason'] == 'native_rebuild_required') {
+        PhoneOtpDebugLog.log(
+          'iOS preflight',
+          'native code outdated — run: flutter clean && cd ios && pod install && flutter run --release',
+        );
+      }
       if (nativePrep['authorized'] == false) {
         PhoneOtpDebugLog.error('iOS preflight', 'notification permission denied');
         return FirebasePhoneSendResult.failure(_iosNotificationPermissionMessage());

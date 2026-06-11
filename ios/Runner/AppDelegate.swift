@@ -15,6 +15,7 @@ private final class TokenWaitBox {
   private var pendingTokenWaiters: [(Data?) -> Void] = []
   private var remoteNotificationCount: Int = 0
 
+  /// Debug/profile → development entitlement (sandbox). Release/TestFlight → production.
   private func resolvedAuthApnsTokenType() -> AuthAPNSTokenType {
     #if DEBUG
     return .sandbox
@@ -42,7 +43,7 @@ private final class TokenWaitBox {
       FirebaseApp.configure()
     }
 
-    // Proxy ON in Info.plist; we still forward Auth notifications first in overrides below.
+    // Proxy ON — Firebase swizzles APNs; we still sync Auth token + forward silent OTP pushes below.
     Messaging.messaging().delegate = self
     UNUserNotificationCenter.current().delegate = self
 
@@ -112,7 +113,7 @@ private final class TokenWaitBox {
           UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
             DispatchQueue.main.async {
               if !granted {
-                result(self.debugApnsStatus().merging([
+                result(self.debugApnsStatus(extra: [
                   "authorized": false,
                   "authorizationStatus": "\(status.rawValue)",
                 ]))
@@ -132,7 +133,7 @@ private final class TokenWaitBox {
   private func waitForApnsTokenThenRespond(result: @escaping FlutterResult, tokenType: AuthAPNSTokenType) {
     if let existing = Messaging.messaging().apnsToken ?? Auth.auth().apnsToken {
       applyApnsToken(existing, type: tokenType)
-      result(debugApnsStatus().merging(["authorized": true, "waitedForToken": false]))
+      result(debugApnsStatus(extra: ["authorized": true, "waitedForToken": false]))
       return
     }
 
@@ -143,7 +144,7 @@ private final class TokenWaitBox {
       if let token {
         self.applyApnsToken(token, type: tokenType)
       }
-      result(self.debugApnsStatus().merging([
+      result(self.debugApnsStatus(extra: [
         "authorized": true,
         "waitedForToken": true,
         "tokenReceived": token != nil,
@@ -160,7 +161,7 @@ private final class TokenWaitBox {
       if let token = Messaging.messaging().apnsToken ?? Auth.auth().apnsToken {
         self.applyApnsToken(token, type: tokenType)
       }
-      result(self.debugApnsStatus().merging([
+      result(self.debugApnsStatus(extra: [
         "authorized": true,
         "waitedForToken": true,
         "tokenReceived": Messaging.messaging().apnsToken != nil,
@@ -202,29 +203,34 @@ private final class TokenWaitBox {
   }
 
   private func apsEnvironmentLabel() -> String {
-    switch resolvedAuthApnsTokenType() {
-    case .sandbox: return "development"
-    case .prod: return "production"
-    default: return "unknown"
-    }
+    #if DEBUG
+    return "development"
+    #elseif PROFILE
+    return "development"
+    #else
+    return "production"
+    #endif
   }
 
-  private func debugApnsStatus() -> [String: Any] {
+  private func debugApnsStatus(extra: [String: Any] = [:]) -> [String: Any] {
     let authToken = Auth.auth().apnsToken
     let msgToken = Messaging.messaging().apnsToken
     let tokenType = resolvedAuthApnsTokenType()
-    return [
-      "buildType": buildTypeLabel(),
-      "apsEnvironment": apsEnvironmentLabel(),
-      "apnsTokenType": apnsTypeLabel(tokenType),
-      "authHasApnsToken": authToken != nil,
-      "authTokenBytes": authToken?.count ?? 0,
-      "messagingHasApnsToken": msgToken != nil,
-      "messagingTokenBytes": msgToken?.count ?? 0,
-      "remoteNotificationsReceived": remoteNotificationCount,
-      "isRegisteredForRemoteNotifications": UIApplication.shared.isRegisteredForRemoteNotifications,
-      "firebaseProxyEnabled": true,
-    ]
+    var status: [String: Any] = [:]
+    status["buildType"] = buildTypeLabel()
+    status["apsEnvironment"] = apsEnvironmentLabel()
+    status["apnsTokenType"] = apnsTypeLabel(tokenType)
+    status["authHasApnsToken"] = authToken != nil
+    status["authTokenBytes"] = authToken?.count ?? 0
+    status["messagingHasApnsToken"] = msgToken != nil
+    status["messagingTokenBytes"] = msgToken?.count ?? 0
+    status["remoteNotificationsReceived"] = remoteNotificationCount
+    status["isRegisteredForRemoteNotifications"] = UIApplication.shared.isRegisteredForRemoteNotifications
+    status["firebaseProxyEnabled"] = true
+    for (key, value) in extra {
+      status[key] = value
+    }
+    return status
   }
 
   private func logRemoteNotification(_ userInfo: [AnyHashable: Any], source: String) {
@@ -254,11 +260,12 @@ private final class TokenWaitBox {
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
+    // Let Flutter/Firebase plugins run first, then re-apply so Auth keeps the final token.
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
     applyApnsToken(deviceToken)
     let waiters = pendingTokenWaiters
     pendingTokenWaiters.removeAll()
     waiters.forEach { $0(deviceToken) }
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
   override func application(
@@ -347,15 +354,8 @@ private final class TokenWaitBox {
     return super.application(app, open: url, options: options)
   }
 
-  // UIScene lifecycle (Flutter 3.38+) — forward reCAPTCHA redirect URLs.
-  override func application(
-    _ application: UIApplication,
-    configurationForConnecting connectingSceneSession: UISceneSession,
-    options: UIScene.ConnectionOptions
-  ) -> UISceneConfiguration {
-    if let url = options.urlContexts.first?.url, Auth.auth().canHandle(url) {
-      NSLog("[OTP_DEBUG] Auth handled scene connect URL: %@", url.absoluteString)
-    }
-    return super.application(application, configurationForConnecting: connectingSceneSession, options: options)
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    NSLog("[OTP_DEBUG] FCM registration token refreshed: %@", fcmToken ?? "nil")
+    syncMessagingApnsTokenToAuth()
   }
 }

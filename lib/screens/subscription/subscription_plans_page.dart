@@ -28,7 +28,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   // Selected
   int? _selectedPackageId;
-  int _selectedMonths = 1;
+  int _selectedMonths = 3;
   bool _isPurchasing = false;
 
   final TextEditingController _couponController = TextEditingController();
@@ -159,7 +159,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   static const _tierGradients = {
     'Consultant': [Color(0xFF64748B), Color(0xFF475569)],
-    'Rainmaker': [Color(0xFF94A3B8), Color(0xFF64748B)],
+    'Rainmaker': [Color(0xFF6366F1), Color(0xFF4F46E5)],
     'Titan': [Color(0xFFF59E0B), Color(0xFFD97706)],
     'Titan - GOLD': [Color(0xFFF59E0B), Color(0xFFD97706)], // Legacy support
     'Titan-GOLD': [Color(0xFFF59E0B), Color(0xFFD97706)], // Legacy support
@@ -173,7 +173,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   static const _tierGlow = {
     'Consultant': Color(0xFF64748B),
-    'Rainmaker': Color(0xFF94A3B8),
+    'Rainmaker': Color(0xFF6366F1),
     'Titan': Color(0xFFF59E0B),
     'Titan - GOLD': Color(0xFFF59E0B), // Legacy support
     'Titan-GOLD': Color(0xFFF59E0B), // Legacy support
@@ -529,6 +529,151 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       default:
         return '/$months mo';
     }
+  }
+
+  String? _durationBadgeLabel(int months) {
+    switch (months) {
+      case 3:
+        return 'Most Popular';
+      case 6:
+        return 'Recommended';
+      default:
+        return null;
+    }
+  }
+
+  ({List<Color> gradient, IconData icon})? _durationBadgeStyle(int months) {
+    switch (months) {
+      case 3:
+        return (
+          gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
+          icon: Icons.local_fire_department_rounded,
+        );
+      case 6:
+        return (
+          gradient: [const Color(0xFF667eea), const Color(0xFF764ba2)],
+          icon: Icons.verified_rounded,
+        );
+      default:
+        return null;
+    }
+  }
+
+  static const _billingAccent = Color(0xFF667eea);
+
+  String _durationTitle(int months) {
+    switch (months) {
+      case 1:
+        return 'Monthly';
+      case 3:
+        return '3 Months';
+      case 6:
+        return '6 Months';
+      case 12:
+        return '1 Year';
+      default:
+        return '$months Months';
+    }
+  }
+
+  String? _durationSavingsLabel(int months) {
+    switch (months) {
+      case 3:
+        return '10%';
+      case 6:
+        return '20%';
+      case 12:
+        return '30%';
+      default:
+        return null;
+    }
+  }
+
+  int _preferredDuration(List<int> available) {
+    if (available.contains(3)) return 3;
+    if (available.contains(6)) return 6;
+    return available.first;
+  }
+
+  Widget _buildSectionLabel(String title, Color accent) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: accent,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.2,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDurationBadgeChip(int months) {
+    final label = _durationBadgeLabel(months);
+    final style = _durationBadgeStyle(months);
+    if (label != null && style != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: style.gradient),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: style.gradient.first.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(style.icon, size: 12, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final savings = _durationSavingsLabel(months);
+    if (savings == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$savings OFF',
+        style: const TextStyle(
+          color: Color(0xFF059669),
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
   }
 
   Widget _fittedSingleLineText(
@@ -958,8 +1103,19 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 ),
               ),
               // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: ResponsiveHelper.contentPadding(context, top: 8),
+                  child: ResponsiveHelper.constrainWidth(
+                    child: _buildSectionLabel(
+                      'CHOOSE YOUR PLAN',
+                      _getGlowForSelectedPackage(),
+                    ),
+                  ),
+                ),
+              ),
               SliverPadding(
-                padding: ResponsiveHelper.contentPadding(context, top: 16),
+                padding: ResponsiveHelper.contentPadding(context, top: 12),
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     final pkg = _displayPackages[index];
@@ -1120,7 +1276,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         (pkg['active_durations'] as List).map((x) => int.tryParse(x.toString()) ?? 0)
       );
       if (available.isNotEmpty && !available.contains(_selectedMonths)) {
-        _selectedMonths = available.first;
+        _selectedMonths = _preferredDuration(available);
       }
     }
   }
@@ -1147,83 +1303,131 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       availableDurations = [1];
     }
 
-    // Just in case, if the current selection is invalid, select the first one
+    // Just in case, if the current selection is invalid, prefer 3-month default
     if (!availableDurations.contains(_selectedMonths)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && !availableDurations.contains(_selectedMonths)) {
           setState(() {
-            _selectedMonths = availableDurations.first;
+            _selectedMonths = _preferredDuration(availableDurations);
           });
         }
       });
     }
 
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: availableDurations.map((m) {
-          final isSelected = _selectedMonths == m;
-          final label = _durationChipLabel(m);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionLabel('BILLING PERIOD', _billingAccent),
+        const SizedBox(height: 12),
+        ...availableDurations.map(
+          (m) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _buildDurationOption(m, isDark),
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.04);
+  }
 
-          final savings = m == 3
-              ? '-10%'
-              : m == 6
-              ? '-20%'
-              : m == 12
-              ? '-30%'
-              : null;
-          final glowColor = _getGlowForSelectedPackage();
+  Widget _buildDurationOption(int months, bool isDark) {
+    final isSelected = _selectedMonths == months;
+    final savings = _durationSavingsLabel(months);
+    final title = _durationTitle(months);
+    final subtitle = _durationChipLabel(months);
 
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => _onDurationSelected(m),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 2),
-                decoration: BoxDecoration(
-                  color: isSelected ? glowColor : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _onDurationSelected(months),
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? _billingAccent.withOpacity(isDark ? 0.18 : 0.07)
+                : (isDark ? const Color(0xFF1E293B) : Colors.white),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected
+                  ? _billingAccent
+                  : (isDark
+                        ? Colors.white.withOpacity(0.08)
+                        : const Color(0xFFE2E8F0)),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: _billingAccent.withOpacity(0.2),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                )
+              else
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.12 : 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
+            ],
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? _billingAccent : Colors.transparent,
+                  border: Border.all(
+                    color: isSelected
+                        ? _billingAccent
+                        : (isDark ? Colors.white38 : const Color(0xFFCBD5E1)),
+                    width: 2,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
+                    : null,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _fittedSingleLineText(
-                      label,
+                    Text(
+                      title,
                       style: TextStyle(
                         color: isSelected
-                            ? Colors.white
-                            : isDark
-                            ? Colors.white60
-                            : const Color(0xFF64748B),
-                        fontSize: 12,
+                            ? _billingAccent
+                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    if (savings != null) ...[
-                      const SizedBox(height: 2),
-                      _fittedSingleLineText(
-                        savings,
-                        style: TextStyle(
-                          color: isSelected
-                              ? Colors.white70
-                              : const Color(0xFF10B981),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      savings != null
+                          ? 'Save $savings · billed as $subtitle'
+                          : 'Billed monthly',
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
-            ),
-          );
-        }).toList(),
+              const SizedBox(width: 8),
+              _buildDurationBadgeChip(months),
+            ],
+          ),
+        ),
       ),
-    ).animate().fadeIn(delay: 100.ms);
+    );
   }
 
   Widget _buildPackageCard(Map<String, dynamic> pkg, bool isDark, int index) {
@@ -1282,8 +1486,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF94A3B8).withOpacity(0.1),
-              const Color(0xFF64748B).withOpacity(0.05),
+              const Color(0xFF6366F1).withOpacity(0.12),
+              const Color(0xFF4F46E5).withOpacity(0.05),
             ],
           )
         : null;
@@ -1299,7 +1503,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 _adjustSelectedDuration(isSelected ? null : id);
               });
             },
-      child: AnimatedContainer(
+      child: AnimatedScale(
+        scale: isSelected ? 1.01 : 1.0,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.all(20),
@@ -1378,7 +1586,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                               color: isTitan
                                   ? const Color(0xFFF59E0B)
                                   : isRainmaker
-                                  ? const Color(0xFF94A3B8)
+                                  ? const Color(0xFF6366F1)
                                   : (isDark
                                         ? Colors.white
                                         : const Color(0xFF1E293B)),
@@ -1446,7 +1654,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             color: isTitan
                                 ? const Color(0xFFF59E0B)
                                 : isRainmaker
-                                ? const Color(0xFF94A3B8)
+                                ? const Color(0xFF6366F1)
                                 : (isDark
                                       ? Colors.white
                                       : const Color(0xFF1E293B)),
@@ -1548,30 +1756,60 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                     label = '✓ SELECTED';
                   }
 
+                  final isActive = isSelected || isCurrentTier;
+
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                      vertical: 12,
+                      vertical: 13,
                       horizontal: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: (isSelected || isCurrentTier)
-                          ? glowColor
-                          : glowColor.withOpacity(0.08),
+                      gradient: isActive
+                          ? LinearGradient(
+                              colors: [glowColor, glowColor.withOpacity(0.85)],
+                            )
+                          : null,
+                      color: isActive ? null : Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: glowColor,
+                        width: isActive ? 0 : 2,
+                      ),
+                      boxShadow: isActive
+                          ? [
+                              BoxShadow(
+                                color: glowColor.withOpacity(0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Center(
-                      child: _fittedSingleLineText(
-                        label,
-                        style: TextStyle(
-                          color: (isSelected || isCurrentTier)
-                              ? Colors.white
-                              : glowColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 6),
+                              child: Icon(
+                                Icons.check_circle_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ),
+                          _fittedSingleLineText(
+                            label,
+                            style: TextStyle(
+                              color: isActive ? Colors.white : glowColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -1580,6 +1818,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             ],
           ],
         ),
+      ),
       ),
     ).animate(delay: Duration(milliseconds: 100 * index)).fadeIn().slideY(begin: 0.08);
   }

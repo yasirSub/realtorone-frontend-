@@ -16,6 +16,7 @@ import '../../widgets/app_version_details_sheet.dart';
 import '../../services/app_preferences_service.dart';
 import '../../theme/realtorone_brand.dart';
 import '../chatbot/reven_chat_overlay.dart';
+import '../chatbot/reven_feedback_sheet.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -578,6 +579,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: l10n.settingsTermsTitle,
                   subtitle: l10n.settingsTermsSubtitle,
                   onTap: () => _openLegalInApp('terms'),
+                ),
+                _buildSettingsItem(
+                  icon: Icons.feedback_outlined,
+                  title: 'Send Feedback',
+                  subtitle: 'Share suggestions or report issues',
+                  onTap: () => RevenFeedbackSheet.show(context),
                 ),
                 _buildSettingsItem(
                   icon: Icons.help_outline_rounded,

@@ -20,6 +20,7 @@ import '../../utils/phone_otp_debug_log.dart';
 import '../../utils/phone_otp_user_message.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
+import '../chatbot/reven_feedback_sheet.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -495,7 +496,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ResponsiveHelper.constrainWidth(
                         child: Column(
                           children: [
-                            _buildStatsRow(isDark, l10n),
+                            _buildProfileMetrics(isDark, l10n),
                             const SizedBox(height: 16),
                             _buildVerificationCard(isDark, l10n),
                             const SizedBox(height: 32),
@@ -558,6 +559,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             const SizedBox(height: 24),
 
                             _buildMenuSection(l10n.profileSectionAccount, [
+                              _MenuItem(
+                                icon: Icons.feedback_outlined,
+                                title: 'Send Feedback',
+                                subtitle: 'Share ideas or report issues',
+                                onTap: () => RevenFeedbackSheet.show(context),
+                              ),
                               _MenuItem(
                                 icon: Icons.settings_outlined,
                                 title: l10n.profileAppSettingsTitle,
@@ -863,48 +870,226 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStatsRow(bool isDark, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-            blurRadius: 20,
+  String _displayTierName() {
+    return (_userData?['membership_tier'] ?? 'Consultant')
+        .toString()
+        .replaceAll(' - GOLD', '')
+        .replaceAll('- GOLD', '')
+        .replaceAll(' GOLD', '')
+        .replaceAll('GOLD', '')
+        .trim();
+  }
+
+  double _executionRateValue() {
+    final raw = _userData?['execution_rate']?.toString() ?? '0';
+    return (double.tryParse(raw.replaceAll('%', '').trim()) ?? 0)
+        .clamp(0, 100);
+  }
+
+  Widget _buildProfileMetrics(bool isDark, AppLocalizations l10n) {
+    final execution = _executionRateValue();
+    final points = '${_userData?['total_rewards'] ?? '0'}';
+    final tierName = _displayTierName();
+    final tierColor = _getTierColor(_userData?['membership_tier']);
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF667eea).withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(
-            '${_userData?['total_rewards'] ?? '0'}',
-            l10n.profileStatPoints,
-            Colors.amber,
-            onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.profileStatExecution,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.75),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${execution.toInt()}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Activity consistency this period',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 78,
+                height: 78,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 78,
+                      height: 78,
+                      child: CircularProgressIndicator(
+                        value: execution / 100,
+                        strokeWidth: 7,
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Color(0xFF4ADE80),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.bolt_rounded,
+                      color: Colors.white.withValues(alpha: 0.9),
+                      size: 28,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          _buildStatItem(
-            '${_userData?['execution_rate'] ?? '85'}%',
-            l10n.profileStatExecution,
-            const Color(0xFF4ECDC4),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildMetricTile(
+                isDark: isDark,
+                icon: Icons.stars_rounded,
+                iconColor: const Color(0xFFF59E0B),
+                iconBg: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                value: points,
+                label: l10n.profileStatPoints,
+                onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildMetricTile(
+                isDark: isDark,
+                icon: Icons.workspace_premium_rounded,
+                iconColor: tierColor,
+                iconBg: tierColor.withValues(alpha: 0.12),
+                value: tierName.toUpperCase(),
+                label: l10n.profileStatPlan,
+                onTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ).animate().fadeIn().slideY(begin: 0.06);
+  }
+
+  Widget _buildMetricTile({
+    required bool isDark,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBg,
+    required String value,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : const Color(0xFFE2E8F0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          _buildStatItem(
-            (_userData?['membership_tier'] ?? 'Consultant')
-                .toString()
-                .replaceAll(' - GOLD', '')
-                .replaceAll('- GOLD', '')
-                .replaceAll(' GOLD', '')
-                .replaceAll('GOLD', '')
-                .trim()
-                .toUpperCase(),
-            l10n.profileStatPlan,
-            _getTierColor(_userData?['membership_tier']),
-            onTap: () =>
-                Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: isDark ? Colors.white38 : const Color(0xFFCBD5E1),
+                  size: 20,
+                ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -916,7 +1101,7 @@ class _ProfilePageState extends State<ProfilePage> {
       case 'titan-gold':
         return const Color(0xFFF59E0B); // Gold color
       case 'rainmaker':
-        return const Color(0xFF94A3B8); // Silver/Gray color
+        return const Color(0xFF6366F1);
       case 'consultant':
         return const Color(0xFF64748B); // Default gray
       // Legacy support (will be migrated)
@@ -931,51 +1116,6 @@ class _ProfilePageState extends State<ProfilePage> {
       default:
         return const Color(0xFF64748B);
     }
-  }
-
-  Widget _buildStatItem(
-    String value,
-    String label,
-    Color color, {
-    VoidCallback? onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Flexible(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildMenuSection(String title, List<_MenuItem> items, bool isDark) {

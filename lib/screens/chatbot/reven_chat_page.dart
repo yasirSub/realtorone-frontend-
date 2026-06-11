@@ -23,6 +23,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
 import 'reven_chat_overlay.dart';
+import 'reven_feedback_sheet.dart';
 
 // ignore_for_file: unused_element
 
@@ -2347,6 +2348,18 @@ class _RevenChatPageState extends State<RevenChatPage>
                                   size: 22,
                                 ),
                               ),
+                            IconButton(
+                              tooltip: _iconTooltip('Send feedback'),
+                              onPressed: () => RevenFeedbackSheet.show(
+                                context,
+                                sessionId: _sessionId,
+                              ),
+                              icon: Icon(
+                                Icons.feedback_outlined,
+                                color: subtitleColor,
+                                size: 20,
+                              ),
+                            ),
                             IconButton(
                               tooltip: _iconTooltip('Chat history'),
                               onPressed: _showChatList,

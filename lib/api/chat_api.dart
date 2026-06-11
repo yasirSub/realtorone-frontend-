@@ -77,4 +77,28 @@ class ChatApi {
       requiresAuth: true,
     );
   }
+
+  static Future<Map<String, dynamic>> getFeedbackCategories() async {
+    return ApiClient.get(
+      ApiEndpoints.chatFeedbackCategories,
+      requiresAuth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> submitFeedback({
+    required String category,
+    required String message,
+    int? sessionId,
+  }) async {
+    final body = <String, dynamic>{
+      'category': category,
+      'message': message,
+    };
+    if (sessionId != null) body['session_id'] = sessionId;
+    return ApiClient.post(
+      ApiEndpoints.chatFeedback,
+      body,
+      requiresAuth: true,
+    );
+  }
 }

@@ -126,6 +126,8 @@ class ApiEndpoints {
   static const String chatHistory = '/chat/history';
   static String chatHistorySession(int id) => '/chat/history/$id';
   static String chatDeleteSession(int id) => '/chat/history/$id';
+  static const String chatFeedbackCategories = '/chat/feedback/categories';
+  static const String chatFeedback = '/chat/feedback';
 
   // Account Deletion
   static const String requestDeletion = '/user/request-deletion';

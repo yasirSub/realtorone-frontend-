@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show MethodChannel, MissingPluginException;
 
 /// Native iOS bridge: sync APNs token into Firebase Auth before phone OTP.
 class IosPhoneAuthApnsBridge {
@@ -24,6 +24,7 @@ class IosPhoneAuthApnsBridge {
   }
 
   /// Native permission + APNs registration wait before phone OTP.
+  /// Returns empty map if native plugin not rebuilt yet (MissingPluginException).
   static Future<Map<String, dynamic>> prepareForPhoneAuth() async {
     if (kIsWeb || !Platform.isIOS) return {'skipped': true};
     try {
@@ -31,6 +32,8 @@ class IosPhoneAuthApnsBridge {
       if (raw is Map) {
         return raw.map((k, v) => MapEntry(k.toString(), v));
       }
+    } on MissingPluginException {
+      return {'skipped': true, 'reason': 'native_rebuild_required'};
     } catch (e) {
       return {'error': e.toString()};
     }
