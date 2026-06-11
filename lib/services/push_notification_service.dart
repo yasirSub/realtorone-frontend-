@@ -122,6 +122,13 @@ class PushNotificationService {
     try {
       await _refreshUnreadCount();
       await _loadSettings();
+      if (!kIsWeb && Platform.isIOS) {
+        await _messaging.setForegroundNotificationPresentationOptions(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
       _firebaseReady = true;
       return true;
     } catch (e, st) {
