@@ -110,6 +110,15 @@ class FirebasePhoneAuthHelper {
 
     if (!kIsWeb && Platform.isIOS) {
       PhoneOtpDebugLog.log('iOS preflight', 'checking notification + APNs');
+      await IosPhoneAuthApnsBridge.resetNotificationCounter();
+
+      final nativePrep = await IosPhoneAuthApnsBridge.prepareForPhoneAuth();
+      PhoneOtpDebugLog.log('native prepareForPhoneAuth', nativePrep.toString());
+      if (nativePrep['authorized'] == false) {
+        PhoneOtpDebugLog.error('iOS preflight', 'notification permission denied');
+        return FirebasePhoneSendResult.failure(_iosNotificationPermissionMessage());
+      }
+
       final iosReady = await PushNotificationService.ensureIosReadyForPhoneAuth();
       if (!iosReady) {
         PhoneOtpDebugLog.error('iOS preflight', 'notification permission or FCM not ready');
@@ -128,7 +137,8 @@ class FirebasePhoneAuthHelper {
       } catch (e) {
         PhoneOtpDebugLog.log(
           'iOS preflight',
-          'reCAPTCHA config init skipped: $e',
+          'reCAPTCHA not configured in Firebase Console (enable reCAPTCHA Enterprise for iOS in '
+          'Project settings → App Check / Authentication). Silent APNs push is still required: $e',
         );
       }
 
@@ -148,6 +158,13 @@ class FirebasePhoneAuthHelper {
           'Settings → RealtorOne → Notifications → Allow, then fully quit and reopen the app.',
         );
       }
+
+      final tokenType = afterSync['apnsTokenType'] ?? 'unknown';
+      final apsEnv = afterSync['apsEnvironment'] ?? 'unknown';
+      PhoneOtpDebugLog.log(
+        'iOS APNs environment',
+        'type=$tokenType aps=$apsEnv — Firebase Console must have .p8 key for com.realtorone.app',
+      );
     }
 
     PhoneOtpDebugLog.log('verifyPhoneNumber', 'calling Firebase Auth…');
@@ -166,10 +183,16 @@ class FirebasePhoneAuthHelper {
             'code=${e.code} message=${e.message}',
           );
           if (isNotificationNotForwarded(e)) {
-            PhoneOtpDebugLog.log(
-              'hint',
-              'APNs token ok but silent push not handled — check Firebase Cloud Messaging .p8 key',
-            );
+            IosPhoneAuthApnsBridge.debugStatus().then((status) {
+              final received = status['remoteNotificationsReceived'] ?? 0;
+              PhoneOtpDebugLog.log(
+                'hint',
+                'silent push never reached app (received=$received). '
+                'Upload APNs .p8 in Firebase Console → Project settings → Cloud Messaging '
+                'AND Authentication → Sign-in method → Phone for com.realtorone.app. '
+                'Release builds need production APNs (type=${status['apnsTokenType']}).',
+              );
+            });
           }
           if (isBillingNotEnabled(e)) {
             PhoneOtpDebugLog.log('hint', 'Firebase Blaze billing required');
@@ -249,8 +272,9 @@ class FirebasePhoneAuthHelper {
         return 'Network error. Check internet and try again.';
       case 'notification-not-forwarded':
         return _iosNotificationPermissionMessage() +
-            ' Also confirm APNs key (.p8) is uploaded in Firebase Console → '
-            'Project settings → Cloud Messaging → Apple app configuration.';
+            ' In Firebase Console (project realtor-one), upload your Apple APNs Authentication Key (.p8) '
+            'with Key ID and Team ID under Cloud Messaging and ensure Phone sign-in is enabled. '
+            'Test on a real iPhone (not simulator).';
       default:
         final msg = e.message?.trim() ?? '';
         if (msg.toUpperCase().contains('BILLING_NOT_ENABLED')) {

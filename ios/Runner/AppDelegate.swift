@@ -5,12 +5,34 @@ import Flutter
 import UIKit
 import UserNotifications
 
-@main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
-  private var phoneAuthChannel: FlutterMethodChannel?
+private final class TokenWaitBox {
+  var responded = false
+}
 
-  /// Firebase recommends `.unknown` so Auth infers sandbox vs production (firebase-ios-sdk #13502).
-  private let authApnsTokenType: AuthAPNSTokenType = .unknown
+@main
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, MessagingDelegate {
+  private var phoneAuthChannel: FlutterMethodChannel?
+  private var pendingTokenWaiters: [(Data?) -> Void] = []
+  private var remoteNotificationCount: Int = 0
+
+  private func resolvedAuthApnsTokenType() -> AuthAPNSTokenType {
+    #if DEBUG
+    return .sandbox
+    #elseif PROFILE
+    return .sandbox
+    #else
+    return .prod
+    #endif
+  }
+
+  private func apnsTypeLabel(_ type: AuthAPNSTokenType) -> String {
+    switch type {
+    case .sandbox: return "sandbox"
+    case .prod: return "prod"
+    case .unknown: return "unknown"
+    @unknown default: return "unknown"
+    }
+  }
 
   override func application(
     _ application: UIApplication,
@@ -19,9 +41,13 @@ import UserNotifications
     if FirebaseApp.app() == nil {
       FirebaseApp.configure()
     }
+
+    // Proxy ON in Info.plist; we still forward Auth notifications first in overrides below.
+    Messaging.messaging().delegate = self
     UNUserNotificationCenter.current().delegate = self
+
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
-    application.registerForRemoteNotifications()
+    requestNotificationsAndRegister(application)
     return result
   }
 
@@ -36,8 +62,20 @@ import UserNotifications
       self?.handlePhoneAuthCall(call, result: result)
     }
 
-    DispatchQueue.main.async {
-      UIApplication.shared.registerForRemoteNotifications()
+    DispatchQueue.main.async { [weak self] in
+      self?.requestNotificationsAndRegister(UIApplication.shared)
+    }
+  }
+
+  private func requestNotificationsAndRegister(_ application: UIApplication) {
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+      DispatchQueue.main.async {
+        if let error {
+          NSLog("[OTP_DEBUG] notification authorization error: %@", error.localizedDescription)
+        }
+        NSLog("[OTP_DEBUG] notification authorization granted=%@", granted ? "YES" : "NO")
+        application.registerForRemoteNotifications()
+      }
     }
   }
 
@@ -51,18 +89,105 @@ import UserNotifications
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
         result(self.debugApnsStatus())
       }
+    case "prepareForPhoneAuth":
+      prepareForPhoneAuth(result: result)
+    case "resetNotificationCounter":
+      remoteNotificationCount = 0
+      result(["ok": true])
     default:
       result(FlutterMethodNotImplemented)
     }
   }
 
+  private func prepareForPhoneAuth(result: @escaping FlutterResult) {
+    remoteNotificationCount = 0
+    let tokenType = resolvedAuthApnsTokenType()
+
+    UNUserNotificationCenter.current().getNotificationSettings { settings in
+      DispatchQueue.main.async {
+        let status = settings.authorizationStatus
+        let authorized = status == .authorized || status == .provisional
+
+        if !authorized {
+          UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            DispatchQueue.main.async {
+              if !granted {
+                result(self.debugApnsStatus().merging([
+                  "authorized": false,
+                  "authorizationStatus": "\(status.rawValue)",
+                ]))
+                return
+              }
+              self.waitForApnsTokenThenRespond(result: result, tokenType: tokenType)
+            }
+          }
+          return
+        }
+
+        self.waitForApnsTokenThenRespond(result: result, tokenType: tokenType)
+      }
+    }
+  }
+
+  private func waitForApnsTokenThenRespond(result: @escaping FlutterResult, tokenType: AuthAPNSTokenType) {
+    if let existing = Messaging.messaging().apnsToken ?? Auth.auth().apnsToken {
+      applyApnsToken(existing, type: tokenType)
+      result(debugApnsStatus().merging(["authorized": true, "waitedForToken": false]))
+      return
+    }
+
+    let box = TokenWaitBox()
+    let finish: (Data?) -> Void = { [weak self] token in
+      guard let self, !box.responded else { return }
+      box.responded = true
+      if let token {
+        self.applyApnsToken(token, type: tokenType)
+      }
+      result(self.debugApnsStatus().merging([
+        "authorized": true,
+        "waitedForToken": true,
+        "tokenReceived": token != nil,
+      ]))
+    }
+
+    pendingTokenWaiters.append(finish)
+    UIApplication.shared.registerForRemoteNotifications()
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+      guard let self, !box.responded else { return }
+      box.responded = true
+      self.pendingTokenWaiters.removeAll()
+      if let token = Messaging.messaging().apnsToken ?? Auth.auth().apnsToken {
+        self.applyApnsToken(token, type: tokenType)
+      }
+      result(self.debugApnsStatus().merging([
+        "authorized": true,
+        "waitedForToken": true,
+        "tokenReceived": Messaging.messaging().apnsToken != nil,
+        "timedOut": true,
+      ]))
+    }
+  }
+
+  private func applyApnsToken(_ deviceToken: Data, type: AuthAPNSTokenType? = nil) {
+    let resolved = type ?? resolvedAuthApnsTokenType()
+    // Auth must receive the token before Messaging for phone OTP silent push.
+    Auth.auth().setAPNSToken(deviceToken, type: resolved)
+    Messaging.messaging().apnsToken = deviceToken
+    NSLog(
+      "[OTP_DEBUG] applyApnsToken bytes=%lu type=%@ build=%@",
+      deviceToken.count,
+      apnsTypeLabel(resolved),
+      buildTypeLabel()
+    )
+  }
+
   private func syncMessagingApnsTokenToAuth() -> Bool {
-    guard let token = Messaging.messaging().apnsToken else {
-      NSLog("[OTP_DEBUG] syncApnsToAuth: Messaging.apnsToken is nil")
+    guard let token = Messaging.messaging().apnsToken ?? Auth.auth().apnsToken else {
+      NSLog("[OTP_DEBUG] syncApnsToAuth: no APNs token on device")
       return false
     }
-    Auth.auth().setAPNSToken(token, type: authApnsTokenType)
-    NSLog("[OTP_DEBUG] syncApnsToAuth: copied token to Auth (type=unknown)")
+    applyApnsToken(token)
     return Auth.auth().apnsToken != nil
   }
 
@@ -77,65 +202,63 @@ import UserNotifications
   }
 
   private func apsEnvironmentLabel() -> String {
-    #if DEBUG
-    return "development"
-    #elseif PROFILE
-    return "development"
-    #else
-    return "production"
-    #endif
+    switch resolvedAuthApnsTokenType() {
+    case .sandbox: return "development"
+    case .prod: return "production"
+    default: return "unknown"
+    }
   }
 
   private func debugApnsStatus() -> [String: Any] {
     let authToken = Auth.auth().apnsToken
     let msgToken = Messaging.messaging().apnsToken
+    let tokenType = resolvedAuthApnsTokenType()
     return [
       "buildType": buildTypeLabel(),
       "apsEnvironment": apsEnvironmentLabel(),
-      "apnsTokenType": "unknown",
+      "apnsTokenType": apnsTypeLabel(tokenType),
       "authHasApnsToken": authToken != nil,
       "authTokenBytes": authToken?.count ?? 0,
       "messagingHasApnsToken": msgToken != nil,
       "messagingTokenBytes": msgToken?.count ?? 0,
+      "remoteNotificationsReceived": remoteNotificationCount,
+      "isRegisteredForRemoteNotifications": UIApplication.shared.isRegisteredForRemoteNotifications,
+      "firebaseProxyEnabled": true,
     ]
   }
 
   private func logRemoteNotification(_ userInfo: [AnyHashable: Any], source: String) {
+    remoteNotificationCount += 1
     let keys = userInfo.keys.map { "\($0)" }.sorted().joined(separator: ", ")
-    NSLog("[OTP_DEBUG] remoteNotification source=%@ keyCount=%lu keys=[%@]", source, userInfo.count, keys)
+    NSLog("[OTP_DEBUG] remoteNotification #%d source=%@ keys=[%@]", remoteNotificationCount, source, keys)
     if let aps = userInfo["aps"] {
-      NSLog("[OTP_DEBUG] remoteNotification source=%@ aps=%@", source, String(describing: aps))
+      NSLog("[OTP_DEBUG] remoteNotification aps=%@", String(describing: aps))
     }
     if let firebaseAuth = userInfo["com.google.firebase.auth"] {
-      NSLog("[OTP_DEBUG] remoteNotification source=%@ firebaseAuth=%@", source, String(describing: firebaseAuth))
+      NSLog("[OTP_DEBUG] remoteNotification firebaseAuth=%@", String(describing: firebaseAuth))
     }
   }
 
-  /// Forward silent Firebase Auth verification pushes (phone OTP).
+  /// Forward silent Firebase Auth verification pushes (phone OTP). Auth is checked before Messaging/FCM.
   private func forwardAuthNotification(_ userInfo: [AnyHashable: Any], source: String) -> Bool {
     logRemoteNotification(userInfo, source: source)
-    let handled = Auth.auth().canHandleNotification(userInfo)
-    NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=%@", source, handled ? "YES" : "NO")
-    if handled {
-      NSLog("[OTP_DEBUG] Auth handled phone-verification notification")
+    if Auth.auth().canHandleNotification(userInfo) {
+      NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=YES", source)
+      return true
     }
-    return handled
+    NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=NO", source)
+    return false
   }
 
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Let FlutterFire plugins register first; then ensure Auth has the final token type.
+    applyApnsToken(deviceToken)
+    let waiters = pendingTokenWaiters
+    pendingTokenWaiters.removeAll()
+    waiters.forEach { $0(deviceToken) }
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
-    Messaging.messaging().apnsToken = deviceToken
-    Auth.auth().setAPNSToken(deviceToken, type: authApnsTokenType)
-    NSLog(
-      "[OTP_DEBUG] didRegisterForRemoteNotifications tokenBytes=%lu type=unknown build=%@ aps=%@",
-      deviceToken.count,
-      buildTypeLabel(),
-      apsEnvironmentLabel()
-    )
   }
 
   override func application(
@@ -143,6 +266,9 @@ import UserNotifications
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
     NSLog("[OTP_DEBUG] APNs registration failed: %@", error.localizedDescription)
+    let waiters = pendingTokenWaiters
+    pendingTokenWaiters.removeAll()
+    waiters.forEach { $0(nil) }
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
   }
 
@@ -219,5 +345,17 @@ import UserNotifications
       return true
     }
     return super.application(app, open: url, options: options)
+  }
+
+  // UIScene lifecycle (Flutter 3.38+) — forward reCAPTCHA redirect URLs.
+  override func application(
+    _ application: UIApplication,
+    configurationForConnecting connectingSceneSession: UISceneSession,
+    options: UIScene.ConnectionOptions
+  ) -> UISceneConfiguration {
+    if let url = options.urlContexts.first?.url, Auth.auth().canHandle(url) {
+      NSLog("[OTP_DEBUG] Auth handled scene connect URL: %@", url.absoluteString)
+    }
+    return super.application(application, configurationForConnecting: connectingSceneSession, options: options)
   }
 }

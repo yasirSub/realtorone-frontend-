@@ -23,6 +23,27 @@ class IosPhoneAuthApnsBridge {
     return {};
   }
 
+  /// Native permission + APNs registration wait before phone OTP.
+  static Future<Map<String, dynamic>> prepareForPhoneAuth() async {
+    if (kIsWeb || !Platform.isIOS) return {'skipped': true};
+    try {
+      final raw = await _channel.invokeMethod<Object>('prepareForPhoneAuth');
+      if (raw is Map) {
+        return raw.map((k, v) => MapEntry(k.toString(), v));
+      }
+    } catch (e) {
+      return {'error': e.toString()};
+    }
+    return {};
+  }
+
+  static Future<void> resetNotificationCounter() async {
+    if (kIsWeb || !Platform.isIOS) return;
+    try {
+      await _channel.invokeMethod<void>('resetNotificationCounter');
+    } catch (_) {}
+  }
+
   /// Copies Messaging APNs token → Firebase Auth (native). Returns post-sync status.
   static Future<Map<String, dynamic>> syncApnsToAuth() async {
     if (kIsWeb || !Platform.isIOS) return {'skipped': true};
