@@ -6,7 +6,7 @@ import 'reven_route_tracker.dart';
 
 /// Tracks the active route for the global Reven FAB and minimizes chat on navigation.
 class RevenOverlayNavigatorObserver extends NavigatorObserver {
-  static const _authRoutes = {
+  static const _hideRevenRoutes = {
     AppRoutes.login,
     AppRoutes.register,
     AppRoutes.forgotPassword,
@@ -14,11 +14,17 @@ class RevenOverlayNavigatorObserver extends NavigatorObserver {
     AppRoutes.resetPassword,
     AppRoutes.onboarding,
     AppRoutes.initial,
+    AppRoutes.profileSetup,
+    AppRoutes.diagnosis,
+    AppRoutes.diagnosisResult,
+    AppRoutes.appPasscodeLock,
+    AppRoutes.appPasscodeSetup,
+    AppRoutes.appPasscodeForgot,
   };
 
   void _syncOverlayForRoute(Route<dynamic>? route) {
     final name = route?.settings.name;
-    if (name != null && _authRoutes.contains(name)) {
+    if (name != null && _hideRevenRoutes.contains(name)) {
       RevenChatOverlay.hide();
       return;
     }

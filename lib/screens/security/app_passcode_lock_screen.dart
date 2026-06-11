@@ -62,77 +62,55 @@ class _AppPasscodeLockScreenState extends State<AppPasscodeLockScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const SizedBox(height: 48),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: RealtorOneBrand.seed.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.lock_rounded,
-                  color: RealtorOneBrand.seed,
-                  size: 36,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Enter passcode',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Unlock RealtorOne to continue',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 36),
-              PasscodePinInput(
-                key: _pinKey,
-                hasError: _hasError,
-                onCompleted: _verify,
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13),
-                ),
-              ],
-              if (_loading) ...[
-                const SizedBox(height: 20),
-                const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: RealtorOneBrand.seed,
-                ),
-              ],
-              const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.appPasscodeForgot,
-                ),
-                child: const Text(
-                  'Forgot passcode?',
-                  style: TextStyle(
-                    color: RealtorOneBrand.seed,
-                    fontWeight: FontWeight.w700,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFF0F172A),
+              RealtorOneBrand.seed.withValues(alpha: 0.12),
+              const Color(0xFF0F172A),
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                PasscodeEntryCard(
+                  onDarkBackground: true,
+                  title: 'Enter passcode',
+                  subtitle: 'Unlock RealtorOne to continue',
+                  loading: _loading,
+                  error: _error,
+                  pinInput: PasscodePinInput(
+                    key: _pinKey,
+                    hasError: _hasError,
+                    variant: PasscodePinVariant.onDark,
+                    onCompleted: _verify,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
+                const Spacer(flex: 3),
+                TextButton(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    AppRoutes.appPasscodeForgot,
+                  ),
+                  child: const Text(
+                    'Forgot passcode?',
+                    style: TextStyle(
+                      color: RealtorOneBrand.seed,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),

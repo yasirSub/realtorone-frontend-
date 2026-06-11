@@ -219,28 +219,35 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
                 onCompleted: _verifyOtpAndContinue,
               ),
             ] else if (_step == 1) ...[
-              const Text(
-                'Set a new 4-digit passcode',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.w700),
+              PasscodeEntryCard(
+                title: 'New passcode',
+                subtitle: 'Choose a new 4-digit code',
+                loading: _loading,
+                error: _error,
+                pinInput: PasscodePinInput(
+                  key: _newPinKey,
+                  hasError: _error != null,
+                  onCompleted: (v) => setState(() {
+                    _newPasscode = v;
+                    _step = 2;
+                    _error = null;
+                  }),
+                ),
               ),
-              const SizedBox(height: 20),
-              PasscodePinInput(
-                key: _newPinKey,
-                onCompleted: (v) => setState(() {
-                  _newPasscode = v;
-                  _step = 2;
-                }),
-              ),
-            ] else ...[
-              const Text('Confirm new passcode', textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              PasscodePinInput(
-                key: _confirmPinKey,
-                onCompleted: _resetPasscode,
+            ] else if (_step == 2) ...[
+              PasscodeEntryCard(
+                title: 'Confirm passcode',
+                subtitle: 'Enter the same code again',
+                loading: _loading,
+                error: _error,
+                pinInput: PasscodePinInput(
+                  key: _confirmPinKey,
+                  hasError: _error != null,
+                  onCompleted: _resetPasscode,
+                ),
               ),
             ],
-            if (_error != null) ...[
+            if (_step < 1 && _error != null) ...[
               const SizedBox(height: 12),
               Text(
                 _error!,
@@ -248,7 +255,7 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
                 style: const TextStyle(color: Color(0xFFEF4444)),
               ),
             ],
-            if (_loading) ...[
+            if (_step < 1 && _loading) ...[
               const SizedBox(height: 16),
               const Center(child: CircularProgressIndicator(strokeWidth: 2)),
             ],

@@ -29,6 +29,9 @@ class RevenGlobalShell extends StatelessWidget {
       AppRoutes.diagnosisResult,
       AppRoutes.maintenance,
       AppRoutes.updateRequired,
+      AppRoutes.appPasscodeLock,
+      AppRoutes.appPasscodeSetup,
+      AppRoutes.appPasscodeForgot,
     };
     return !hidden.contains(routeName);
   }
@@ -66,6 +69,8 @@ class RevenGlobalShell extends StatelessWidget {
       builder: (context, _) {
         final routeName = RevenRouteTracker.instance.routeName;
         final chatbotOn = AppPreferencesService.chatbotEnabled.value;
+        final showRevenChrome =
+            chatbotOn && routeAllowsGlobalFab(routeName);
 
         return PopScope(
           canPop: canSystemPop,
@@ -79,10 +84,8 @@ class RevenGlobalShell extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               child ?? const SizedBox.shrink(),
-              if (chatbotOn) const RevenChatOverlayHost(),
-              if (chatbotOn &&
-                  routeAllowsGlobalFab(routeName) &&
-                  !RevenChatOverlay.isVisible)
+              if (showRevenChrome) const RevenChatOverlayHost(),
+              if (showRevenChrome && !RevenChatOverlay.isVisible)
                 const RevenGlobalFloatingButton(),
             ],
           ),

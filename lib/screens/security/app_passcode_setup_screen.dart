@@ -25,6 +25,33 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
   bool _loading = false;
   String? _error;
 
+  int get _totalSteps => widget.hasExistingPasscode ? 3 : 2;
+
+  int get _displayStep {
+    if (widget.hasExistingPasscode) return _step + 1;
+    return _step == 0 ? 1 : 2;
+  }
+
+  String get _title {
+    if (widget.hasExistingPasscode && _step == 0) {
+      return 'Current passcode';
+    }
+    if (_step <= 1 && (!widget.hasExistingPasscode || _step == 1)) {
+      return widget.hasExistingPasscode ? 'New passcode' : 'Create passcode';
+    }
+    return 'Confirm passcode';
+  }
+
+  String get _subtitle {
+    if (widget.hasExistingPasscode && _step == 0) {
+      return 'Enter your existing 4-digit code';
+    }
+    if (_step <= 1 && (!widget.hasExistingPasscode || _step == 1)) {
+      return 'Choose a 4-digit code to lock the app';
+    }
+    return 'Enter the same code again to confirm';
+  }
+
   Future<void> _save(String confirm) async {
     if (_newPasscode != confirm) {
       setState(() => _error = 'Passcodes do not match');
@@ -100,104 +127,113 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
     }
   }
 
+  Widget _buildPinStep() {
+    if (widget.hasExistingPasscode && _step == 0) {
+      return PasscodePinInput(
+        key: _currentKey,
+        hasError: _error != null,
+        onCompleted: (v) => setState(() {
+          _current = v;
+          _step = 1;
+          _error = null;
+        }),
+      );
+    }
+    if (_step <= 1 && (!widget.hasExistingPasscode || _step == 1)) {
+      return PasscodePinInput(
+        key: _newKey,
+        hasError: _error != null,
+        onCompleted: (v) => setState(() {
+          _newPasscode = v;
+          _step = 2;
+          _error = null;
+        }),
+      );
+    }
+    return PasscodePinInput(
+      key: _confirmKey,
+      hasError: _error != null,
+      onCompleted: _save,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: Text(
           widget.hasExistingPasscode ? 'App Passcode' : 'Set App Passcode',
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.hasExistingPasscode && _step == 0) ...[
-              Text(
-                'Enter current passcode',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 20),
-              PasscodePinInput(
-                key: _currentKey,
-                onCompleted: (v) => setState(() {
-                  _current = v;
-                  _step = 1;
-                  _error = null;
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(_totalSteps, (i) {
+                  final active = i < _displayStep;
+                  return Container(
+                    width: active ? 28 : 10,
+                    height: 6,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: active
+                          ? RealtorOneBrand.seed
+                          : (isDark ? Colors.white24 : const Color(0xFFCBD5E1)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
                 }),
               ),
-              const Spacer(),
-              OutlinedButton(
-                onPressed: _loading ? null : _disable,
-                child: const Text('Remove passcode'),
+              const Spacer(flex: 2),
+              PasscodeEntryCard(
+                onDarkBackground: isDark,
+                title: _title,
+                subtitle: _subtitle,
+                loading: _loading,
+                error: _error,
+                pinInput: _buildPinStep(),
               ),
-            ] else if (_step <= 1) ...[
-              Text(
-                _step == 0 && !widget.hasExistingPasscode
-                    ? 'Choose a 4-digit passcode'
-                    : 'Enter new passcode',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+              const Spacer(flex: 3),
+              if (widget.hasExistingPasscode && _step == 0)
+                OutlinedButton(
+                  onPressed: _loading ? null : _disable,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    side: BorderSide(
+                      color: isDark ? Colors.white24 : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Text(
+                    'Remove passcode',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              PasscodePinInput(
-                key: _newKey,
-                onCompleted: (v) => setState(() {
-                  _newPasscode = v;
-                  _step = 2;
-                  _error = null;
-                }),
-              ),
-            ] else ...[
-              const Text(
-                'Confirm passcode',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 20),
-              PasscodePinInput(
-                key: _confirmKey,
-                onCompleted: _save,
-              ),
-            ],
-            if (_error != null) ...[
               const SizedBox(height: 12),
               Text(
-                _error!,
+                'Your passcode locks the app when you leave. Reset with your phone number if you forget it.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFFEF4444)),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.45,
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                ),
               ),
-            ],
-            if (_loading) ...[
               const SizedBox(height: 20),
-              const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
             ],
-            const SizedBox(height: 12),
-            Text(
-              'Your passcode locks the app when you leave. Reset with your phone number if you forget it.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white54 : const Color(0xFF64748B),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
