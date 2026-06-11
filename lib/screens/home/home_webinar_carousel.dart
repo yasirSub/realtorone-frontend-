@@ -59,12 +59,14 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
     }
   }
 
-  String _formatCountdown(DateTime scheduledAt) {
+  String _formatCountdown(DateTime scheduledAtUtc) {
+    final scheduled = scheduledAtUtc.toLocal();
     final now = DateTime.now();
-    final diff = scheduledAt.difference(now);
+
+    final diff = scheduled.difference(now);
 
     if (diff.isNegative) {
-      final elapsed = now.difference(scheduledAt);
+      final elapsed = now.difference(scheduled);
       if (elapsed.inHours < 24) return 'Live / Just started';
       return 'Session ended';
     }
@@ -129,6 +131,7 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
                 webinar: w,
                 isDark: isDark,
                 countdownText: w.scheduledAt != null ? _formatCountdown(w.scheduledAt!) : null,
+                localTimeLabel: w.localScheduleLabel(),
                 onJoin: () => _openLink(w.zoomLink),
               ).animate().fadeIn(delay: Duration(milliseconds: 300 + index * 80)).slideX(begin: 0.2);
             },
@@ -143,12 +146,14 @@ class _WebinarCard extends StatelessWidget {
   final Webinar webinar;
   final bool isDark;
   final String? countdownText;
+  final String? localTimeLabel;
   final VoidCallback onJoin;
 
   const _WebinarCard({
     required this.webinar,
     required this.isDark,
     required this.countdownText,
+    this.localTimeLabel,
     required this.onJoin,
   });
 
@@ -296,6 +301,27 @@ class _WebinarCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 11,
                       ),
+                    ),
+                  ],
+                  if (localTimeLabel != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.public_rounded, size: 12, color: Colors.white.withValues(alpha: 0.75)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            localTimeLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                   const SizedBox(height: 12),
