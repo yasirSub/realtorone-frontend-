@@ -43,8 +43,16 @@ class RevenChatPage extends StatefulWidget {
   final bool startVoiceOnOpen;
 
   /// Opens Reven overlay. [startVoice] enters voice mode and starts the mic.
-  static Future<void> show(BuildContext context, {bool startVoice = false}) {
-    return RevenChatOverlay.show(context, startVoice: startVoice);
+  static Future<void> show(
+    BuildContext context, {
+    bool startVoice = false,
+    int? sessionId,
+  }) {
+    return RevenChatOverlay.show(
+      context,
+      startVoice: startVoice,
+      sessionId: sessionId,
+    );
   }
 
   @override
@@ -151,7 +159,12 @@ class _RevenChatPageState extends State<RevenChatPage>
     _loadPreferredVoice();
     _initSpeech();
     _initTts();
-    _loadHistory();
+    final pendingSessionId = RevenChatOverlay.consumeSessionId();
+    if (pendingSessionId != null) {
+      _switchToSession(pendingSessionId);
+    } else {
+      _loadHistory();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadVoiceSettings(forceRefresh: true);
       if (!mounted) return;
@@ -1278,6 +1291,19 @@ class _RevenChatPageState extends State<RevenChatPage>
     return [];
   }
 
+  Future<void> _openFeedbackSheet() async {
+    final result = await RevenFeedbackSheet.show(
+      context,
+      sessionId: _sessionId,
+    );
+    if (!mounted || result == null) return;
+    await _switchToSession(result);
+    await _fetchSessions();
+  }
+
+  static bool _isFeedbackMessage(String text) =>
+      text.trim().startsWith('📋 Feedback');
+
   Future<void> _loadHistory() async {
     final sessions = await _fetchSessions();
     try {
@@ -2350,10 +2376,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                               ),
                             IconButton(
                               tooltip: _iconTooltip('Send feedback'),
-                              onPressed: () => RevenFeedbackSheet.show(
-                                context,
-                                sessionId: _sessionId,
-                              ),
+                              onPressed: _openFeedbackSheet,
                               icon: Icon(
                                 Icons.feedback_outlined,
                                 color: subtitleColor,
@@ -2502,6 +2525,7 @@ class _RevenChatPageState extends State<RevenChatPage>
                           onMicTap: _openVoiceConversation,
                           onSend: _sendMessage,
                           onFieldTap: _scrollToBottom,
+                          onFeedbackTap: _openFeedbackSheet,
                         ),
                     ],
             );
@@ -2590,6 +2614,7 @@ class _RevenTextComposer extends StatelessWidget {
     required this.onMicTap,
     required this.onSend,
     this.onFieldTap,
+    this.onFeedbackTap,
   });
 
   final TextEditingController messageController;
@@ -2605,6 +2630,7 @@ class _RevenTextComposer extends StatelessWidget {
   final VoidCallback onMicTap;
   final VoidCallback onSend;
   final VoidCallback? onFieldTap;
+  final VoidCallback? onFeedbackTap;
 
   @override
   Widget build(BuildContext context) {
@@ -2613,7 +2639,54 @@ class _RevenTextComposer extends StatelessWidget {
       child: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-        child: Container(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (onFeedbackTap != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: InkWell(
+                    onTap: onFeedbackTap,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: RealtorOneBrand.seed.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: RealtorOneBrand.seed.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.feedback_outlined,
+                            size: 14,
+                            color: RealtorOneBrand.seed,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Feedback',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: RealtorOneBrand.seed,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Container(
           constraints: const BoxConstraints(minHeight: _kComposerBarMinHeight),
           decoration: BoxDecoration(
             color: backgroundColor,
@@ -2686,6 +2759,8 @@ class _RevenTextComposer extends StatelessWidget {
               ),
             ],
           ),
+        ),
+          ],
         ),
       ),
     );
@@ -3559,13 +3634,17 @@ class _ChatBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final isUser = message.isUser;
     final isHuman = message.isHuman;
+    final isFeedback =
+        isUser && _RevenChatPageState._isFeedbackMessage(message.text);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         constraints: BoxConstraints(maxWidth: bubbleMaxWidth),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: isUser
+          color: isFeedback
+              ? const Color(0xFF8B5CF6)
+              : isUser
               ? const Color(0xFF4F7CFF)
               : isHuman
               ? const Color(0xFFF59E0B).withValues(alpha: 0.14)
@@ -3630,6 +3709,29 @@ class _ChatBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (isFeedback) ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.feedback_outlined,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Feedback',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (message.text.isNotEmpty) const SizedBox(height: 4),
+                  ],
                   if (isHuman) ...[
                     Text(
                       'Human support',

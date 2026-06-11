@@ -16,6 +16,9 @@ import '../l10n/app_localizations.dart';
 import '../theme/realtorone_brand.dart';
 import 'chatbot/reven_chat_overlay.dart';
 import 'chatbot/reven_route_tracker.dart';
+import '../routes/app_routes.dart';
+import '../services/app_passcode_service.dart';
+import '../services/push_notification_service.dart';
 
 class _TourStepConfig {
   const _TourStepConfig({
@@ -47,7 +50,8 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with WidgetsBindingObserver {
   static const String _tourSeenKey = 'hasSeenAppTourV2';
   static const String _tourSeenLegacyKey = 'hasSeenAppTourV1';
   static const String _dealRoomClientAddedKey = 'hasAddedDealRoomClient';
@@ -136,13 +140,33 @@ class _MainNavigationState extends State<MainNavigation> {
       );
     }
     _maybeShowTourGuide();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.handlePendingLaunchNavigation();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _activitiesTourSync.dispose();
     _tourActive.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      AppPasscodeService.instance.lock();
+    } else if (state == AppLifecycleState.resumed &&
+        AppPasscodeService.instance.needsLock &&
+        mounted) {
+      Navigator.of(context).pushNamed(
+        AppRoutes.appPasscodeLock,
+        arguments: const {'popOnSuccess': true},
+      );
+    }
   }
 
   void _openActivitiesTab(int tabIndex, {int? revenueSubTab}) {

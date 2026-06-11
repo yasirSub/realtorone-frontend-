@@ -21,6 +21,7 @@ import '../../utils/phone_otp_user_message.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
 import '../chatbot/reven_feedback_sheet.dart';
+import '../../services/app_passcode_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -70,6 +71,9 @@ class _ProfilePageState extends State<ProfilePage> {
         setState(() {
           if (response['success'] == true) {
             _userData = response['data'];
+            AppPasscodeService.instance.configureFromProfile(
+              _userData is Map<String, dynamic> ? _userData : null,
+            );
             debugPrint('PROFILE_DEBUG: User Email: ${_userData?['email']}');
             debugPrint(
               'PROFILE_DEBUG: Membership Tier: ${_userData?['membership_tier']} (Type: ${_userData?['membership_tier']?.runtimeType})',
@@ -560,6 +564,30 @@ class _ProfilePageState extends State<ProfilePage> {
 
                             _buildMenuSection(l10n.profileSectionAccount, [
                               _MenuItem(
+                                icon: Icons.pin_outlined,
+                                title: (_userData?['has_app_passcode'] == true ||
+                                        _userData?['app_passcode_set_at'] != null)
+                                    ? 'App Passcode'
+                                    : 'Set App Passcode',
+                                subtitle: (_userData?['has_app_passcode'] == true ||
+                                        _userData?['app_passcode_set_at'] != null)
+                                    ? 'Passcode enabled — tap to change'
+                                    : 'Lock app when opening',
+                                onTap: () async {
+                                  final hasPasscode =
+                                      _userData?['has_app_passcode'] == true ||
+                                      _userData?['app_passcode_set_at'] != null;
+                                  final result = await Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.appPasscodeSetup,
+                                    arguments: {
+                                      'hasExistingPasscode': hasPasscode,
+                                    },
+                                  );
+                                  if (result == true) _loadUserData();
+                                },
+                              ),
+                              _MenuItem(
                                 icon: Icons.feedback_outlined,
                                 title: 'Send Feedback',
                                 subtitle: 'Share ideas or report issues',
@@ -886,210 +914,197 @@ class _ProfilePageState extends State<ProfilePage> {
         .clamp(0, 100);
   }
 
+  List<Color> _getTierGradient(String? tier) {
+    switch (tier?.toLowerCase()) {
+      case 'titan':
+      case 'titan - gold':
+      case 'titan-gold':
+        return [const Color(0xFFF59E0B), const Color(0xFFD97706)];
+      case 'rainmaker':
+        return [const Color(0xFF6366F1), const Color(0xFF4F46E5)];
+      default:
+        return [const Color(0xFF64748B), const Color(0xFF475569)];
+    }
+  }
+
+  Future<void> _openSubscriptionPlans() async {
+    final result = await Navigator.pushNamed(
+      context,
+      AppRoutes.subscriptionPlans,
+    );
+    if (result == true) {
+      _loadUserData();
+    }
+  }
+
   Widget _buildProfileMetrics(bool isDark, AppLocalizations l10n) {
     final execution = _executionRateValue();
     final points = '${_userData?['total_rewards'] ?? '0'}';
+    final isPremium = _userData?['is_premium'] == true;
     final tierName = _displayTierName();
     final tierColor = _getTierColor(_userData?['membership_tier']);
+    final tierGradient = _getTierGradient(_userData?['membership_tier']);
 
     return Column(
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF667eea).withValues(alpha: 0.35),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _openSubscriptionPlans,
+            borderRadius: BorderRadius.circular(14),
+            child: Ink(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: tierGradient),
+                borderRadius: BorderRadius.circular(14),
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.profileStatExecution,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.75),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
-                      ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tierName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          isPremium
+                              ? l10n.profilePremiumSubtitle
+                              : l10n.profileUpgradeSubtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${execution.toInt()}%',
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isPremium ? 'Manage' : 'Upgrade',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Activity consistency this period',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              SizedBox(
-                width: 78,
-                height: 78,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 78,
-                      height: 78,
-                      child: CircularProgressIndicator(
-                        value: execution / 100,
-                        strokeWidth: 7,
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Color(0xFF4ADE80),
-                        ),
-                      ),
-                    ),
-                    Icon(
-                      Icons.bolt_rounded,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      size: 28,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
-              child: _buildMetricTile(
+              child: _buildCompactMetricTile(
                 isDark: isDark,
-                icon: Icons.stars_rounded,
-                iconColor: const Color(0xFFF59E0B),
-                iconBg: const Color(0xFFF59E0B).withValues(alpha: 0.12),
-                value: points,
-                label: l10n.profileStatPoints,
-                onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
+                label: l10n.profileStatExecution,
+                value: '${execution.toInt()}%',
+                accent: const Color(0xFF667eea),
+                trailing: SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: CircularProgressIndicator(
+                    value: execution / 100,
+                    strokeWidth: 3,
+                    backgroundColor: const Color(0xFF667eea).withValues(alpha: 0.15),
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFF667eea)),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
-              child: _buildMetricTile(
-                isDark: isDark,
-                icon: Icons.workspace_premium_rounded,
-                iconColor: tierColor,
-                iconBg: tierColor.withValues(alpha: 0.12),
-                value: tierName.toUpperCase(),
-                label: l10n.profileStatPlan,
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.subscriptionPlans),
+              child: GestureDetector(
+                onTap: () => Navigator.pushNamed(context, AppRoutes.rewards),
+                child: _buildCompactMetricTile(
+                  isDark: isDark,
+                  label: l10n.profileStatPoints,
+                  value: points,
+                  accent: const Color(0xFFF59E0B),
+                  trailing: Icon(
+                    Icons.chevron_right_rounded,
+                    color: tierColor.withValues(alpha: 0.5),
+                    size: 18,
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ],
-    ).animate().fadeIn().slideY(begin: 0.06);
+    ).animate().fadeIn().slideY(begin: 0.04);
   }
 
-  Widget _buildMetricTile({
+  Widget _buildCompactMetricTile({
     required bool isDark,
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String value,
     required String label,
-    VoidCallback? onTap,
+    required String value,
+    required Color accent,
+    Widget? trailing,
   }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.06)
-                  : const Color(0xFFE2E8F0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (onTap != null)
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: isDark ? Colors.white38 : const Color(0xFFCBD5E1),
-                  size: 20,
-                ),
-            ],
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : const Color(0xFFE2E8F0),
         ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: accent,
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF64748B),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) trailing,
+        ],
       ),
     );
   }

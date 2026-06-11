@@ -129,6 +129,12 @@ class ApiEndpoints {
   static const String chatFeedbackCategories = '/chat/feedback/categories';
   static const String chatFeedback = '/chat/feedback';
 
+  static const String appPasscodeSet = '/user/app-passcode/set';
+  static const String appPasscodeVerify = '/user/app-passcode/verify';
+  static const String appPasscodeDisable = '/user/app-passcode/disable';
+  static const String appPasscodeForgotPhone = '/user/app-passcode/forgot/phone';
+  static const String appPasscodeResetPhone = '/user/app-passcode/reset/phone';
+
   // Account Deletion
   static const String requestDeletion = '/user/request-deletion';
 

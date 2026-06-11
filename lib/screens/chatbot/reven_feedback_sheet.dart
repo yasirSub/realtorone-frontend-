@@ -11,11 +11,11 @@ class RevenFeedbackSheet extends StatefulWidget {
 
   final int? sessionId;
 
-  static Future<bool?> show(
+  static Future<int?> show(
     BuildContext context, {
     int? sessionId,
   }) {
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -120,7 +120,11 @@ class _RevenFeedbackSheetState extends State<RevenFeedbackSheet> {
       if (!mounted) return;
 
       if (res['success'] == true) {
-        Navigator.of(context).pop(true);
+        final rawSid = res['data']?['session_id'];
+        final sessionId = rawSid is int
+            ? rawSid
+            : int.tryParse(rawSid?.toString() ?? '');
+        Navigator.of(context).pop(sessionId);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

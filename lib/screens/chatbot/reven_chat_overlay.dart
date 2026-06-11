@@ -20,6 +20,7 @@ class RevenChatOverlay {
   );
 
   static bool _pendingStartVoice = false;
+  static int? _pendingSessionId;
   static final ValueNotifier<bool> panelExpanded = ValueNotifier(false);
 
   /// Bumped when the minimized bubble toggles voice on/off (embedded chat listens).
@@ -50,15 +51,23 @@ class RevenChatOverlay {
     return v;
   }
 
+  static int? consumeSessionId() {
+    final v = _pendingSessionId;
+    _pendingSessionId = null;
+    return v;
+  }
+
   static Future<void> show(
     BuildContext context, {
     bool startVoice = false,
+    int? sessionId,
     bool startMinimized = false,
   }) {
     if (!AppPreferencesService.chatbotEnabled.value) {
       return Future.value();
     }
     _pendingStartVoice = startVoice;
+    _pendingSessionId = sessionId;
     unawaited(AppRuntimeConfigService.refresh(force: true));
     ui.value = RevenOverlayUiState(
       visible: true,

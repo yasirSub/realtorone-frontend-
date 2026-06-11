@@ -63,37 +63,150 @@ class PushNotificationService {
     _navigatorKey = key;
   }
 
-  static Future<void> _openPushTarget(
-    Map<String, dynamic> data,
-    String deepLink,
-  ) async {
+  static Map<String, dynamic>? _pendingLaunchData;
+
+  static void _queuePendingLaunch(Map<String, dynamic> data) {
+    _pendingLaunchData = Map<String, dynamic>.from(data);
+  }
+
+  /// Called after splash/main is ready (cold start from notification tap).
+  static Future<void> handlePendingLaunchNavigation() async {
+    final data = _pendingLaunchData;
+    if (data == null) return;
+    _pendingLaunchData = null;
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    await openPushTarget(data);
+  }
+
+  static bool hasNavigablePayload(Map<String, dynamic> data) {
+    final deepLink = (data['deep_link'] ?? '').toString().trim();
     final type = (data['type'] ?? '').toString();
+    final automation = (data['automation'] ?? '').toString();
+    final kind = (data['kind'] ?? '').toString();
+    return deepLink.isNotEmpty ||
+        kind == 'home_announcement' ||
+        kind == 'app_version' ||
+        type.isNotEmpty ||
+        automation.isNotEmpty;
+  }
+
+  static Future<void> openPushTarget(Map<String, dynamic> data) async {
+    final deepLink = (data['deep_link'] ?? '').toString().trim();
+    final type = (data['type'] ?? '').toString();
+    final automation = (data['automation'] ?? '').toString();
+    final kind = (data['kind'] ?? '').toString();
+    final sessionId = int.tryParse((data['session_id'] ?? '').toString());
+
     if (type == 'ai_chat_human' ||
         deepLink.contains('reven-chat') ||
         deepLink.contains('reven_chat')) {
       final ctx = _navigatorKey?.currentContext;
       if (ctx != null && ctx.mounted) {
-        await RevenChatPage.show(ctx);
+        await RevenChatPage.show(ctx, sessionId: sessionId);
       }
       return;
     }
-    if ((data['kind'] ?? '').toString() == 'home_announcement') {
-      _navigatorKey?.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
+
+    if (type == 'momentum_reminder' ||
+        automation == 'missed_activity' ||
+        deepLink.contains('activities')) {
+      _openMainTab(initialIndex: 1, activitiesTabIndex: 0);
       return;
     }
+
+    if (automation == 'crm_reminder' || deepLink.contains('crm')) {
+      _openMainTab(
+        initialIndex: 1,
+        activitiesTabIndex: 1,
+        revenueSubTab: 0,
+      );
+      return;
+    }
+
+    if (kind == 'home_announcement') {
+      _navigatorKey?.currentState?.pushNamedAndRemoveUntil(
+        AppRoutes.main,
+        (_) => false,
+      );
+      return;
+    }
+
+    if (kind == 'app_version' || deepLink.contains('app-version')) {
+      _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+      return;
+    }
+
+    if (type == 'ai_nudge' || deepLink == 'dashboard') {
+      _openMainTab(initialIndex: 0);
+      return;
+    }
+
     final uri = Uri.tryParse(deepLink);
-    if (uri == null) return;
-    if (uri.scheme == 'realtorone' &&
-        (uri.host == 'home' ||
-            uri.host == 'main' ||
-            uri.path == '/home' ||
-            uri.path == '/main')) {
-      _navigatorKey?.currentState?.pushNamedAndRemoveUntil(AppRoutes.main, (_) => false);
-      return;
+    if (uri != null && uri.scheme == 'realtorone') {
+      if (uri.host == 'reven-chat' || uri.path.contains('reven-chat')) {
+        final sid = int.tryParse(uri.queryParameters['session_id'] ?? '') ??
+            sessionId;
+        final ctx = _navigatorKey?.currentContext;
+        if (ctx != null && ctx.mounted) {
+          await RevenChatPage.show(ctx, sessionId: sid);
+        }
+        return;
+      }
+      if (uri.host == 'app-version' || uri.path.contains('app-version')) {
+        _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+        return;
+      }
+      if (uri.host == 'home' ||
+          uri.host == 'main' ||
+          uri.path == '/home' ||
+          uri.path == '/main') {
+        final tab = int.tryParse(uri.queryParameters['tab'] ?? '');
+        final activitiesTab =
+            int.tryParse(uri.queryParameters['activities_tab'] ?? '');
+        final revenueSub =
+            int.tryParse(uri.queryParameters['revenue_sub_tab'] ?? '');
+        _openMainTab(
+          initialIndex: tab ?? 0,
+          activitiesTabIndex: activitiesTab,
+          revenueSubTab: revenueSub,
+        );
+        return;
+      }
     }
-    if (await canLaunchUrl(uri)) {
+
+    if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  static void _openMainTab({
+    int initialIndex = 0,
+    int? activitiesTabIndex,
+    int? revenueSubTab,
+  }) {
+    _navigatorKey?.currentState?.pushNamedAndRemoveUntil(
+      AppRoutes.main,
+      (_) => false,
+      arguments: {
+        'initialIndex': initialIndex,
+        if (activitiesTabIndex != null)
+          'activitiesTabIndex': activitiesTabIndex,
+        if (revenueSubTab != null) 'revenueSubTab': revenueSubTab,
+      },
+    );
+  }
+
+  static Future<void> openFromStoredNotification(
+    Map<String, dynamic> item,
+  ) async {
+    await openPushTarget({
+      'deep_link': (item['deep_link'] ?? '').toString(),
+      'type': (item['type'] ?? '').toString(),
+      'automation': (item['automation'] ?? '').toString(),
+      'kind': (item['kind'] ?? '').toString(),
+      'session_id': (item['session_id'] ?? '').toString(),
+      'client_id': (item['client_id'] ?? '').toString(),
+    });
   }
 
   static Future<bool> initializeApp() async {
@@ -281,6 +394,11 @@ class PushNotificationService {
       'body': body,
       'style': style,
       'deep_link': (data['deep_link'] ?? '').toString(),
+      'type': (data['type'] ?? '').toString(),
+      'automation': (data['automation'] ?? '').toString(),
+      'kind': (data['kind'] ?? '').toString(),
+      'session_id': (data['session_id'] ?? '').toString(),
+      'client_id': (data['client_id'] ?? '').toString(),
       'recurrence_type': recurrenceType,
       'banner_subtitle': (data['banner_subtitle'] ?? '').toString(),
       'banner_cta_label': (data['banner_cta_label'] ?? '').toString(),
@@ -317,7 +435,6 @@ class PushNotificationService {
       final titleBase = message.notification?.title ?? data['title'] ?? 'RealtorOne';
       final title = _applyGreetingIfNeeded(recurrenceType, titleBase.toString());
       final body = message.notification?.body ?? data['body'] ?? '';
-      final deepLink = (data['deep_link'] ?? '').trim();
       final cta = (data['banner_cta_label'] ?? 'Open').toString().trim().isNotEmpty ? (data['banner_cta_label'] ?? 'Open').toString().trim() : 'Open';
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -373,11 +490,11 @@ class PushNotificationService {
                 ],
               ),
               actions: [
-                if (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement')
+                if (hasNavigablePayload(data))
                   TextButton(
                     onPressed: () async {
                       ScaffoldMessenger.of(ctx).hideCurrentMaterialBanner();
-                      await _openPushTarget(data, deepLink);
+                      await openPushTarget(data);
                     },
                     child: Text(cta.toUpperCase()),
                   ),
@@ -394,10 +511,10 @@ class PushNotificationService {
             SnackBar(
               content: Text('$title: $body'),
               behavior: SnackBarBehavior.floating,
-              action: (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement')
+              action: hasNavigablePayload(data)
                   ? SnackBarAction(
                       label: cta.toUpperCase(),
-                      onPressed: () async => _openPushTarget(data, deepLink),
+                      onPressed: () async => openPushTarget(data),
                     )
                   : null,
             ),
@@ -409,10 +526,9 @@ class PushNotificationService {
     FirebaseMessaging.onMessageOpenedApp.listen((message) async {
       await storeNotificationFromMessage(message);
       final data = message.data;
-      final deepLink = (data['deep_link'] ?? '').toString().trim();
-      if (deepLink.isNotEmpty || (data['kind'] ?? '') == 'home_announcement') {
+      if (hasNavigablePayload(data)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          _openPushTarget(data, deepLink);
+          openPushTarget(data);
         });
       }
     });
@@ -449,6 +565,9 @@ class PushNotificationService {
       );
       if (initial != null) {
         await storeNotificationFromMessage(initial);
+        if (hasNavigablePayload(initial.data)) {
+          _queuePendingLaunch(initial.data);
+        }
       }
 
       debugPrint('PushNotificationService: getting token');

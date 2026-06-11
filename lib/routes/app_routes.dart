@@ -29,4 +29,7 @@ class AppRoutes {
   static const String maintenance = '/maintenance';
   static const String updateRequired = '/update-required';
   static const String adminManageSubscription = '/admin-manage-subscription';
+  static const String appPasscodeLock = '/app-passcode-lock';
+  static const String appPasscodeSetup = '/app-passcode-setup';
+  static const String appPasscodeForgot = '/app-passcode-forgot';
 }

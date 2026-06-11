@@ -33,6 +33,9 @@ import '../screens/learning/course_exam_page.dart';
 import '../screens/system/maintenance_page.dart';
 import '../services/support_contact_service.dart';
 import '../screens/system/update_required_page.dart';
+import '../screens/security/app_passcode_lock_screen.dart';
+import '../screens/security/app_passcode_setup_screen.dart';
+import '../screens/security/app_passcode_forgot_screen.dart';
 
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
@@ -149,6 +152,21 @@ class RouteConfig {
           courseTitle: args['courseTitle'] ?? 'Exam',
         );
       },
+      AppRoutes.appPasscodeLock: (context) {
+        final args =
+            ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+        return AppPasscodeLockScreen(
+          popOnSuccess: args?['popOnSuccess'] == true,
+        );
+      },
+      AppRoutes.appPasscodeSetup: (context) {
+        final args =
+            ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+        return AppPasscodeSetupScreen(
+          hasExistingPasscode: args?['hasExistingPasscode'] == true,
+        );
+      },
+      AppRoutes.appPasscodeForgot: (context) => const AppPasscodeForgotScreen(),
     };
   }
 }

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:url_launcher/url_launcher.dart';
-
 import '../../services/push_notification_service.dart';
 
 class NotificationsHistoryPage extends StatefulWidget {
@@ -217,12 +215,8 @@ class _NotificationsHistoryPageState extends State<NotificationsHistoryPage> {
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () async {
-          if (deepLink.isEmpty) return;
-          final uri = Uri.tryParse(deepLink);
-          if (uri == null) return;
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          }
+          if (!PushNotificationService.hasNavigablePayload(item)) return;
+          await PushNotificationService.openFromStoredNotification(item);
         },
         child: Container(
           decoration: BoxDecoration(

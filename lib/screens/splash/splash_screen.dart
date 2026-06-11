@@ -13,6 +13,7 @@ import '../../routes/app_routes.dart';
 import '../../services/push_notification_service.dart';
 import '../../services/support_contact_service.dart';
 import '../../utils/version_utils.dart';
+import '../../services/app_passcode_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -201,6 +202,15 @@ class _SplashScreenState extends State<SplashScreen>
             if (!hasDiagnosis) {
               debugPrint('Splash: redirecting to diagnosis');
               Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+              return;
+            }
+
+            AppPasscodeService.instance.configureFromProfile(
+              Map<String, dynamic>.from(userData as Map),
+            );
+            if (AppPasscodeService.instance.needsLock) {
+              debugPrint('Splash: redirecting to app passcode lock');
+              Navigator.pushReplacementNamed(context, AppRoutes.appPasscodeLock);
               return;
             }
 
