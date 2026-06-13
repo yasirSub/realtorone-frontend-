@@ -6,6 +6,8 @@ import '../../routes/app_routes.dart';
 import '../../services/app_passcode_service.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
+import '../../utils/phone_otp_debug_log.dart';
+import '../../utils/phone_otp_user_message.dart';
 import '../../utils/phone_utils.dart';
 import '../../widgets/auth/auth_form_ui.dart';
 import '../../widgets/otp_pin_input_row.dart';
@@ -51,6 +53,7 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
     });
 
     try {
+      PhoneOtpDebugLog.start('app passcode forgot — phone OTP');
       final check = await AppPasscodeApi.forgotPasscodePhone(mobile);
       if (check['success'] != true) {
         setState(() {
@@ -67,23 +70,29 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       );
       if (!mounted) return;
       if (!result.ok) {
+        PhoneOtpDebugLog.dumpReport();
         setState(() {
-          _error = result.errorMessage ?? 'Could not send OTP';
+          _error = PhoneOtpUserMessage.forSendFailure(
+            technical: result.errorMessage,
+          );
           _loading = false;
         });
         return;
       }
+
       if (result.autoCredential != null) {
         final userCredential = await FirebaseAuth.instance.signInWithCredential(
           result.autoCredential!,
         );
         _pendingIdToken = await userCredential.user?.getIdToken();
+        await FirebaseAuth.instance.signOut();
         setState(() {
           _step = 1;
           _loading = false;
         });
         return;
       }
+
       setState(() {
         _verificationId = result.verificationId;
         _otpSent = true;
@@ -91,26 +100,38 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       });
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
+      PhoneOtpDebugLog.dumpReport();
       setState(() {
-        _error = FirebasePhoneAuthHelper.technicalMessage(e);
+        _error = PhoneOtpUserMessage.forSendFailure(
+          technical: FirebasePhoneAuthHelper.technicalMessage(e),
+        );
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not send OTP';
+        _error = PhoneOtpUserMessage.forSendFailure();
         _loading = false;
       });
     }
   }
 
   Future<void> _verifyOtpAndContinue() async {
-    if (_verificationId == null || _otp.length < 6) return;
+    if (_otp.length < 6) return;
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
+      if (_verificationId == null) {
+        setState(() {
+          _error = PhoneOtpUserMessage.somethingWentWrong;
+          _loading = false;
+        });
+        return;
+      }
+
       final credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: _otp,
@@ -118,18 +139,18 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
       final idToken = await userCredential.user?.getIdToken();
+      await FirebaseAuth.instance.signOut();
       if (idToken == null) throw Exception('No token');
       if (!mounted) return;
       setState(() {
         _step = 1;
         _loading = false;
       });
-      // Store token temporarily in state for final reset
       _pendingIdToken = idToken;
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = 'Invalid OTP. Try again.';
+        _error = PhoneOtpUserMessage.forVerifyFailure();
         _loading = false;
       });
     }
@@ -143,8 +164,6 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       _confirmPinKey.currentState?.clear();
       return;
     }
-    final token = _pendingIdToken;
-    if (token == null) return;
 
     setState(() {
       _loading = true;
@@ -152,10 +171,19 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
     });
 
     try {
+      final token = _pendingIdToken;
+      if (token == null) {
+        setState(() {
+          _error = PhoneOtpUserMessage.somethingWentWrong;
+          _loading = false;
+        });
+        return;
+      }
       final res = await AppPasscodeApi.resetPasscodePhone(
         idToken: token,
         passcode: _newPasscode,
       );
+
       if (!mounted) return;
       if (res['success'] == true) {
         AppPasscodeService.instance
@@ -177,7 +205,7 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Connection error';
+        _error = PhoneOtpUserMessage.connectionError;
         _loading = false;
       });
     }

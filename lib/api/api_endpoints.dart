@@ -135,6 +135,8 @@ class ApiEndpoints {
   static const String appPasscodeVerify = '/user/app-passcode/verify';
   static const String appPasscodeDisable = '/user/app-passcode/disable';
   static const String appPasscodeForgotPhone = '/user/app-passcode/forgot/phone';
+  static const String appPasscodeForgotResetOtp =
+      '/user/app-passcode/forgot/reset-otp';
   static const String appPasscodeResetPhone = '/user/app-passcode/reset/phone';
 
   // Account Deletion

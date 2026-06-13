@@ -269,11 +269,15 @@ class UserApi {
     return result;
   }
 
-  static Future<Map<String, dynamic>> sendPhoneOtp(String email, String mobile) async {
+  static Future<Map<String, dynamic>> sendPhoneOtp(
+    String email,
+    String mobile, {
+    bool requiresAuth = true,
+  }) async {
     return await ApiClient.post(
       ApiEndpoints.sendPhoneOtp,
       {'email': email, 'mobile': mobile},
-      requiresAuth: true,
+      requiresAuth: requiresAuth,
     );
   }
 
@@ -297,6 +301,7 @@ class UserApi {
     String email,
     String token, {
     String? mobile,
+    bool requiresAuth = true,
   }) async {
     final result = await ApiClient.post(
       ApiEndpoints.verifyPhoneOtp,
@@ -305,7 +310,7 @@ class UserApi {
         'token': token,
         if (mobile != null && mobile.isNotEmpty) 'mobile': mobile,
       },
-      requiresAuth: true,
+      requiresAuth: requiresAuth,
     );
     if (result['status'] == 'ok' || result['success'] == true) {
       await ApiClient.clearCache();

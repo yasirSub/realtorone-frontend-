@@ -14,6 +14,7 @@ import '../routes/app_routes.dart';
 import '../screens/chatbot/reven_chat_page.dart';
 import '../utils/phone_otp_debug_log.dart';
 import 'ios_phone_auth_apns_bridge.dart';
+import 'ios_push_diagnostics.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -322,11 +323,37 @@ class PushNotificationService {
     final ok = await ensureIosReadyForPhoneAuth();
     final status = await IosPhoneAuthApnsBridge.debugStatus();
     PhoneOtpDebugLog.log('startup APNs status', status.toString());
+    await IosPushDiagnostics.printStartupConsoleReport();
     return ok;
   }
 
   static Future<NotificationSettings> messagingSettings() =>
       _messaging.getNotificationSettings();
+
+  /// Returns the device FCM registration token (for push / Firebase Console testing).
+  static Future<String?> getFcmToken({bool logToConsole = false}) async {
+    if (!_firebaseReady) {
+      final ok = await initializeApp();
+      if (!ok) return null;
+    }
+    try {
+      if (!kIsWeb && Platform.isIOS) {
+        await ensureIosReadyForPhoneAuth();
+      } else if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        await _messaging.requestPermission(alert: true, badge: true, sound: true);
+      }
+      final token = await _messaging.getToken().timeout(const Duration(seconds: 15));
+      if (token != null && token.isNotEmpty && logToConsole) {
+        debugPrint('[FCM_TOKEN] $token');
+        // ignore: avoid_print
+        print('[FCM_TOKEN] $token');
+      }
+      return token;
+    } catch (e) {
+      debugPrint('PushNotificationService.getFcmToken: $e');
+      return null;
+    }
+  }
 
   static Future<void> ensureSettingsLoaded() async {
     final prefs = await SharedPreferences.getInstance();
@@ -588,7 +615,19 @@ class PushNotificationService {
 
       debugPrint('PushNotificationService: syncing token to backend');
       final platform = (!kIsWeb && Platform.isIOS) ? 'ios' : 'android';
-      await ApiClient.post('/user/push-token', {'token': token, 'platform': platform}, requiresAuth: true);
+      PhoneOtpDebugLog.log(
+        'push-token sync',
+        'platform=$platform token=${token.substring(0, 12)}…',
+      );
+      final syncRes = await ApiClient.post(
+        '/user/push-token',
+        {'token': token, 'platform': platform},
+        requiresAuth: true,
+      );
+      PhoneOtpDebugLog.log(
+        'push-token sync',
+        syncRes['success'] == true ? 'ok' : syncRes.toString(),
+      );
       try {
         await _messaging.subscribeToTopic(_globalTopic);
       } catch (e) {

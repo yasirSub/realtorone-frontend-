@@ -19,12 +19,24 @@ class PhoneOtpDebugLog {
         ? '[$ts] $step'
         : '[$ts] $step — $detail';
     _lines.add(line);
-    debugPrint('[OTP_DEBUG] $line');
+    final out = '[OTP_DEBUG] $line';
+    debugPrint(out);
+    // Visible in Xcode → Devices console and `flutter run` on a plugged-in iPhone.
+    print(out);
   }
 
   static void error(String step, Object? err) {
     _lastError = err?.toString();
     log('ERROR', '$step: $_lastError');
+  }
+
+  /// Dump full trace to console (call after failed OTP on iOS).
+  static void dumpReport() {
+    for (final line in report().split('\n')) {
+      final out = '[OTP_DEBUG] $line';
+      debugPrint(out);
+      print(out);
+    }
   }
 
   static String maskPhone(String phone) {
@@ -35,10 +47,9 @@ class PhoneOtpDebugLog {
   }
 
   static String report() {
-    final buffer = StringBuffer('Firebase OTP Debug Report\n');
-    buffer.writeln('APNs: debug=sandbox, release=prod; Firebase proxy ON');
-    buffer.writeln('AppDelegate also forwards silent OTP pushes to Firebase Auth');
-    buffer.writeln('Firebase OTP only (no server SMS fallback)');
+    final buffer = StringBuffer('Phone OTP Debug Report\n');
+    buffer.writeln('iOS: Brevo SMS via backend /phone/send-otp');
+    buffer.writeln('Android: Firebase Phone Auth');
     buffer.writeln('─' * 40);
     for (final line in _lines) {
       buffer.writeln(line);

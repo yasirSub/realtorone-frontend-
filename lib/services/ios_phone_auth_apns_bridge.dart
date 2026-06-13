@@ -60,4 +60,25 @@ class IosPhoneAuthApnsBridge {
     }
     return {};
   }
+
+  /// Native iOS verify with AuthUIDelegate (reCAPTCHA fallback when silent push fails).
+  static Future<Map<String, dynamic>> verifyPhoneNumberNative(String phoneE164) async {
+    if (kIsWeb || !Platform.isIOS) return {'skipped': true};
+    try {
+      final raw = await _channel
+          .invokeMethod<Object>(
+            'verifyPhoneNumberNative',
+            {'phoneNumber': phoneE164},
+          )
+          .timeout(const Duration(seconds: 115));
+      if (raw is Map) {
+        return raw.map((k, v) => MapEntry(k.toString(), v));
+      }
+    } on MissingPluginException {
+      return {'ok': false, 'code': 'native_rebuild_required'};
+    } catch (e) {
+      return {'ok': false, 'message': e.toString()};
+    }
+    return {'ok': false, 'message': 'empty native response'};
+  }
 }

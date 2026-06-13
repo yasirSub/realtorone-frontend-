@@ -10,20 +10,28 @@ private final class TokenWaitBox {
 }
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, MessagingDelegate {
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate, MessagingDelegate, AuthUIDelegate {
   private var phoneAuthChannel: FlutterMethodChannel?
   private var pendingTokenWaiters: [(Data?) -> Void] = []
   private var remoteNotificationCount: Int = 0
 
-  /// Debug/profile → development entitlement (sandbox). Release/TestFlight → production.
+  /// Read signed aps-environment from embedded.mobileprovision (dev/ad-hoc builds).
+  private func embeddedApsEnvironment() -> String? {
+    guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+          let data = try? Data(contentsOf: url),
+          let raw = String(data: data, encoding: .isoLatin1) else {
+      return nil
+    }
+    guard let keyRange = raw.range(of: "aps-environment") else { return nil }
+    let tail = raw[keyRange.upperBound...]
+    if tail.contains("development") { return "development" }
+    if tail.contains("production") { return "production" }
+    return nil
+  }
+
+  /// Firebase Auth infers sandbox vs production from the embedded profile when `.unknown`.
   private func resolvedAuthApnsTokenType() -> AuthAPNSTokenType {
-    #if DEBUG
-    return .sandbox
-    #elseif PROFILE
-    return .sandbox
-    #else
-    return .prod
-    #endif
+    .unknown
   }
 
   private func apnsTypeLabel(_ type: AuthAPNSTokenType) -> String {
@@ -43,11 +51,16 @@ private final class TokenWaitBox {
       FirebaseApp.configure()
     }
 
-    // Proxy ON — Firebase swizzles APNs; we still sync Auth token + forward silent OTP pushes below.
-    Messaging.messaging().delegate = self
-    UNUserNotificationCenter.current().delegate = self
-
+    // Let FlutterAppDelegate + Firebase proxy own UNUserNotificationCenter first.
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    Messaging.messaging().delegate = self
+    let tokenType = resolvedAuthApnsTokenType()
+    NSLog(
+      "[OTP_DEBUG] launch aps=%@ authApnsType=%@ bundle=%@",
+      embeddedApsEnvironment() ?? apsEnvironmentLabel(),
+      apnsTypeLabel(tokenType),
+      Bundle.main.bundleIdentifier ?? "unknown"
+    )
     requestNotificationsAndRegister(application)
     return result
   }
@@ -95,8 +108,162 @@ private final class TokenWaitBox {
     case "resetNotificationCounter":
       remoteNotificationCount = 0
       result(["ok": true])
+    case "embeddedApsEnvironment":
+      result([
+        "apsEnvironment": embeddedApsEnvironment() ?? apsEnvironmentLabel(),
+        "apnsTokenType": apnsTypeLabel(resolvedAuthApnsTokenType()),
+        "bundleId": Bundle.main.bundleIdentifier ?? "unknown",
+      ])
+    case "verifyPhoneNumberNative":
+      guard let args = call.arguments as? [String: Any],
+            let phone = args["phoneNumber"] as? String else {
+        result(FlutterError(code: "invalid-args", message: "phoneNumber required", details: nil))
+        return
+      }
+      verifyPhoneNumberNative(phoneNumber: phone, result: result)
     default:
       result(FlutterMethodNotImplemented)
+    }
+  }
+
+  private func isFirebaseAppDelegateProxyEnabled() -> Bool {
+    guard let value = Bundle.main.object(forInfoDictionaryKey: "FirebaseAppDelegateProxyEnabled") else {
+      return true
+    }
+    if let enabled = value as? Bool { return enabled }
+    if let text = value as? String {
+      return text.lowercased() != "false" && text != "0"
+    }
+    return true
+  }
+
+  private func isNotificationNotForwardedError(_ error: Error) -> Bool {
+    let nsError = error as NSError
+    let name = nsError.userInfo["FIRAuthErrorUserInfoNameKey"] as? String ?? ""
+    return name == "ERROR_NOTIFICATION_NOT_FORWARDED"
+      || nsError.localizedDescription.contains("NOT_FORWARDED")
+  }
+
+  /// Native verify with AuthUIDelegate — Flutter firebase_auth plugin passes UIDelegate:nil.
+  private func verifyPhoneNumberNative(phoneNumber: String, result: @escaping FlutterResult) {
+    remoteNotificationCount = 0
+    syncMessagingApnsTokenToAuth()
+    UIApplication.shared.registerForRemoteNotifications()
+
+    #if DEBUG
+    Auth.auth().settings?.isAppVerificationDisabledForTesting = true
+    NSLog(
+      "[OTP_DEBUG] DEBUG build: isAppVerificationDisabledForTesting=true "
+        + "(only works with fictional test numbers in Firebase Console — not real numbers)"
+    )
+    #endif
+
+    NSLog("[OTP_DEBUG] native verifyPhoneNumber %@", phoneNumber)
+
+    Auth.auth().initializeRecaptchaConfig { [weak self] error in
+      if let error {
+        NSLog("[OTP_DEBUG] initializeRecaptchaConfig: %@", error.localizedDescription)
+      }
+      DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        self?.runNativeVerifyAttempt(phoneNumber: phoneNumber, isRetry: false, result: result)
+      }
+    }
+  }
+
+  private func runNativeVerifyAttempt(
+    phoneNumber: String,
+    isRetry: Bool,
+    result: @escaping FlutterResult
+  ) {
+    if isRetry {
+      NSLog("[OTP_DEBUG] retry verifyPhoneNumber after ERROR_NOTIFICATION_NOT_FORWARDED")
+      syncMessagingApnsTokenToAuth()
+      UIApplication.shared.registerForRemoteNotifications()
+    }
+    PhoneAuthProvider.provider().verifyPhoneNumber(
+      phoneNumber,
+      uiDelegate: self
+    ) { [weak self] verificationId, error in
+      guard let self else { return }
+      if let error, !isRetry, self.isNotificationNotForwardedError(error) {
+        NSLog(
+          "[OTP_DEBUG] ERROR_NOTIFICATION_NOT_FORWARDED received=%d — re-registering APNs, retrying once",
+          self.remoteNotificationCount
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+          self.runNativeVerifyAttempt(phoneNumber: phoneNumber, isRetry: true, result: result)
+        }
+        return
+      }
+      self.finishNativeVerify(verificationId: verificationId, error: error, result: result)
+    }
+  }
+
+  private func finishNativeVerify(
+    verificationId: String?,
+    error: Error?,
+    result: @escaping FlutterResult
+  ) {
+    DispatchQueue.main.async {
+      if let error {
+        let nsError = error as NSError
+        let code = nsError.userInfo["FIRAuthErrorUserInfoNameKey"] as? String ?? "\(nsError.code)"
+        NSLog(
+          "[OTP_DEBUG] native verify failed code=%@ domain=%@ msg=%@ received=%d",
+          code,
+          nsError.domain,
+          nsError.localizedDescription,
+          self.remoteNotificationCount
+        )
+        result([
+          "ok": false,
+          "code": code,
+          "message": nsError.localizedDescription,
+          "remoteNotificationsReceived": self.remoteNotificationCount,
+          "native": self.debugApnsStatus(),
+        ])
+        return
+      }
+      guard let verificationId else {
+        result(FlutterError(code: "no-id", message: "No verificationId", details: nil))
+        return
+      }
+      NSLog("[OTP_DEBUG] native verify codeSent id=%@…", String(verificationId.prefix(8)))
+      result([
+        "ok": true,
+        "verificationId": verificationId,
+        "remoteNotificationsReceived": self.remoteNotificationCount,
+      ])
+    }
+  }
+
+  private func topViewController() -> UIViewController? {
+    let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+    let window = scenes.flatMap(\.windows).first { $0.isKeyWindow }
+      ?? scenes.flatMap(\.windows).first
+    guard var top = window?.rootViewController else { return nil }
+    while let presented = top.presentedViewController {
+      top = presented
+    }
+    return top
+  }
+
+  func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)?) {
+    NSLog("[OTP_DEBUG] AuthUIDelegate present reCAPTCHA / SFSafariViewController")
+    DispatchQueue.main.async {
+      guard let top = self.topViewController() else {
+        NSLog("[OTP_DEBUG] AuthUIDelegate present failed: no root VC")
+        completion?()
+        return
+      }
+      top.present(viewControllerToPresent, animated: flag, completion: completion)
+    }
+  }
+
+  func dismiss(animated flag: Bool, completion: (() -> Void)?) {
+    NSLog("[OTP_DEBUG] AuthUIDelegate dismiss")
+    DispatchQueue.main.async {
+      self.topViewController()?.dismiss(animated: flag, completion: completion)
     }
   }
 
@@ -218,7 +385,8 @@ private final class TokenWaitBox {
     let tokenType = resolvedAuthApnsTokenType()
     var status: [String: Any] = [:]
     status["buildType"] = buildTypeLabel()
-    status["apsEnvironment"] = apsEnvironmentLabel()
+    status["apsEnvironment"] = embeddedApsEnvironment() ?? apsEnvironmentLabel()
+    status["bundleId"] = Bundle.main.bundleIdentifier ?? "unknown"
     status["apnsTokenType"] = apnsTypeLabel(tokenType)
     status["authHasApnsToken"] = authToken != nil
     status["authTokenBytes"] = authToken?.count ?? 0
@@ -226,7 +394,10 @@ private final class TokenWaitBox {
     status["messagingTokenBytes"] = msgToken?.count ?? 0
     status["remoteNotificationsReceived"] = remoteNotificationCount
     status["isRegisteredForRemoteNotifications"] = UIApplication.shared.isRegisteredForRemoteNotifications
-    status["firebaseProxyEnabled"] = true
+    status["firebaseProxyEnabled"] = isFirebaseAppDelegateProxyEnabled()
+    #if DEBUG
+    status["appVerificationDisabledForTesting"] = Auth.auth().settings?.isAppVerificationDisabledForTesting ?? false
+    #endif
     for (key, value) in extra {
       status[key] = value
     }
@@ -245,22 +416,12 @@ private final class TokenWaitBox {
     }
   }
 
-  /// Forward silent Firebase Auth verification pushes (phone OTP). Auth is checked before Messaging/FCM.
-  private func forwardAuthNotification(_ userInfo: [AnyHashable: Any], source: String) -> Bool {
-    logRemoteNotification(userInfo, source: source)
-    if Auth.auth().canHandleNotification(userInfo) {
-      NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=YES", source)
-      return true
-    }
-    NSLog("[OTP_DEBUG] canHandleNotification source=%@ handled=NO", source)
-    return false
-  }
-
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Let Flutter/Firebase plugins run first, then re-apply so Auth keeps the final token.
+    // Auth before and after super so Firebase Phone Auth keeps the APNs token.
+    applyApnsToken(deviceToken)
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
     applyApnsToken(deviceToken)
     let waiters = pendingTokenWaiters
@@ -281,13 +442,45 @@ private final class TokenWaitBox {
 
   override func application(
     _ application: UIApplication,
+    didReceiveRemoteNotification userInfo: [AnyHashable: Any]
+  ) {
+    // When proxy is on, Firebase swizzler must own the prober notification loop — don't intercept.
+    if isFirebaseAppDelegateProxyEnabled() {
+      super.application(application, didReceiveRemoteNotification: userInfo)
+      return
+    }
+    if Auth.auth().canHandleNotification(userInfo) {
+      logRemoteNotification(userInfo, source: "didReceiveRemoteNotification-auth")
+      NSLog("[OTP_DEBUG] canHandleNotification didReceiveRemoteNotification handled=YES")
+      return
+    }
+    logRemoteNotification(userInfo, source: "didReceiveRemoteNotification")
+    if userInfo["gcm.message_id"] != nil {
+      Messaging.messaging().appDidReceiveMessage(userInfo)
+    }
+    super.application(application, didReceiveRemoteNotification: userInfo)
+  }
+
+  override func application(
+    _ application: UIApplication,
     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
   ) {
-    if forwardAuthNotification(userInfo, source: "fetchCompletionHandler") {
+    if isFirebaseAppDelegateProxyEnabled() {
+      super.application(
+        application,
+        didReceiveRemoteNotification: userInfo,
+        fetchCompletionHandler: completionHandler
+      )
+      return
+    }
+    if Auth.auth().canHandleNotification(userInfo) {
+      logRemoteNotification(userInfo, source: "fetchCompletionHandler-auth")
+      NSLog("[OTP_DEBUG] canHandleNotification fetchCompletionHandler handled=YES")
       completionHandler(.noData)
       return
     }
+    logRemoteNotification(userInfo, source: "fetchCompletionHandler")
     if userInfo["gcm.message_id"] != nil {
       Messaging.messaging().appDidReceiveMessage(userInfo)
     }
@@ -298,23 +491,15 @@ private final class TokenWaitBox {
     )
   }
 
-  override func application(
-    _ application: UIApplication,
-    didReceiveRemoteNotification userInfo: [AnyHashable: Any]
-  ) {
-    if forwardAuthNotification(userInfo, source: "legacy") {
-      return
-    }
-    super.application(application, didReceiveRemoteNotification: userInfo)
-  }
-
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     let userInfo = notification.request.content.userInfo
-    if forwardAuthNotification(userInfo, source: "willPresent") {
+    if Auth.auth().canHandleNotification(userInfo) {
+      logRemoteNotification(userInfo, source: "willPresent-auth")
+      NSLog("[OTP_DEBUG] canHandleNotification willPresent handled=YES")
       completionHandler([])
       return
     }
@@ -331,7 +516,9 @@ private final class TokenWaitBox {
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
     let userInfo = response.notification.request.content.userInfo
-    if forwardAuthNotification(userInfo, source: "didReceiveResponse") {
+    if Auth.auth().canHandleNotification(userInfo) {
+      logRemoteNotification(userInfo, source: "didReceiveResponse-auth")
+      NSLog("[OTP_DEBUG] canHandleNotification didReceiveResponse handled=YES")
       completionHandler()
       return
     }

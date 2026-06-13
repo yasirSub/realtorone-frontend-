@@ -86,6 +86,9 @@ class FirebasePhoneAuthHelper {
 
     final completer = Completer<FirebasePhoneSendResult>();
     Timer? timer;
+    final effectiveTimeout = (!kIsWeb && Platform.isIOS)
+        ? const Duration(seconds: 120)
+        : timeout;
 
     void complete(FirebasePhoneSendResult result) {
       if (!completer.isCompleted) {
@@ -94,8 +97,8 @@ class FirebasePhoneAuthHelper {
       }
     }
 
-    timer = Timer(timeout, () {
-      PhoneOtpDebugLog.error('timeout', 'no Firebase response in ${timeout.inSeconds}s');
+    timer = Timer(effectiveTimeout, () {
+      PhoneOtpDebugLog.error('timeout', 'no Firebase response in ${effectiveTimeout.inSeconds}s');
       final hint = (!kIsWeb && Platform.isIOS)
           ? 'On iPhone: allow notifications, use a real device (not simulator), '
               'and upload APNs key in Firebase Console → Cloud Messaging.'
@@ -103,7 +106,7 @@ class FirebasePhoneAuthHelper {
               'Phone sign-in enabled, and billing on project realtor-one.';
       complete(
         FirebasePhoneSendResult.failure(
-          'No SMS response from Firebase after ${timeout.inSeconds}s. $hint',
+          'No SMS response from Firebase after ${effectiveTimeout.inSeconds}s. $hint',
         ),
       );
     });
@@ -169,11 +172,90 @@ class FirebasePhoneAuthHelper {
       final apsEnv = afterSync['apsEnvironment'] ?? 'unknown';
       PhoneOtpDebugLog.log(
         'iOS APNs environment',
-        'type=$tokenType aps=$apsEnv — Firebase Console must have .p8 key for com.realtorone.app',
+        'type=$tokenType aps=$apsEnv (development=sandbox, production=prod). '
+            'USB-installed Release builds are usually development/sandbox.',
       );
+      if (apsEnv == 'development' && tokenType == 'prod') {
+        PhoneOtpDebugLog.error(
+          'iOS APNs mismatch',
+          'Profile is development but Auth token type is prod — silent OTP push will fail',
+        );
+      }
     }
 
-    PhoneOtpDebugLog.log('verifyPhoneNumber', 'calling Firebase Auth…');
+  if (!kIsWeb && Platform.isIOS) {
+      PhoneOtpDebugLog.log(
+        'verifyPhoneNumber',
+        'native iOS (AuthUIDelegate + reCAPTCHA fallback)',
+      );
+      try {
+        final native = await IosPhoneAuthApnsBridge.verifyPhoneNumberNative(trimmed);
+        PhoneOtpDebugLog.log('native verify result', native.toString());
+        if (native['ok'] == true) {
+          final verificationId = native['verificationId']?.toString() ?? '';
+          if (verificationId.isNotEmpty) {
+            PhoneOtpDebugLog.log(
+              'codeSent',
+              'verificationId=${verificationId.substring(0, 8)}… (native)',
+            );
+            complete(
+              FirebasePhoneSendResult.codeSent(verificationId: verificationId),
+            );
+            return completer.future;
+          }
+        }
+        final code = native['code']?.toString() ?? '';
+        final message = native['message']?.toString() ?? 'Native iOS verify failed';
+        final receivedCount = (native['remoteNotificationsReceived'] as num?)?.toInt() ?? 0;
+        PhoneOtpDebugLog.error('native verifyFailed', 'code=$code message=$message');
+        PhoneOtpDebugLog.log(
+          'hint',
+          'remoteNotificationsReceived=$receivedCount after OTP '
+          '(0 = silent push never arrived; reCAPTCHA may need Firebase Console setup)',
+        );
+        PhoneOtpDebugLog.dumpReport();
+        final notForwarded = code.contains('notification-not-forwarded') ||
+            code.contains('ERROR_NOTIFICATION_NOT_FORWARDED') ||
+            message.toLowerCase().contains('notification-not-forwarded') ||
+            message.toLowerCase().contains('canhandlenotification');
+        final recaptchaMissing = message.toLowerCase().contains('site key cannot be empty');
+        if (recaptchaMissing) {
+          PhoneOtpDebugLog.log(
+            'hint',
+            'Enable reCAPTCHA Enterprise in Firebase Console → Authentication → Phone',
+          );
+        }
+        final billing = code.contains('billing-not-enabled') ||
+            message.toUpperCase().contains('BILLING_NOT_ENABLED');
+        final nativeStatus = native['native'];
+        final permissionOk = nativeStatus is Map &&
+            (nativeStatus['authorized'] == true ||
+                nativeStatus['authHasApnsToken'] == true);
+        final userMessage = notForwarded
+            ? iosSilentPushFailureMessage(
+                remoteNotificationsReceived: receivedCount,
+                permissionGranted: permissionOk,
+              )
+            : (recaptchaMissing
+                ? 'Firebase reCAPTCHA is not configured for iOS phone OTP. '
+                    'In Firebase Console (realtor-one): Authentication → Settings → '
+                    'enable reCAPTCHA Enterprise for Phone sign-in, then try again.'
+                : message);
+        complete(
+          FirebasePhoneSendResult.failure(
+            userMessage,
+            billingBlocked: billing,
+            notificationNotForwarded: notForwarded,
+          ),
+        );
+      } catch (e) {
+        PhoneOtpDebugLog.error('native verify exception', e);
+        complete(FirebasePhoneSendResult.failure(e.toString()));
+      }
+      return completer.future;
+    }
+
+    PhoneOtpDebugLog.log('verifyPhoneNumber', 'calling Firebase Auth (Android)…');
     try {
       await auth.verifyPhoneNumber(
         phoneNumber: trimmed,
@@ -188,18 +270,7 @@ class FirebasePhoneAuthHelper {
             'verificationFailed',
             'code=${e.code} message=${e.message}',
           );
-          if (isNotificationNotForwarded(e)) {
-            IosPhoneAuthApnsBridge.debugStatus().then((status) {
-              final received = status['remoteNotificationsReceived'] ?? 0;
-              PhoneOtpDebugLog.log(
-                'hint',
-                'silent push never reached app (received=$received). '
-                'Upload APNs .p8 in Firebase Console → Project settings → Cloud Messaging '
-                'AND Authentication → Sign-in method → Phone for com.realtorone.app. '
-                'Release builds need production APNs (type=${status['apnsTokenType']}).',
-              );
-            });
-          }
+          PhoneOtpDebugLog.dumpReport();
           if (isBillingNotEnabled(e)) {
             PhoneOtpDebugLog.log('hint', 'Firebase Blaze billing required');
           }
@@ -255,6 +326,21 @@ class FirebasePhoneAuthHelper {
       'Open Settings → RealtorOne → Notifications → Allow Notifications, '
       'then try again on a real iPhone (simulator does not support this).';
 
+  /// When permission + APNs token are OK but silent push never arrived.
+  static String iosSilentPushFailureMessage({
+    int remoteNotificationsReceived = 0,
+    bool permissionGranted = true,
+  }) {
+    if (!permissionGranted) return _iosNotificationPermissionMessage();
+    return 'Firebase silent push for phone OTP did not reach this iPhone '
+        '(remoteNotificationsReceived=$remoteNotificationsReceived). '
+        'Notifications may already be allowed — fix Firebase Console (project realtor-one): '
+        '(1) Authentication → enable reCAPTCHA Enterprise for Phone sign-in '
+        '(fixes "Site key cannot be empty"), '
+        '(2) Cloud Messaging → APNs key 9AJ6U4P74W, Team XZ6S52GQ8U, '
+        '(3) Phone sign-in ON, (4) Blaze billing ON.';
+  }
+
   /// Full technical detail for [PhoneOtpDebugLog] — never show directly in UI.
   static String technicalMessage(FirebaseAuthException e) {
     if (isBillingNotEnabled(e)) return billingNotEnabledMessage();
@@ -277,10 +363,7 @@ class FirebasePhoneAuthHelper {
       case 'network-request-failed':
         return 'Network error. Check internet and try again.';
       case 'notification-not-forwarded':
-        return _iosNotificationPermissionMessage() +
-            ' In Firebase Console (project realtor-one), upload your Apple APNs Authentication Key (.p8) '
-            'with Key ID and Team ID under Cloud Messaging and ensure Phone sign-in is enabled. '
-            'Test on a real iPhone (not simulator).';
+        return iosSilentPushFailureMessage();
       default:
         final msg = e.message?.trim() ?? '';
         if (msg.toUpperCase().contains('BILLING_NOT_ENABLED')) {
@@ -307,6 +390,7 @@ class FirebasePhoneSendResult {
     this.errorMessage,
     this.billingBlocked = false,
     this.notificationNotForwarded = false,
+    this.usesBackendSms = false,
   });
 
   final bool ok;
@@ -316,6 +400,8 @@ class FirebasePhoneSendResult {
   final String? errorMessage;
   final bool billingBlocked;
   final bool notificationNotForwarded;
+  /// True when OTP was sent by Laravel/Brevo (`/phone/send-otp`) instead of Firebase SMS.
+  final bool usesBackendSms;
 
   factory FirebasePhoneSendResult.codeSent({
     required String verificationId,
@@ -329,6 +415,9 @@ class FirebasePhoneSendResult {
 
   factory FirebasePhoneSendResult.autoVerified(PhoneAuthCredential credential) =>
       FirebasePhoneSendResult._(ok: true, autoCredential: credential);
+
+  factory FirebasePhoneSendResult.backendSmsSent() =>
+      const FirebasePhoneSendResult._(ok: true, usesBackendSms: true);
 
   factory FirebasePhoneSendResult.failure(
     String message, {

@@ -47,6 +47,22 @@ class AppPasscodeApi {
     );
   }
 
+  static Future<Map<String, dynamic>> forgotResetWithOtp({
+    required String mobile,
+    required String token,
+    required String passcode,
+  }) async {
+    return ApiClient.post(
+      ApiEndpoints.appPasscodeForgotResetOtp,
+      {
+        'mobile': mobile,
+        'token': token,
+        'passcode': passcode,
+      },
+      requiresAuth: false,
+    );
+  }
+
   static Future<Map<String, dynamic>> resetPasscodePhone({
     required String idToken,
     required String passcode,

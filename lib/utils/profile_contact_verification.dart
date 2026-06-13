@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../api/user_api.dart';
 import '../theme/realtorone_brand.dart';
 import '../utils/firebase_phone_auth_helper.dart';
+import '../utils/phone_otp_send_coordinator.dart';
 import '../utils/phone_otp_debug_log.dart';
 import '../utils/phone_otp_user_message.dart';
 import '../widgets/otp_pin_input_row.dart';
@@ -76,32 +77,41 @@ class ProfileContactVerification {
       return ProfileContactVerificationResult.notVerified;
     }
 
-    final ready = await FirebasePhoneAuthHelper.ensureInitialized();
-    if (!ready) {
-      const technical =
-          'Firebase is not initialized. Rebuild the app and try again.';
-      PhoneOtpDebugLog.error('ensureInitialized', technical);
-      _snack(
-        PhoneOtpUserMessage.forInitFailure(technical: technical),
-        Colors.red,
-      );
-      return ProfileContactVerificationResult.notVerified;
+    if (!PhoneOtpSendCoordinator.iosUsesBackendSms) {
+      final ready = await FirebasePhoneAuthHelper.ensureInitialized();
+      if (!ready) {
+        const technical =
+            'Firebase is not initialized. Rebuild the app and try again.';
+        PhoneOtpDebugLog.error('ensureInitialized', technical);
+        _snack(
+          PhoneOtpUserMessage.forInitFailure(technical: technical),
+          Colors.red,
+        );
+        return ProfileContactVerificationResult.notVerified;
+      }
     }
 
-    final result = await FirebasePhoneAuthHelper.sendOtp(
+    PhoneOtpDebugLog.log(
+      'verifyPhone',
+      PhoneOtpSendCoordinator.iosUsesBackendSms
+          ? 'iOS Brevo backend SMS'
+          : 'Firebase Phone Auth',
+    );
+    final result = await PhoneOtpSendCoordinator.send(
       auth: firebaseAuth,
       phoneE164: phone,
+      accountEmail: email,
     );
     if (!context.mounted) return ProfileContactVerificationResult.notVerified;
 
     if (!result.ok) {
+      PhoneOtpDebugLog.dumpReport();
       _snack(
         PhoneOtpUserMessage.forSendFailure(technical: result.errorMessage),
         Colors.red,
       );
       return ProfileContactVerificationResult.notVerified;
     }
-
     if (result.autoCredential != null) {
       final response = await _verifyFirebaseCredential(
         credential: result.autoCredential!,
@@ -120,7 +130,7 @@ class ProfileContactVerification {
       isEmail: false,
       phone: phone,
       firebaseVerificationId: result.verificationId,
-      usesFirebasePhone: true,
+      usesFirebasePhone: !result.usesBackendSms,
     );
   }
 
@@ -285,13 +295,22 @@ class ProfileContactVerification {
                 }
 
                 if (currentUsesFirebase) {
-                  final result = await FirebasePhoneAuthHelper.sendOtp(
+                  final sendOutcome = await PhoneOtpSendCoordinator.send(
                     auth: firebaseAuth,
                     phoneE164: phone,
+                    accountEmail: email,
                   );
                   if (!dCtx.mounted) return;
-                  if (result.ok && result.verificationId != null) {
-                    currentFirebaseVerificationId = result.verificationId!;
+                  if (sendOutcome.ok &&
+                      (sendOutcome.verificationId != null ||
+                          sendOutcome.usesBackendSms)) {
+                    if (sendOutcome.verificationId != null) {
+                      currentFirebaseVerificationId =
+                          sendOutcome.verificationId!;
+                    }
+                    if (sendOutcome.usesBackendSms) {
+                      currentUsesFirebase = false;
+                    }
                     setDialogState(() {
                       isResending = false;
                       errorMessage = '';
@@ -300,14 +319,21 @@ class ProfileContactVerification {
                     setDialogState(() {
                       isResending = false;
                       errorMessage = PhoneOtpUserMessage.forResendFailure(
-                        technical: result.errorMessage,
+                        technical: sendOutcome.errorMessage,
                       );
                     });
                   }
                 } else {
+                  final response = await UserApi.sendPhoneOtp(email, phone);
+                  if (!dCtx.mounted) return;
                   setDialogState(() {
                     isResending = false;
-                    errorMessage = PhoneOtpUserMessage.couldNotResend;
+                    errorMessage = response['status'] == 'ok' ||
+                            response['success'] == true
+                        ? ''
+                        : PhoneOtpUserMessage.forResendFailure(
+                            technical: response['message']?.toString(),
+                          );
                   });
                 }
               } catch (_) {

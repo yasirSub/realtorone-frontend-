@@ -105,21 +105,26 @@ post_install do |installer|
     config.build_settings['COPY_PHASE_STRIP'] = 'NO'
   end
 
-  # 3. Final Safety Net: Forcefully remove objective_c.framework from the bundle
+  # 3. Dedupe Xcode project: one GoogleService-Info copy + one framework cleanup script
   installer.aggregate_targets.each do |agg_target|
     agg_target.user_project.targets.each do |user_project_target|
-      if user_project_target.name == 'Runner'
-        phase = user_project_target.shell_script_build_phases.find { |p| p.name == 'Fix Firebase Frameworks' }
-        if phase.nil?
-          phase = user_project_target.new_shell_script_build_phase('Fix Firebase Frameworks')
-          phase.shell_script = <<~SH
-            FRAMEWORK_PATH="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework"
-            if [ -d "$FRAMEWORK_PATH" ]; then
-                echo "Removing problematic framework: $FRAMEWORK_PATH"
-                rm -rf "$FRAMEWORK_PATH"
-            fi
-          SH
-          phase.show_env_vars_in_log = '0'
+      next unless user_project_target.name == 'Runner'
+
+      gs_refs = user_project_target.resources_build_phase.files.select do |bf|
+        bf.file_ref&.path&.include?('GoogleService-Info.plist')
+      end
+      gs_refs.drop(1).each { |bf| user_project_target.resources_build_phase.files.delete(bf) }
+
+      framework_phases = user_project_target.shell_script_build_phases.select do |p|
+        p.name == 'Fix Firebase Frameworks' || p.name == 'Remove Problematic Frameworks'
+      end
+      framework_phases.each_with_index do |phase, index|
+        if index.zero?
+          phase.name = 'Remove Problematic Frameworks'
+          phase.always_out_of_date = '1'
+          phase.shell_script = 'rm -rf "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/objective_c.framework"'
+        else
+          user_project_target.build_phases.delete(phase)
         end
       end
     end

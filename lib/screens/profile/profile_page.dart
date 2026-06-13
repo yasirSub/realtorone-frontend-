@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
@@ -16,13 +15,13 @@ import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
+import '../../utils/phone_otp_send_coordinator.dart';
 import '../../utils/phone_otp_debug_log.dart';
 import '../../utils/phone_otp_user_message.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
 import '../chatbot/reven_feedback_sheet.dart';
 import '../../services/app_passcode_service.dart';
-
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -1477,7 +1476,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isLoading = true);
     PhoneOtpDebugLog.start('profile phone verification');
+    PhoneOtpDebugLog.log('tap', 'Phone Verification button pressed');
     PhoneOtpDebugLog.log('user', 'email=$email phone=${PhoneOtpDebugLog.maskPhone(phone)}');
+    PhoneOtpDebugLog.log(
+      'provider',
+      PhoneOtpSendCoordinator.iosUsesBackendSms
+          ? 'iOS Brevo backend SMS (email OTP uses Brevo)'
+          : 'Firebase Phone Auth (email OTP uses Brevo)',
+    );
     _showSnackBar(PhoneOtpUserMessage.sending, const Color(0xFF667eea));
     try {
       await _sendFirebasePhoneOtp(email: email, phone: phone);
@@ -1495,25 +1501,33 @@ class _ProfilePageState extends State<ProfilePage> {
     required String email,
     required String phone,
   }) async {
-    PhoneOtpDebugLog.log('step', 'ensureInitialized');
-    final ready = await FirebasePhoneAuthHelper.ensureInitialized();
-    if (!ready) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      const technical =
-          'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.';
-      PhoneOtpDebugLog.error('ensureInitialized', technical);
-      _showSnackBar(
-        PhoneOtpUserMessage.forInitFailure(technical: technical),
-        Colors.red,
-      );
-      return;
+    if (!PhoneOtpSendCoordinator.iosUsesBackendSms) {
+      PhoneOtpDebugLog.log('step', 'ensureInitialized');
+      final ready = await FirebasePhoneAuthHelper.ensureInitialized();
+      if (!ready) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        const technical =
+            'Firebase is not initialized. Rebuild the app and ensure google-services.json matches project realtor-one.';
+        PhoneOtpDebugLog.error('ensureInitialized', technical);
+        _showSnackBar(
+          PhoneOtpUserMessage.forInitFailure(technical: technical),
+          Colors.red,
+        );
+        return;
+      }
     }
 
-    PhoneOtpDebugLog.log('step', 'sendOtp (Firebase only — no Brevo)');
-    final result = await FirebasePhoneAuthHelper.sendOtp(
+    PhoneOtpDebugLog.log(
+      'step',
+      PhoneOtpSendCoordinator.iosUsesBackendSms
+          ? 'sendOtp (iOS Brevo backend SMS)'
+          : 'sendOtp (Firebase Phone Auth)',
+    );
+    final result = await PhoneOtpSendCoordinator.send(
       auth: _firebaseAuth,
       phoneE164: phone,
+      accountEmail: email,
     );
 
     if (!mounted) return;
@@ -1521,10 +1535,11 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!result.ok) {
       final msg = result.errorMessage ?? '';
       PhoneOtpDebugLog.log(
-        'Firebase result',
+        'send result',
         'ok=false billing=${result.billingBlocked} '
             'notForwarded=${result.notificationNotForwarded}',
       );
+      PhoneOtpDebugLog.dumpReport();
       final upper = msg.toUpperCase();
 
       // Firebase device/number temporary block (too-many-requests / unusual activity).
@@ -1574,8 +1589,8 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       setState(() => _isLoading = false);
-      final failMsg = msg.isNotEmpty ? msg : 'Firebase could not send SMS.';
-      PhoneOtpDebugLog.error('Firebase failed', failMsg);
+      final failMsg = msg.isNotEmpty ? msg : 'Could not send verification SMS.';
+      PhoneOtpDebugLog.error('send failed', failMsg);
       _showSnackBar(
         PhoneOtpUserMessage.forSendFailure(technical: failMsg),
         Colors.red,
@@ -1594,14 +1609,19 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     setState(() => _isLoading = false);
-    PhoneOtpDebugLog.log('success', 'codeSent — SMS dispatched');
+    PhoneOtpDebugLog.log(
+      'success',
+      result.usesBackendSms
+          ? 'codeSent — Brevo SMS via backend'
+          : 'codeSent — Firebase SMS dispatched',
+    );
     _showSnackBar(PhoneOtpUserMessage.codeSent, Colors.green);
     _showOtpVerifyDialog(
       email: email,
       isEmail: false,
       phone: phone,
       firebaseVerificationId: result.verificationId,
-      usesFirebasePhone: true,
+      usesFirebasePhone: !result.usesBackendSms,
     );
   }
 
@@ -1769,13 +1789,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     });
                     return;
                   }
-                  final result = await FirebasePhoneAuthHelper.sendOtp(
+                  final resend = await PhoneOtpSendCoordinator.send(
                     auth: _firebaseAuth,
                     phoneE164: phone,
+                    accountEmail: email,
                   );
                   if (!dCtx.mounted) return;
-                  if (result.ok && result.verificationId != null) {
-                    currentFirebaseVerificationId = result.verificationId!;
+                  if (resend.ok &&
+                      (resend.verificationId != null || resend.usesBackendSms)) {
+                    if (resend.verificationId != null) {
+                      currentFirebaseVerificationId = resend.verificationId!;
+                    }
                     setDialogState(() {
                       isResending = false;
                       errorMessage = '';
@@ -1785,15 +1809,27 @@ class _ProfilePageState extends State<ProfilePage> {
                     setDialogState(() {
                       isResending = false;
                       errorMessage = PhoneOtpUserMessage.forResendFailure(
-                        technical: result.errorMessage,
+                        technical: resend.errorMessage,
                       );
                     });
                   }
                 } else {
-                  setDialogState(() {
-                    isResending = false;
-                    errorMessage = PhoneOtpUserMessage.couldNotResend;
-                  });
+                  final resend = await UserApi.sendPhoneOtp(email, phone);
+                  if (!dCtx.mounted) return;
+                  if (resend['status'] == 'ok' || resend['success'] == true) {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = '';
+                    });
+                    _showSnackBar('New code sent via SMS.', Colors.green);
+                  } else {
+                    setDialogState(() {
+                      isResending = false;
+                      errorMessage = PhoneOtpUserMessage.forResendFailure(
+                        technical: resend['message']?.toString(),
+                      );
+                    });
+                  }
                 }
               } catch (_) {
                 if (!dCtx.mounted) return;
