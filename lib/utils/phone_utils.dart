@@ -127,6 +127,11 @@ class PhoneUtils {
     return value;
   }
 
+    static bool isIndiaMobile(String? phone) {
+    final normalized = normalizeFreeform((phone ?? '').trim());
+    return normalized.startsWith('+91');
+  }
+
   /// Split stored E.164 into dial code + local digits for dropdown UIs.
   /// Longer dial codes are matched first (+971 before +97).
   static ({String dialCode, String localDigits}) parseStored(String raw) {

@@ -11,6 +11,8 @@ import '../../services/iap_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../widgets/elite_loader.dart';
 import '../../utils/responsive_helper.dart';
+import '../../api/user_api.dart';
+import '../../utils/phone_utils.dart';
 import '../../utils/subscription_pricing.dart';
 import '../legal/legal_document_webview_page.dart';
 
@@ -35,6 +37,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   int _selectedMonths = 3;
   bool _isPurchasing = false;
   bool _razorpayEnabled = false;
+  bool _razorpayEligibleForUser = false;
   bool _appleIapEnabled = true;
   bool _googleIapEnabled = true;
   String _paymentMethod = 'iap';
@@ -49,8 +52,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool get _iapEnabledForPlatform =>
       _isIos ? _appleIapEnabled : _googleIapEnabled;
 
+  bool get _razorpayAvailable => _razorpayEnabled && _razorpayEligibleForUser;
+
   bool get _showPaymentMethodPicker =>
-      _isMobileIap && _razorpayEnabled && _iapEnabledForPlatform;
+      _isMobileIap && _razorpayAvailable && _iapEnabledForPlatform;
 
   int? get _appliedCouponId {
     final id = _appliedCoupon?['id'];
@@ -222,11 +227,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         SubscriptionApi.getMySubscription(),
         IapService().fetchProducts(IapService.allProductIds),
         SubscriptionApi.getRazorpayConfig(),
+        UserApi.getProfile(useCache: false),
       ]);
 
       final packagesRes = results[0] as Map<String, dynamic>;
       final subRes = results[1] as Map<String, dynamic>;
       final rzRes = results[3] as Map<String, dynamic>;
+      final profileRes = results[4] as Map<String, dynamic>;
 
       if (mounted) {
         setState(() {
@@ -245,17 +252,24 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             _selectedPackageId = _isPremium ? currentPkgId : null;
             _adjustSelectedDuration(_selectedPackageId);
           }
-          _razorpayEnabled = rzRes['enabled'] == true;
+          _razorpayEligibleForUser = rzRes['razorpay_eligible_for_user'] == true;
           final paySettings = rzRes['payment_settings'];
           if (paySettings is Map) {
             _appleIapEnabled = paySettings['apple_iap_enabled'] != false;
             _googleIapEnabled = paySettings['google_iap_enabled'] != false;
-            _razorpayEnabled = paySettings['razorpay_enabled'] == true;
+            final serverRazorpayOn = paySettings['razorpay_enabled'] == true;
+            _razorpayEnabled = serverRazorpayOn;
+          }
+          if (profileRes['success'] == true && profileRes['data'] is Map) {
+            final mobile = profileRes['data']['mobile']?.toString();
+            _razorpayEligibleForUser = PhoneUtils.isIndiaMobile(mobile);
           }
           if (_isMobileIap) {
-            if (!_iapEnabledForPlatform && _razorpayEnabled) {
+            if (!_iapEnabledForPlatform && _razorpayAvailable) {
               _paymentMethod = 'razorpay';
-            } else if (_iapEnabledForPlatform && !_razorpayEnabled) {
+            } else if (_iapEnabledForPlatform && !_razorpayAvailable) {
+              _paymentMethod = 'iap';
+            } else if (_paymentMethod == 'razorpay' && !_razorpayAvailable) {
               _paymentMethod = 'iap';
             }
           }
@@ -284,7 +298,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         Theme.of(context).platform == TargetPlatform.iOS ||
         Theme.of(context).platform == TargetPlatform.android;
 
-    if (isMobile && _paymentMethod == 'razorpay' && _razorpayEnabled) {
+    if (isMobile && _paymentMethod == 'razorpay' && _razorpayAvailable) {
       await _purchaseWithRazorpay(pkg);
       return;
     }
@@ -363,7 +377,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       return;
     }
 
-    if (kIsWeb && _razorpayEnabled) {
+    if (kIsWeb && _razorpayAvailable) {
       final uri = Uri.parse('${AppConfig.liveWebOrigin}/subscribe');
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       return;
@@ -1985,7 +1999,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     String buttonLabel = 'SUBSCRIBE NOW';
     if (isComingSoon) {
       buttonLabel = 'COMING SOON';
-    } else if (_paymentMethod == 'razorpay' && _razorpayEnabled && _isMobileIap) {
+    } else if (_paymentMethod == 'razorpay' && _razorpayAvailable && _isMobileIap) {
       buttonLabel = isRenewing ? 'RENEW (RAZORPAY)' : 'PAY WITH RAZORPAY';
     } else if (isRenewing) {
       buttonLabel = 'RENEW NOW';
@@ -2130,10 +2144,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       children: [
         if (_iapEnabledForPlatform) ...[
           chip('iap', storeLabel, Icons.shop_rounded),
-          if (_razorpayEnabled) const SizedBox(width: 8),
+          if (_razorpayAvailable) const SizedBox(width: 8),
         ],
-        if (_razorpayEnabled)
-          chip('razorpay', 'Razorpay', Icons.account_balance_wallet_outlined),
+        if (_razorpayAvailable)
+          chip('razorpay', 'Razorpay (IN)', Icons.account_balance_wallet_outlined),
       ],
     );
   }
@@ -2452,6 +2466,23 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   }
 
   Widget _buildLegalFooter(bool isDark) {
+    final usingRazorpay = _paymentMethod == 'razorpay' && _razorpayAvailable;
+    final body = usingRazorpay
+        ? '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
+            '• Length: 1 Month, 3 Months, 6 Months, or 1 Year\n'
+            '• Price: Plan prices are listed in AED and charged in INR (₹) via Razorpay using the published AED→INR rate.\n'
+            '• Region: Razorpay checkout is for India (+91) numbers — UPI and cards.\n\n'
+            'Payment is processed by Razorpay. Your subscription period starts after successful payment verification. '
+            'This is not an auto-renewing App Store or Google Play subscription.'
+        : '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
+            '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
+            '• Price: $_mobileStoreName shows the product list price. Coupons adjust your RealtorOne subscription ledger after activation.\n'
+            '• Test builds: Play may show "/5 min" — that is a sandbox renewal interval, not production billing.\n\n'
+            'Payment will be charged to your iTunes Account (for iOS) or Google Play Account (for Android) at confirmation of purchase. '
+            'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
+            'Account will be charged for renewal within 24-hours prior to the end of the current period. '
+            'Subscriptions may be managed and auto-renewal may be turned off by going to your App Store or Play Store Account Settings after purchase.';
+
     return Column(
       children: [
         const Text(
@@ -2467,14 +2498,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
-            '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
-            '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
-            '• Price: Google Play / App Store shows the product list price. Coupons adjust your RealtorOne subscription ledger after activation.\n'
-            '• Test builds: Play may show "/5 min" — that is a sandbox renewal interval, not production billing.\n\n'
-            'Payment will be charged to your iTunes Account (for iOS) or Google Play Account (for Android) at confirmation of purchase. '
-            'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
-            'Account will be charged for renewal within 24-hours prior to the end of the current period. '
-            'Subscriptions may be managed and auto-renewal may be turned off by going to your App Store or Play Store Account Settings after purchase.',
+            body,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
