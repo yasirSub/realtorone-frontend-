@@ -78,6 +78,11 @@ class ApiEndpoints {
   static const String mySubscription = '/user/subscription';
   static const String validateCoupon = '/subscriptions/validate-coupon';
   static const String purchaseSubscription = '/subscriptions/purchase';
+  static const String razorpayConfig = '/subscriptions/razorpay/config';
+  static const String razorpayCreateOrder = '/subscriptions/razorpay/create-order';
+  static const String razorpayVerify = '/subscriptions/razorpay/verify';
+  static const String paymentSettings = '/subscriptions/payment-settings';
+  static const String pricingPreview = '/subscriptions/pricing-preview';
 
   // ============== PHASE 2: RESULTS TRACKER ==============
   static const String results = '/results';

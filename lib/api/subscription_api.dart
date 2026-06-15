@@ -70,4 +70,44 @@ class SubscriptionApi {
       ...(couponId != null ? {'coupon_id': couponId} : {}),
     }, requiresAuth: true);
   }
+
+  static Future<Map<String, dynamic>> getRazorpayConfig() async {
+    return await ApiClient.get(
+      ApiEndpoints.razorpayConfig,
+      requiresAuth: true,
+      useCache: false,
+    );
+  }
+
+  static Future<Map<String, dynamic>> createRazorpayOrder({
+    required int packageId,
+    required int months,
+    int? couponId,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.razorpayCreateOrder, {
+      'package_id': packageId,
+      'months': months,
+      if (couponId != null) 'coupon_id': couponId,
+    }, requiresAuth: true);
+  }
+
+  static Future<Map<String, dynamic>> getPaymentSettings() async {
+    return await ApiClient.get(
+      ApiEndpoints.paymentSettings,
+      requiresAuth: false,
+      useCache: false,
+    );
+  }
+
+  static Future<Map<String, dynamic>> verifyRazorpayPayment({
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.razorpayVerify, {
+      'razorpay_order_id': razorpayOrderId,
+      'razorpay_payment_id': razorpayPaymentId,
+      'razorpay_signature': razorpaySignature,
+    }, requiresAuth: true);
+  }
 }

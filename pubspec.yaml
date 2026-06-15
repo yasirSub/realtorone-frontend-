@@ -63,6 +63,7 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^33.2.8
   sign_in_with_apple: ^8.1.0
   in_app_purchase: ^3.2.3
+  razorpay_flutter: ^1.4.0
   firebase_auth: ^5.7.0
   speech_to_text: ^7.0.0
   flutter_tts: ^4.2.0

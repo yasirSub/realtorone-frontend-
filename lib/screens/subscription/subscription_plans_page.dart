@@ -1,10 +1,14 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../api/app_config.dart';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
+import '../../services/razorpay_service.dart';
 import '../../widgets/elite_loader.dart';
 import '../../utils/responsive_helper.dart';
 import '../../utils/subscription_pricing.dart';
@@ -30,6 +34,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   int? _selectedPackageId;
   int _selectedMonths = 3;
   bool _isPurchasing = false;
+  bool _razorpayEnabled = false;
+  bool _appleIapEnabled = true;
+  bool _googleIapEnabled = true;
+  String _paymentMethod = 'iap';
 
   final TextEditingController _couponController = TextEditingController();
   Map<String, dynamic>? _appliedCoupon;
@@ -37,6 +45,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool _isValidatingCoupon = false;
 
   bool get _isIos => Theme.of(context).platform == TargetPlatform.iOS;
+
+  bool get _iapEnabledForPlatform =>
+      _isIos ? _appleIapEnabled : _googleIapEnabled;
+
+  bool get _showPaymentMethodPicker =>
+      _isMobileIap && _razorpayEnabled && _iapEnabledForPlatform;
 
   int? get _appliedCouponId {
     final id = _appliedCoupon?['id'];
@@ -194,6 +208,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   @override
   void dispose() {
     _couponController.dispose();
+    RazorpayService().dispose();
     super.dispose();
   }
 
@@ -206,10 +221,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         SubscriptionApi.getPackages(),
         SubscriptionApi.getMySubscription(),
         IapService().fetchProducts(IapService.allProductIds),
+        SubscriptionApi.getRazorpayConfig(),
       ]);
 
       final packagesRes = results[0] as Map<String, dynamic>;
       final subRes = results[1] as Map<String, dynamic>;
+      final rzRes = results[3] as Map<String, dynamic>;
 
       if (mounted) {
         setState(() {
@@ -227,6 +244,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             final currentPkgId = int.tryParse(_currentSub?['package_id']?.toString() ?? '');
             _selectedPackageId = _isPremium ? currentPkgId : null;
             _adjustSelectedDuration(_selectedPackageId);
+          }
+          _razorpayEnabled = rzRes['enabled'] == true;
+          final paySettings = rzRes['payment_settings'];
+          if (paySettings is Map) {
+            _appleIapEnabled = paySettings['apple_iap_enabled'] != false;
+            _googleIapEnabled = paySettings['google_iap_enabled'] != false;
+            _razorpayEnabled = paySettings['razorpay_enabled'] == true;
+          }
+          if (_isMobileIap) {
+            if (!_iapEnabledForPlatform && _razorpayEnabled) {
+              _paymentMethod = 'razorpay';
+            } else if (_iapEnabledForPlatform && !_razorpayEnabled) {
+              _paymentMethod = 'iap';
+            }
           }
           _isLoading = false;
         });
@@ -249,11 +280,28 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     final tierName = _normalizeTierName(pkg['name']?.toString() ?? 'Consultant');
 
-    // Use native In-App Purchases for iOS and Android
-    // Apple Guideline 3.1.1: Digital content must use IAP on mobile
     final isMobile =
         Theme.of(context).platform == TargetPlatform.iOS ||
         Theme.of(context).platform == TargetPlatform.android;
+
+    if (isMobile && _paymentMethod == 'razorpay' && _razorpayEnabled) {
+      await _purchaseWithRazorpay(pkg);
+      return;
+    }
+
+    if (isMobile && !_iapEnabledForPlatform) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'App Store / Google Play billing is disabled. Choose Razorpay or contact support.',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
 
     if (isMobile) {
       if (!await _confirmBeforeMobilePurchase(pkg)) return;
@@ -315,6 +363,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       return;
     }
 
+    if (kIsWeb && _razorpayEnabled) {
+      final uri = Uri.parse('${AppConfig.liveWebOrigin}/subscribe');
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
     // Web platform: show a message directing to the app
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -324,6 +378,78 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _purchaseWithRazorpay(Map<String, dynamic> pkg) async {
+    if (_selectedPackageId == null) return;
+
+    setState(() => _isPurchasing = true);
+    try {
+      final orderRes = await SubscriptionApi.createRazorpayOrder(
+        packageId: _selectedPackageId!,
+        months: _selectedMonths,
+        couponId: _appliedCouponId,
+      );
+
+      if (orderRes['success'] != true) {
+        throw Exception(
+          orderRes['message']?.toString() ??
+              'Could not start Razorpay checkout.',
+        );
+      }
+
+      final data = orderRes['data'] as Map<String, dynamic>? ?? {};
+      final packageName = pkg['name']?.toString() ?? 'Plan';
+      final amount = int.tryParse(data['amount']?.toString() ?? '') ?? 0;
+
+      await RazorpayService().openCheckout(
+        keyId: data['key_id']?.toString() ?? '',
+        orderId: data['order_id']?.toString() ?? '',
+        amountPaise: amount,
+        currency: data['currency']?.toString() ?? 'INR',
+        description: '$packageName — $_selectedMonths month(s)',
+        onSuccess: (paymentId, orderId, signature) async {
+          final verify = await SubscriptionApi.verifyRazorpayPayment(
+            razorpayOrderId: orderId,
+            razorpayPaymentId: paymentId,
+            razorpaySignature: signature,
+          );
+          if (verify['success'] != true) {
+            throw Exception(
+              verify['message']?.toString() ?? 'Payment verification failed.',
+            );
+          }
+          if (mounted) {
+            await ApiClient.clearCache();
+            await _loadData();
+            _showSuccessDialog();
+          }
+        },
+        onError: (message) {
+          if (!mounted) return;
+          if (message.toLowerCase().contains('cancel')) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPurchasing = false);
     }
   }
 
@@ -1859,6 +1985,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     String buttonLabel = 'SUBSCRIBE NOW';
     if (isComingSoon) {
       buttonLabel = 'COMING SOON';
+    } else if (_paymentMethod == 'razorpay' && _razorpayEnabled && _isMobileIap) {
+      buttonLabel = isRenewing ? 'RENEW (RAZORPAY)' : 'PAY WITH RAZORPAY';
     } else if (isRenewing) {
       buttonLabel = 'RENEW NOW';
     } else if (!_isPremium) {
@@ -1893,6 +2021,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       isComingSoon: isComingSoon,
                       pkg: pkg,
                     ),
+                    if (_showPaymentMethodPicker) ...[
+                      const SizedBox(height: 10),
+                      _buildPaymentMethodSelector(isDark),
+                    ],
                     const SizedBox(height: 12),
                     _buildPurchaseActionButton(
                       label: buttonLabel,
@@ -1907,12 +2039,22 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
-                      child: _buildPurchaseBarSummary(
-                        isDark: isDark,
-                        name: name,
-                        durationText: durationText,
-                        isComingSoon: isComingSoon,
-                        pkg: pkg,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildPurchaseBarSummary(
+                            isDark: isDark,
+                            name: name,
+                            durationText: durationText,
+                            isComingSoon: isComingSoon,
+                            pkg: pkg,
+                          ),
+                          if (_showPaymentMethodPicker) ...[
+                            const SizedBox(height: 8),
+                            _buildPaymentMethodSelector(isDark),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1928,6 +2070,72 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ),
       ),
     ).animate().slideY(begin: 1, duration: 400.ms, curve: Curves.easeOutCubic);
+  }
+
+  Widget _buildPaymentMethodSelector(bool isDark) {
+    final storeLabel = _isIos ? 'App Store' : 'Google Play';
+
+    Widget chip(String value, String label, IconData icon) {
+      final selected = _paymentMethod == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: _isPurchasing
+              ? null
+              : () => setState(() => _paymentMethod = value),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected
+                  ? const Color(0xFF6366F1).withOpacity(0.18)
+                  : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFF818CF8)
+                    : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 14,
+                  color: selected ? const Color(0xFF818CF8) : const Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      color: selected
+                          ? (isDark ? Colors.white : const Color(0xFF1E293B))
+                          : const Color(0xFF94A3B8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        if (_iapEnabledForPlatform) ...[
+          chip('iap', storeLabel, Icons.shop_rounded),
+          if (_razorpayEnabled) const SizedBox(width: 8),
+        ],
+        if (_razorpayEnabled)
+          chip('razorpay', 'Razorpay', Icons.account_balance_wallet_outlined),
+      ],
+    );
   }
 
   Widget _buildPurchaseActionButton({
