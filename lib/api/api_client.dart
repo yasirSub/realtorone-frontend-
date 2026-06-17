@@ -464,7 +464,10 @@ class ApiClient {
     String endpoint = '',
   }) {
     if (sessionRequired && response.statusCode == 401) {
-      _triggerSessionExpired();
+      final path = endpoint.split('?').first;
+      if (!path.contains('/user/app-passcode/verify')) {
+        _triggerSessionExpired();
+      }
     }
 
     final infrastructureFailure = _isInfrastructureFailure(

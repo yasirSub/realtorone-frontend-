@@ -8,6 +8,7 @@ import '../../api/user_api.dart';
 import '../../routes/app_routes.dart';
 import '../../services/app_passcode_service.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../utils/api_user_message.dart';
 import '../../utils/firebase_phone_auth_helper.dart';
 import '../../utils/phone_otp_debug_log.dart';
 import '../../utils/phone_otp_user_message.dart';
@@ -112,8 +113,10 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       if (!mounted) return;
       if (check['success'] != true) {
         setState(() {
-          _error = check['message']?.toString() ??
-              'Could not send email verification code';
+          _error = ApiUserMessage.fromResponse(
+            check,
+            fallback: 'Could not send email verification code',
+          );
           _loading = false;
         });
         return;
@@ -149,7 +152,10 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
       final check = await AppPasscodeApi.forgotPasscodePhone(mobile);
       if (check['success'] != true) {
         setState(() {
-          _error = check['message']?.toString() ?? 'Phone not found';
+          _error = ApiUserMessage.fromResponse(
+            check,
+            fallback: 'Phone not found',
+          );
           _loading = false;
         });
         return;
@@ -288,7 +294,10 @@ class _AppPasscodeForgotScreenState extends State<AppPasscodeForgotScreen> {
         return;
       }
       setState(() {
-        _error = res['message']?.toString() ?? 'Reset failed';
+        _error = ApiUserMessage.fromResponse(
+          res,
+          fallback: 'Reset failed',
+        );
         _loading = false;
       });
     } catch (_) {

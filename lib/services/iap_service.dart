@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../api/api_client.dart';
 import '../api/subscription_api.dart';
+import 'app_passcode_service.dart';
+import '../utils/api_user_message.dart';
 
 class IapService {
   static final IapService _instance = IapService._internal();
@@ -192,9 +194,11 @@ class IapService {
     }
 
     final purchaseParam = PurchaseParam(productDetails: product);
+    AppPasscodeService.instance.beginSuppressLock();
     try {
       await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
     } catch (e) {
+      AppPasscodeService.instance.endSuppressLock();
       onPurchaseResult?.call(false, 'Failed to initiate purchase: $e');
     }
   }
@@ -229,11 +233,17 @@ class IapService {
     }
 
     final purchaseParam = PurchaseParam(productDetails: product);
+    AppPasscodeService.instance.beginSuppressLock();
     try {
       await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
     } catch (e) {
+      AppPasscodeService.instance.endSuppressLock();
       onPurchaseResult?.call(false, 'Failed to initiate purchase: $e');
     }
+  }
+
+  void _finishPurchaseFlow() {
+    AppPasscodeService.instance.endSuppressLock();
   }
 
   Future<void> _listenToPurchaseUpdated(
@@ -252,8 +262,12 @@ class IapService {
           }
           onPurchaseResult?.call(
             false,
-            purchaseDetails.error?.message ?? 'Purchase failed',
+            ApiUserMessage.sanitize(
+              purchaseDetails.error?.message,
+              fallback: 'Purchase failed',
+            ),
           );
+          _finishPurchaseFlow();
           break;
 
         case PurchaseStatus.canceled:
@@ -262,6 +276,7 @@ class IapService {
             await _inAppPurchase.completePurchase(purchaseDetails);
           }
           onPurchaseResult?.call(false, 'Purchase cancelled');
+          _finishPurchaseFlow();
           break;
 
         case PurchaseStatus.purchased:
@@ -287,6 +302,7 @@ class IapService {
                   'Subscription could not be activated. Check your connection and tap Restore Purchases.',
             );
           }
+          _finishPurchaseFlow();
           break;
       }
     }
@@ -432,9 +448,15 @@ class IapService {
       onPurchaseResult?.call(false, 'Store not available on this device.');
       return;
     }
+    AppPasscodeService.instance.beginSuppressLock();
     try {
       await _inAppPurchase.restorePurchases();
+      // Restore may complete without a purchase-stream event.
+      Future<void>.delayed(const Duration(seconds: 4), () {
+        AppPasscodeService.instance.endSuppressLock();
+      });
     } catch (e) {
+      AppPasscodeService.instance.endSuppressLock();
       debugPrint('Restore error: $e');
       onPurchaseResult?.call(false, 'Failed to restore purchases: $e');
     }

@@ -5,6 +5,7 @@ import '../../services/app_passcode_service.dart';
 import '../../services/app_preferences_service.dart';
 import '../../services/biometric_auth_service.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../utils/api_user_message.dart';
 import '../../widgets/passcode_pin_input.dart';
 
 class AppPasscodeSetupScreen extends StatefulWidget {
@@ -85,7 +86,10 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
         return;
       }
       setState(() {
-        _error = res['message']?.toString() ?? 'Could not save passcode';
+        _error = ApiUserMessage.fromResponse(
+          res,
+          fallback: 'Could not save passcode',
+        );
         _loading = false;
       });
     } catch (_) {

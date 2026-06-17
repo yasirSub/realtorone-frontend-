@@ -136,12 +136,6 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _voiceFinalizeInProgress = false;
 
   _VoiceCallStatus get _voiceCallStatus {
-    if (_isListening && _voiceUserSpeaking) {
-      return _VoiceCallStatus.listening;
-    }
-    if (_isListening && _isVoiceInteractionMode) {
-      return _VoiceCallStatus.idle;
-    }
     if (_isListening) return _VoiceCallStatus.listening;
     if (_isSpeaking) return _VoiceCallStatus.speaking;
     if (_isLoading && _isVoiceInteractionMode) {
@@ -244,6 +238,11 @@ class _RevenChatPageState extends State<RevenChatPage>
           break;
         case _VoiceCallStatus.idle:
           mapped = RevenOverlayCallStatus.idle;
+          final idleCap = (_isListening ? _voiceTranscript : _lastVoiceCaption).trim();
+          if (_isListening && idleCap.isNotEmpty) {
+            caption = _truncateOverlayCaption(idleCap);
+            role = RevenOverlayCaptionRole.user;
+          }
           break;
       }
     } else {
@@ -851,8 +850,9 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _bytesLookLikeMp3(List<int> bytes) {
     if (bytes.length < 3) return false;
     if (bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) return true;
-    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0)
+    if (bytes.length >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0) {
       return true;
+    }
     return false;
   }
 
@@ -992,6 +992,16 @@ class _RevenChatPageState extends State<RevenChatPage>
       final err =
           voiceRes?['reply_audio_error']?.toString() ??
           voiceRes?['message']?.toString();
+      final spoke = await _speakDeviceTts(text);
+      if (spoke) {
+        if (err != null && err.isNotEmpty) {
+          _showVoiceSnack('$err — using device voice.');
+        }
+        if (_isVoiceInteractionMode) {
+          await _scheduleVoiceListenAfterReply();
+        }
+        return;
+      }
       _showVoiceSnack(
         err != null && err.isNotEmpty
             ? err
@@ -1221,7 +1231,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _startVoiceInput({bool forceDevice = false}) async {
     if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
 
-    if (!forceDevice && _effectiveCloudStt) {
+    if (!forceDevice && _effectiveCloudStt && !_isVoiceInteractionMode) {
       await _startCloudVoiceInput();
       return;
     }
@@ -1269,6 +1279,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     _micPulseController.stop();
     _syncOverlayPresentation();
     _markUserVoiceActivity();
+    if (_isVoiceInteractionMode) {
+      _micPulseController.repeat(reverse: true);
+    }
 
     await _speech.listen(
       onResult: (result) {
@@ -2034,7 +2047,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (!mounted) return;
     String? ttsReply;
     Map<String, dynamic>? ttsRes;
-    String? deferredVoiceReply;
     final shouldSpeak = _voiceReadAloud && (voiceTurn || _lastTurnWasVoice);
     _stopWaitElapsedTicker();
     setState(() {
@@ -2043,10 +2055,11 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (res['success'] == true && res['awaiting_human'] == true) {
         _humanHandoffActive = res['human_handoff_active'] == true;
         final sid = res['session_id'];
-        if (sid is int)
+        if (sid is int) {
           _sessionId = sid;
-        else if (sid != null)
+        } else if (sid != null) {
           _sessionId = int.tryParse(sid.toString());
+        }
         final handoffReply = (res['reply'] as String?)?.trim() ?? '';
         if (handoffReply.isNotEmpty) {
           _messages.add(
@@ -2109,17 +2122,7 @@ class _RevenChatPageState extends State<RevenChatPage>
           replyText = replyText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
         }
 
-        final holdTextForVoice =
-            voiceTurn &&
-            shouldSpeak &&
-            inlineCloudVoice &&
-            replyText.isNotEmpty;
-
-        if (holdTextForVoice) {
-          deferredVoiceReply = replyText;
-          _pendingAssistantReply = replyText;
-          _isSpeaking = true;
-        } else {
+        if (replyText.isNotEmpty) {
           _messages.add(
             _RevenMessage(
               text: replyText,
@@ -2130,6 +2133,9 @@ class _RevenChatPageState extends State<RevenChatPage>
               createdAt: DateTime.now(),
             ),
           );
+          if (voiceTurn && shouldSpeak) {
+            _pendingAssistantReply = replyText;
+          }
         }
 
         // --- Auto-fetch clients/courses if promised but not sent ---
@@ -2142,7 +2148,7 @@ class _RevenChatPageState extends State<RevenChatPage>
           _lastTurnWasVoice = false;
         }
 
-        if (!holdTextForVoice) {
+        if (_messages.isNotEmpty && !_messages.last.isUser) {
           final lastMsg = _messages.last;
           final replyLower = lastMsg.text.toLowerCase();
 
@@ -2206,9 +2212,8 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     });
     if (res['success'] == true) {
-      var speakText =
-          deferredVoiceReply ?? (res['reply'] as String? ?? '').trim();
-      if (voiceTurn && deferredVoiceReply == null) {
+      var speakText = (res['reply'] as String? ?? '').trim();
+      if (voiceTurn) {
         speakText = speakText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
       }
       if (speakText.isEmpty) {
@@ -2225,26 +2230,19 @@ class _RevenChatPageState extends State<RevenChatPage>
     _scrollToBottom();
     if (ttsReply != null) {
       await _speakReply(ttsReply, apiRes: ttsRes);
-      if (deferredVoiceReply != null && mounted) {
-        final reply = deferredVoiceReply!;
+      if (mounted) {
         setState(() {
           _pendingAssistantReply = '';
           _isSpeaking = false;
-          final exists = _messages.any(
-            (m) => !m.isUser && !m.isLoading && m.text == reply,
-          );
-          if (!exists) {
-            _messages.add(
-              _RevenMessage(
-                text: reply,
-                isUser: false,
-                createdAt: DateTime.now(),
-              ),
-            );
-          }
         });
-        _scrollToBottom();
       }
+    }
+    if (voiceTurn && mounted) {
+      setState(() {
+        _lastVoiceCaption = '';
+        _voiceTranscript = '';
+      });
+      _scrollToBottom();
     }
     // Hands-free: re-open mic after reply unless the user muted it with the mic button.
     if (_isVoiceInteractionMode &&
@@ -3077,37 +3075,50 @@ class _RevenVoiceComposer extends StatelessWidget {
     }
   }
 
-  String get _statusText {
+  String? get _primaryCaption {
+    final cap = liveCaption.trim();
     switch (status) {
       case _VoiceCallStatus.listening:
-        return liveCaption.trim().isNotEmpty
-            ? liveCaption.trim()
-            : 'Listening to you…';
+        return cap.isNotEmpty ? cap : null;
+      case _VoiceCallStatus.processing:
+        if (cap.isEmpty || cap == 'Transcribing…') return null;
+        return cap;
+      case _VoiceCallStatus.speaking:
+        final spoken = speakingCaption.trim().isNotEmpty
+            ? speakingCaption.trim()
+            : cap;
+        return spoken.isNotEmpty ? spoken : null;
+      case _VoiceCallStatus.idle:
+        if (micSessionOpen && cap.isNotEmpty) return cap;
+        return null;
+    }
+  }
+
+  String get _hintText {
+    final primary = _primaryCaption;
+    switch (status) {
+      case _VoiceCallStatus.listening:
+        if (primary != null) return 'Listening…';
+        return 'Listening to you…';
       case _VoiceCallStatus.processing:
         if (processingSince != null) {
           return 'Thinking… ${_RevenChatTimestamps.waiting(processingSince!)}';
         }
-        return 'Thinking…';
+        return primary != null ? 'Thinking…' : 'Thinking…';
       case _VoiceCallStatus.speaking:
-        final cap = speakingCaption.trim().isNotEmpty
-            ? speakingCaption.trim()
-            : liveCaption.trim();
-        if (cap.isNotEmpty) {
-          return cap.length > 140 ? '${cap.substring(0, 137)}…' : cap;
-        }
-        return 'Speaking… · tap mic to interrupt';
+        return primary != null ? 'Speaking…' : 'Speaking… · tap orb or mic to interrupt';
       case _VoiceCallStatus.idle:
-        if (micPaused) {
-          return 'Tap the mic to resume';
-        }
+        if (micPaused) return 'Tap the orb or mic to resume';
         if (micSessionOpen) {
-          return 'Speak now — sends when you pause (~½ sec)';
+          return primary != null
+              ? 'Keep talking — sends when you pause'
+              : 'Speak now — sends when you pause (~½ sec)';
         }
-        return 'Tap the mic and talk — like ChatGPT voice';
+        return 'Tap the orb or mic and talk';
     }
   }
 
-  bool get _micIsListening => userSpeaking;
+  bool get _micIsListening => userSpeaking || micSessionOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -3125,28 +3136,54 @@ class _RevenVoiceComposer extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _VoiceCallOrb(
-                  accent: _accent,
-                  active: userSpeaking,
-                  pulse: pulse,
-                  isListening: userSpeaking,
-                  size: compact ? 56 : 72,
+                GestureDetector(
+                  onTap: onMicTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: _VoiceCallOrb(
+                    accent: _accent,
+                    active: userSpeaking || micSessionOpen,
+                    pulse: pulse,
+                    isListening: micSessionOpen,
+                    size: compact ? 56 : 72,
+                  ),
                 ),
                 SizedBox(height: compact ? 6 : 10),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
-                  child: Text(
-                    _statusText,
-                    key: ValueKey(_statusText),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _micIsListening ? titleColor : subtitleColor,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
-                    ),
+                  child: Column(
+                    key: ValueKey('${_primaryCaption ?? ''}|$_hintText'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_primaryCaption != null) ...[
+                        Text(
+                          _primaryCaption!,
+                          textAlign: TextAlign.center,
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: titleColor,
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
+                      Text(
+                        _hintText,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: _primaryCaption != null
+                              ? subtitleColor
+                              : (_micIsListening ? titleColor : subtitleColor),
+                          fontSize: _primaryCaption != null ? 11.5 : 12.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -3346,7 +3383,7 @@ class _VoiceCallOrb extends StatelessWidget {
     final core = size * 0.72;
     return AnimatedBuilder(
       animation: pulse,
-      builder: (_, __) {
+      builder: (_, child) {
         final ring = isListening ? 0.12 + pulse.value * 0.18 : 0.08;
         return SizedBox(
           width: size + ring * 60,
@@ -3453,7 +3490,7 @@ class _VoiceWaveBarsState extends State<_VoiceWaveBars>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, child) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: List.generate(3, (i) {

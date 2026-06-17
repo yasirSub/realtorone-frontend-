@@ -6,6 +6,7 @@ import '../../services/app_passcode_service.dart';
 import '../../services/app_preferences_service.dart';
 import '../../services/biometric_auth_service.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../utils/api_user_message.dart';
 import '../../widgets/passcode_pin_input.dart';
 
 class AppPasscodeLockScreen extends StatefulWidget {
@@ -115,9 +116,29 @@ class _AppPasscodeLockScreenState extends State<AppPasscodeLockScreen> {
         }
         return;
       }
+      final msg = ApiUserMessage.fromResponse(
+        res,
+        fallback: 'Incorrect passcode',
+      );
+      final statusCode = res['statusCode'];
+      if (statusCode == 401 ||
+          msg.toLowerCase().contains('session expired')) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please sign in again.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.login,
+          (_) => false,
+        );
+        return;
+      }
       setState(() {
         _hasError = true;
-        _error = res['message']?.toString() ?? 'Incorrect passcode';
+        _error = msg;
         _loading = false;
       });
       _pinKey.currentState?.clear();

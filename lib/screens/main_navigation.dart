@@ -156,16 +156,26 @@ class _MainNavigationState extends State<MainNavigation>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+    // Only lock when the app is fully backgrounded — not on `inactive`
+    // (Razorpay / Play Store / App Store sheets use inactive without leaving).
+    if (state == AppLifecycleState.paused) {
       AppPasscodeService.instance.lock();
     } else if (state == AppLifecycleState.resumed &&
         AppPasscodeService.instance.needsLock &&
+        !AppPasscodeService.instance.isLockSuppressed &&
         mounted) {
-      Navigator.of(context).pushNamed(
-        AppRoutes.appPasscodeLock,
-        arguments: const {'popOnSuccess': true},
-      );
+      // Brief delay so payment sheets can call endSuppressLock first.
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (!mounted) return;
+        if (!AppPasscodeService.instance.needsLock ||
+            AppPasscodeService.instance.isLockSuppressed) {
+          return;
+        }
+        Navigator.of(context).pushNamed(
+          AppRoutes.appPasscodeLock,
+          arguments: const {'popOnSuccess': true},
+        );
+      });
     }
   }
 

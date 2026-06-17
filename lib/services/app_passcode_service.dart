@@ -7,8 +7,22 @@ class AppPasscodeService extends ChangeNotifier {
 
   bool hasPasscode = false;
   bool _unlocked = false;
+  int _suppressLockDepth = 0;
 
   bool get needsLock => hasPasscode && !_unlocked;
+
+  /// True while external flows (Razorpay, App Store, etc.) temporarily leave the app.
+  bool get isLockSuppressed => _suppressLockDepth > 0;
+
+  void beginSuppressLock() {
+    _suppressLockDepth++;
+  }
+
+  void endSuppressLock() {
+    if (_suppressLockDepth > 0) {
+      _suppressLockDepth--;
+    }
+  }
 
   void configureFromProfile(Map<String, dynamic>? data) {
     if (data == null) {
@@ -26,7 +40,7 @@ class AppPasscodeService extends ChangeNotifier {
   }
 
   void lock() {
-    if (!hasPasscode) return;
+    if (!hasPasscode || isLockSuppressed) return;
     _unlocked = false;
     notifyListeners();
   }

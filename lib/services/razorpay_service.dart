@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
+import 'app_passcode_service.dart';
+import '../utils/api_user_message.dart';
+
 typedef RazorpaySuccessHandler = Future<void> Function(
   String paymentId,
   String orderId,
@@ -45,6 +48,8 @@ class RazorpayService {
     _onError = onError;
     _checkoutCompleter = Completer<void>();
 
+    AppPasscodeService.instance.beginSuppressLock();
+
     _razorpay?.clear();
     _razorpay = Razorpay();
     _razorpay!
@@ -69,11 +74,18 @@ class RazorpayService {
     try {
       _razorpay!.open(options);
     } catch (e) {
+      AppPasscodeService.instance.endSuppressLock();
       _checkoutCompleter?.completeError(e);
       rethrow;
     }
 
     return _checkoutCompleter!.future;
+  }
+
+  void _finishCheckout() {
+    AppPasscodeService.instance.endSuppressLock();
+    _razorpay?.clear();
+    _razorpay = null;
   }
 
   Future<void> _handleSuccess(PaymentSuccessResponse response) async {
@@ -84,6 +96,7 @@ class RazorpayService {
     if (paymentId.isEmpty || orderId.isEmpty || signature.isEmpty) {
       _onError?.call('Incomplete payment response from Razorpay.');
       _checkoutCompleter?.complete();
+      _finishCheckout();
       return;
     }
 
@@ -94,19 +107,20 @@ class RazorpayService {
       _onError?.call(e.toString());
       _checkoutCompleter?.completeError(e);
     } finally {
-      _razorpay?.clear();
-      _razorpay = null;
+      _finishCheckout();
     }
   }
 
   void _handleError(PaymentFailureResponse response) {
-    final message = response.message ?? 'Payment failed';
+    final message = ApiUserMessage.sanitize(
+      response.message,
+      fallback: 'Payment failed. Please try again.',
+    );
     if (!message.toLowerCase().contains('cancel')) {
       _onError?.call(message);
     }
     _checkoutCompleter?.complete();
-    _razorpay?.clear();
-    _razorpay = null;
+    _finishCheckout();
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {

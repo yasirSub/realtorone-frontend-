@@ -14,6 +14,7 @@ import '../../utils/responsive_helper.dart';
 import '../../api/user_api.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/subscription_pricing.dart';
+import '../../utils/api_user_message.dart';
 import '../legal/legal_document_webview_page.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
@@ -392,7 +393,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               }
 
               // Provide a more helpful message for common store issues (like emulators)
-              String displayMessage = message;
+              String displayMessage = ApiUserMessage.sanitize(
+                message,
+                fallback: 'Payment could not be completed. Please try again.',
+              );
               if (message.toLowerCase().contains('store not available')) {
                 displayMessage =
                     'Payment services are not available on this device (Emulator). Please use a physical phone with a logged-in Google Play or App Store account.';
@@ -495,10 +499,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         },
         onError: (message) {
           if (!mounted) return;
-          if (message.toLowerCase().contains('cancel')) return;
+          final safe = ApiUserMessage.sanitize(
+            message,
+            fallback: 'Payment could not be completed. Please try again.',
+          );
+          if (safe.toLowerCase().contains('cancel')) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(message),
+              content: Text(safe),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
             ),
@@ -509,7 +517,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            content: Text(
+              ApiUserMessage.sanitize(
+                e.toString().replaceFirst('Exception: ', ''),
+                fallback: 'Could not start payment. Please try again.',
+              ),
+            ),
             backgroundColor: Colors.redAccent,
             behavior: SnackBarBehavior.floating,
           ),
