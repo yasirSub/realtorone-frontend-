@@ -104,7 +104,6 @@ class _RevenChatPageState extends State<RevenChatPage>
   Timer? _handoffPollTimer;
   final stt.SpeechToText _speech = stt.SpeechToText();
   final RevenCloudSpeechCapture _cloudSpeech = RevenCloudSpeechCapture();
-  bool _cloudCaptureHadSpeech = false;
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _cloudPlayer = AudioPlayer();
   static const _prefVoiceKey = 'reven_preferred_voice_id';
@@ -500,7 +499,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     _cancelVoiceInactivityTimer();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
-    _cloudCaptureHadSpeech = false;
     await _cloudSpeech.cancel();
     try {
       if (_isListening) {
@@ -1049,7 +1047,6 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   void _scheduleVoiceUtteranceFinalize() {
     if (_isVoiceInteractionMode && _voiceUserSpeaking) return;
-    if (_effectiveCloudStt && !_cloudCaptureHadSpeech) return;
     _voiceUtteranceTimer?.cancel();
     final delay = _isVoiceInteractionMode
         ? const Duration(milliseconds: 2200)
@@ -1057,9 +1054,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceUtteranceTimer = Timer(delay, () {
       if (!_isListening) return;
       if (_effectiveCloudStt) {
-        if (_cloudCaptureHadSpeech) {
-          unawaited(_finishVoiceSession());
-        }
+        // Always attempt transcription for recorded audio; amplitude detection
+        // can miss quieter voices on some devices.
+        unawaited(_finishVoiceSession());
         return;
       }
       if (_voiceTranscript.trim().isNotEmpty) {
@@ -1071,10 +1068,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   void _onVoiceSoundLevel(double level) {
     if (!_isListening || !mounted) return;
 
-    final speaking = level > _voiceSoundActiveDb;
-    if (_effectiveCloudStt && _cloudSpeech.isActive && speaking) {
-      _cloudCaptureHadSpeech = true;
-    }
+    final cloudThreshold = _voiceSoundActiveDb - 15; // improve quiet voice pickup
+    final speaking = _effectiveCloudStt ? level > cloudThreshold : level > _voiceSoundActiveDb;
     final changedSpeaking = speaking != _voiceUserSpeaking;
 
     if (changedSpeaking || (speaking && (_voiceSoundLevel - level).abs() > 2)) {
@@ -1113,7 +1108,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         _voiceSilenceFinalizeTimer?.cancel();
         return;
       }
-      if (_isVoiceInteractionMode && _cloudCaptureHadSpeech) {
+      if (_isVoiceInteractionMode) {
         _voiceSilenceFinalizeTimer = Timer(_voiceSilenceSendDelay, () {
           if (!mounted || !_isListening || _voiceUserSpeaking) return;
           unawaited(_finishVoiceSession());
@@ -1212,7 +1207,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceSilenceFinalizeTimer?.cancel();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
-    _cloudCaptureHadSpeech = false;
     try {
       if (_cloudSpeech.isActive) {
         await _cloudSpeech.cancel();
@@ -1336,7 +1330,6 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     _voiceTranscript = '';
-    _cloudCaptureHadSpeech = false;
     if (mounted) {
       setState(() => _lastVoiceCaption = '');
     }
@@ -1381,7 +1374,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       if (!mounted) return;
       setState(() => _isListening = false);
 
-      if (path == null || !_cloudCaptureHadSpeech) {
+      if (path == null) {
         if (!_voiceMicPausedByUser) {
           await _restartVoiceListenIfNeeded();
         }
@@ -1437,7 +1430,6 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     } finally {
       _voiceFinalizeInProgress = false;
-      _cloudCaptureHadSpeech = false;
     }
   }
 
@@ -1601,7 +1593,7 @@ class _RevenChatPageState extends State<RevenChatPage>
             ),
           ],
           child: Text(
-            'This chat will be permanently deleted. You can\'t undo this.',
+            'This chat will be removed from your app history.',
             style: TextStyle(
               fontSize: 14,
               height: 1.4,
@@ -1616,6 +1608,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       final res = await ChatApi.deleteSession(sid);
       if (res['success'] == true && mounted) {
         final wasCurrent = _sessionId == sid;
+        await _fetchSessions();
         if (wasCurrent) {
           _popSheet();
           setState(() {
@@ -1629,11 +1622,15 @@ class _RevenChatPageState extends State<RevenChatPage>
               ),
             );
           });
-        } else {
-          await _fetchSessions();
         }
+      } else if (mounted) {
+        _showVoiceSnack(res['message']?.toString() ?? 'Could not delete chat.');
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        _showVoiceSnack('Could not delete chat: $e');
+      }
+    }
   }
 
   Future<void> _switchToSession(int sid) async {
