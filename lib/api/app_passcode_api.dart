@@ -1,12 +1,16 @@
 import 'api_client.dart';
 import 'api_endpoints.dart';
 
+void _invalidateProfileCache() {
+  ApiClient.invalidateEndpointCache(ApiEndpoints.userProfile);
+}
+
 class AppPasscodeApi {
   static Future<Map<String, dynamic>> setPasscode({
     required String passcode,
     String? currentPasscode,
   }) async {
-    return ApiClient.post(
+    final result = await ApiClient.post(
       ApiEndpoints.appPasscodeSet,
       {
         'passcode': passcode,
@@ -15,6 +19,10 @@ class AppPasscodeApi {
       },
       requiresAuth: true,
     );
+    if (result['success'] == true) {
+      _invalidateProfileCache();
+    }
+    return result;
   }
 
   static Future<Map<String, dynamic>> verifyPasscode(String passcode) async {
@@ -29,7 +37,7 @@ class AppPasscodeApi {
     String? passcode,
     String? idToken,
   }) async {
-    return ApiClient.post(
+    final result = await ApiClient.post(
       ApiEndpoints.appPasscodeDisable,
       {
         if (passcode != null && passcode.isNotEmpty) 'passcode': passcode,
@@ -37,6 +45,33 @@ class AppPasscodeApi {
       },
       requiresAuth: true,
     );
+    if (result['success'] == true) {
+      _invalidateProfileCache();
+    }
+    return result;
+  }
+
+  static Future<Map<String, dynamic>> forgotPasscodeEmail() async {
+    return ApiClient.post(
+      ApiEndpoints.appPasscodeForgotEmail,
+      const {},
+      requiresAuth: true,
+    );
+  }
+
+  static Future<Map<String, dynamic>> resetPasscodeEmail({
+    required String token,
+    required String passcode,
+  }) async {
+    final result = await ApiClient.post(
+      ApiEndpoints.appPasscodeResetEmail,
+      {'token': token, 'passcode': passcode},
+      requiresAuth: true,
+    );
+    if (result['success'] == true) {
+      _invalidateProfileCache();
+    }
+    return result;
   }
 
   static Future<Map<String, dynamic>> forgotPasscodePhone(String mobile) async {
@@ -47,30 +82,18 @@ class AppPasscodeApi {
     );
   }
 
-  static Future<Map<String, dynamic>> forgotResetWithOtp({
-    required String mobile,
-    required String token,
-    required String passcode,
-  }) async {
-    return ApiClient.post(
-      ApiEndpoints.appPasscodeForgotResetOtp,
-      {
-        'mobile': mobile,
-        'token': token,
-        'passcode': passcode,
-      },
-      requiresAuth: false,
-    );
-  }
-
   static Future<Map<String, dynamic>> resetPasscodePhone({
     required String idToken,
     required String passcode,
   }) async {
-    return ApiClient.post(
+    final result = await ApiClient.post(
       ApiEndpoints.appPasscodeResetPhone,
       {'id_token': idToken, 'passcode': passcode},
       requiresAuth: true,
     );
+    if (result['success'] == true) {
+      _invalidateProfileCache();
+    }
+    return result;
   }
 }

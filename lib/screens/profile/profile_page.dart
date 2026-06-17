@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../api/api_client.dart';
@@ -23,6 +24,7 @@ import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
 import '../chatbot/reven_feedback_sheet.dart';
 import '../../services/app_passcode_service.dart';
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -573,8 +575,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                 icon: Icons.settings_outlined,
                                 title: l10n.profileAppSettingsTitle,
                                 subtitle: l10n.profileAppSettingsSubtitle,
-                                onTap: () =>
-                                    Navigator.pushNamed(context, AppRoutes.settings),
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.settings,
+                                ),
                               ),
                               if (_userData?['is_admin'] == true)
                                 _MenuItem(
@@ -884,8 +888,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   double _executionRateValue() {
     final raw = _userData?['execution_rate']?.toString() ?? '0';
-    return (double.tryParse(raw.replaceAll('%', '').trim()) ?? 0)
-        .clamp(0, 100);
+    return (double.tryParse(raw.replaceAll('%', '').trim()) ?? 0).clamp(0, 100);
   }
 
   List<Color> _getTierGradient(String? tier) {
@@ -1004,7 +1007,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: CircularProgressIndicator(
                     value: execution / 100,
                     strokeWidth: 3,
-                    backgroundColor: const Color(0xFF667eea).withValues(alpha: 0.15),
+                    backgroundColor: const Color(
+                      0xFF667eea,
+                    ).withValues(alpha: 0.15),
                     valueColor: const AlwaysStoppedAnimation(Color(0xFF667eea)),
                   ),
                 ),
@@ -1374,22 +1379,22 @@ class _ProfilePageState extends State<ProfilePage> {
                               borderSide: BorderSide.none,
                             ),
                           ),
-                          selectedItemBuilder: (context) =>
-                              PhoneUtils.countryOptions
-                                  .map(
-                                    (item) => Text(
-                                      item['code']!,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: isDark
-                                            ? Colors.white
-                                            : const Color(0xFF0F172A),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
+                          selectedItemBuilder: (context) => PhoneUtils
+                              .countryOptions
+                              .map(
+                                (item) => Text(
+                                  item['code']!,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              )
+                              .toList(),
                           items: PhoneUtils.countryOptions
                               .map(
                                 (item) => DropdownMenuItem<String>(
@@ -1478,7 +1483,10 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
     PhoneOtpDebugLog.start('profile phone verification');
     PhoneOtpDebugLog.log('tap', 'Phone Verification button pressed');
-    PhoneOtpDebugLog.log('user', 'email=$email phone=${PhoneOtpDebugLog.maskPhone(phone)}');
+    PhoneOtpDebugLog.log(
+      'user',
+      'email=$email phone=${PhoneOtpDebugLog.maskPhone(phone)}',
+    );
     PhoneOtpDebugLog.log(
       'provider',
       PhoneOtpSendCoordinator.iosUsesBackendSms
@@ -1797,7 +1805,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   );
                   if (!dCtx.mounted) return;
                   if (resend.ok &&
-                      (resend.verificationId != null || resend.usesBackendSms)) {
+                      (resend.verificationId != null ||
+                          resend.usesBackendSms)) {
                     if (resend.verificationId != null) {
                       currentFirebaseVerificationId = resend.verificationId!;
                     }
@@ -2069,7 +2078,9 @@ class _ProfilePageState extends State<ProfilePage> {
       return {'status': 'error', 'message': friendly};
     } catch (e) {
       PhoneOtpDebugLog.error('verify credential', e);
-      final friendly = PhoneOtpUserMessage.forVerifyFailure(technical: e.toString());
+      final friendly = PhoneOtpUserMessage.forVerifyFailure(
+        technical: e.toString(),
+      );
       if (mounted) {
         setState(() => _isLoading = false);
         if (showSnackBarFeedback) {

@@ -1,10 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/user_api.dart';
 import '../../utils/phone_utils.dart';
 import '../../utils/profile_contact_verification.dart';
+import '../../utils/responsive_helper.dart';
+import '../../theme/realtorone_brand.dart';
 import '../../widgets/elite_loader.dart';
 import '../../widgets/otp_pin_input_row.dart';
 
@@ -67,8 +68,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _loadProfile();
   }
 
-  Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadProfile({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
     try {
       final response = await UserApi.getProfile(useCache: false);
       if (mounted &&
@@ -366,23 +367,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor:
+          isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Edit Profile',
           style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 20,
-            color: Color(0xFF1E293B),
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E293B),
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
             size: 18,
           ),
           onPressed: () => Navigator.pop(context),
@@ -390,132 +395,186 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('BASIC INFORMATION'),
-                  const SizedBox(height: 20),
-                  _buildTextField(
-                    controller: _firstNameController,
-                    label: 'FIRST NAME',
-                    hint: 'Alexander',
-                    icon: Icons.person_outline_rounded,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Required' : null,
+          RefreshIndicator(
+            onRefresh: () => _loadProfile(silent: true),
+            color: RealtorOneBrand.seed,
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: ResponsiveHelper.contentPadding(
+                    context,
+                    top: 16,
+                    bottom: 28,
                   ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _lastNameController,
-                    label: 'LAST NAME',
-                    hint: 'Last Name',
-                    icon: Icons.person_outline_rounded,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _emailController,
-                    label: 'EMAIL ADDRESS',
-                    hint: 'agent@example.com',
-                    icon: Icons.alternate_email_rounded,
-                    isVerified: _isEmailVerified,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) =>
-                        (v == null || !v.contains('@')) ? 'Invalid' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildPhoneField(),
-                  const SizedBox(height: 16),
-                  _buildCityDropdown(),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _brokerageController,
-                    label: 'BROKERAGE NAME',
-                    hint: 'E.g. Blue Chip Real Estate',
-                    icon: Icons.apartment_rounded,
-                  ),
-
-                  const SizedBox(height: 48),
-                  _buildSectionHeader('PROFESSIONAL DETAILS'),
-                  const SizedBox(height: 20),
-                  _buildTextField(
-                    controller: _instagramController,
-                    label: 'INSTAGRAM',
-                    hint: '@username',
-                    customIcon: Image.asset(
-                      'assets/images/instagram_logo.png',
-                      width: 20,
-                      height: 20,
-                    ),
-                    prefix: '@',
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _linkedinController,
-                    label: 'LINKEDIN URL',
-                    hint: 'linkedin.com/in/username',
-                    customIcon: Image.asset(
-                      'assets/images/linkedin_logo.png',
-                      width: 20,
-                      height: 20,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _experienceController,
-                    label: 'YEARS OF EXPERIENCE',
-                    hint: '5',
-                    icon: Icons.military_tech_outlined,
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _currentIncomeController,
-                    label: 'CURRENT MONTHLY INCOME',
-                    hint: '50,000',
-                    icon: Icons.account_balance_wallet_outlined,
-                    prefix: 'AED ',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _targetIncomeController,
-                    label: 'TARGET MONTHLY INCOME',
-                    hint: '150,000',
-                    icon: Icons.auto_graph_rounded,
-                    prefix: 'AED ',
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 60),
-
-                  SizedBox(
-                    width: double.infinity,
-                    height: 64,
-                    child: ElevatedButton(
-                      onPressed: _isSaving ? null : _handleSave,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E293B),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: ResponsiveHelper.constrainWidth(
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionCard(
+                              isDark: isDark,
+                              title: 'Basic information',
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _buildTextField(
+                                        controller: _firstNameController,
+                                        label: 'First name',
+                                        hint: 'First name',
+                                        icon: Icons.person_outline_rounded,
+                                        isDark: isDark,
+                                        validator: (v) => (v == null ||
+                                                v.isEmpty)
+                                            ? 'Required'
+                                            : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _buildTextField(
+                                        controller: _lastNameController,
+                                        label: 'Last name',
+                                        hint: 'Last name',
+                                        icon: Icons.person_outline_rounded,
+                                        isDark: isDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                _buildTextField(
+                                  controller: _emailController,
+                                  label: 'Email',
+                                  hint: 'agent@example.com',
+                                  icon: Icons.alternate_email_rounded,
+                                  isDark: isDark,
+                                  isVerified: _isEmailVerified,
+                                  keyboardType: TextInputType.emailAddress,
+                                  validator: (v) => (v == null || !v.contains('@'))
+                                      ? 'Invalid'
+                                      : null,
+                                ),
+                                const SizedBox(height: 10),
+                                _buildPhoneField(isDark),
+                                const SizedBox(height: 10),
+                                _buildCityDropdown(isDark),
+                                const SizedBox(height: 10),
+                                _buildTextField(
+                                  controller: _brokerageController,
+                                  label: 'Brokerage',
+                                  hint: 'Company name',
+                                  icon: Icons.apartment_rounded,
+                                  isDark: isDark,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            _sectionCard(
+                              isDark: isDark,
+                              title: 'Professional details',
+                              children: [
+                                _buildTextField(
+                                  controller: _instagramController,
+                                  label: 'Instagram',
+                                  hint: 'username',
+                                  isDark: isDark,
+                                  customIcon: Image.asset(
+                                    'assets/images/instagram_logo.png',
+                                    width: 16,
+                                    height: 16,
+                                  ),
+                                  prefix: '@',
+                                ),
+                                const SizedBox(height: 10),
+                                _buildTextField(
+                                  controller: _linkedinController,
+                                  label: 'LinkedIn',
+                                  hint: 'linkedin.com/in/username',
+                                  isDark: isDark,
+                                  customIcon: Image.asset(
+                                    'assets/images/linkedin_logo.png',
+                                    width: 16,
+                                    height: 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                _buildTextField(
+                                  controller: _experienceController,
+                                  label: 'Years of experience',
+                                  hint: '5',
+                                  icon: Icons.military_tech_outlined,
+                                  isDark: isDark,
+                                  keyboardType: TextInputType.number,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _buildTextField(
+                                        controller: _currentIncomeController,
+                                        label: 'Current income',
+                                        hint: '50,000',
+                                        icon: Icons.account_balance_wallet_outlined,
+                                        isDark: isDark,
+                                        prefix: 'AED ',
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _buildTextField(
+                                        controller: _targetIncomeController,
+                                        label: 'Target income',
+                                        hint: '150,000',
+                                        icon: Icons.auto_graph_rounded,
+                                        isDark: isDark,
+                                        prefix: 'AED ',
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 44,
+                              child: FilledButton(
+                                onPressed: _isSaving ? null : _handleSave,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: RealtorOneBrand.seed,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Text(
+                                  'Save changes',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
                         ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'SAVE CHANGES',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                          letterSpacing: 1.5,
-                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+                );
+              },
             ),
           ),
           if (_isLoading || _isSaving) EliteLoader.top(),
@@ -524,21 +583,104 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildPhoneField() {
+  Widget _sectionCard({
+    required bool isDark,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.06)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _fieldDecoration({
+    required bool isDark,
+    required String hint,
+    String? prefix,
+    IconData? icon,
+    Widget? customIcon,
+  }) {
+    return InputDecoration(
+      isDense: true,
+      hintText: hint,
+      prefixText: prefix,
+      hintStyle: TextStyle(
+        color: isDark ? Colors.white38 : const Color(0xFFCBD5E1),
+        fontSize: 13,
+      ),
+      prefixIcon: icon != null || customIcon != null
+          ? Icon(
+              icon,
+              color: RealtorOneBrand.seed,
+              size: 18,
+            )
+          : null,
+      prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 36),
+      filled: true,
+      fillColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : const Color(0xFFE2E8F0),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: RealtorOneBrand.seed, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          padding: const EdgeInsets.only(left: 2, bottom: 6),
           child: Row(
             children: [
               const Text(
-                'PHONE NUMBER',
+                'Phone',
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF64748B),
-                  letterSpacing: 0.8,
                 ),
               ),
               if (_isPhoneVerified) ...[
@@ -552,19 +694,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 128,
+              width: 108,
               child: DropdownButtonFormField<String>(
                 value: _selectedDialCode,
                 decoration: InputDecoration(
+                  isDense: true,
                   filled: true,
-                  fillColor: Colors.grey[50],
+                  fillColor: isDark
+                      ? const Color(0xFF0F172A)
+                      : const Color(0xFFF8FAFC),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 16,
+                    vertical: 10,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFE2E8F0),
+                    ),
                   ),
                 ),
                 items: PhoneUtils.countryOptions
@@ -596,23 +745,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     PhoneUtils.maxInputLengthFor(_selectedDialCode),
                   ),
                 ],
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E293B),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Phone number',
-                  prefixIcon: const Icon(
-                    Icons.phone_android_rounded,
-                    color: Color(0xFF667eea),
-                  ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
+                decoration: _fieldDecoration(
+                  isDark: isDark,
+                  hint: 'Phone number',
+                  icon: Icons.phone_android_rounded,
                 ),
                 validator: PhoneUtils.localDigitsValidator(_selectedDialCode),
               ),
@@ -623,29 +764,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF667eea).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: Color(0xFF667eea),
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.5,
-        ),
-      ),
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
     required String hint,
+    required bool isDark,
     IconData? icon,
     Widget? customIcon,
     String? prefix,
@@ -657,20 +780,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          padding: const EdgeInsets.only(left: 2, bottom: 4),
           child: Row(
             children: [
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF64748B),
-                  letterSpacing: 0.8,
                 ),
               ),
               if (isVerified) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _verifiedBadge(),
               ],
             ],
@@ -679,55 +801,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1E293B),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
           ),
-          decoration: InputDecoration(
-            hintText: hint,
-            prefixText: prefix,
-            hintStyle: const TextStyle(
-              color: Color(0xFFCBD5E1),
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
-            prefixIcon: Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF667eea).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child:
-                  customIcon ??
-                  Icon(icon, color: const Color(0xFF667eea), size: 18),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 20,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(
-                color: Color(0xFFE2E8F0),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Colors.redAccent, width: 2),
-            ),
+          decoration: _fieldDecoration(
+            isDark: isDark,
+            hint: hint,
+            prefix: prefix,
+            icon: customIcon == null ? icon : null,
+          ).copyWith(
+            prefixIcon: customIcon != null
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 10, right: 4),
+                    child: customIcon,
+                  )
+                : icon != null
+                    ? Icon(icon, color: RealtorOneBrand.seed, size: 18)
+                    : null,
           ),
           validator: validator,
         ),
@@ -762,19 +854,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildCityDropdown() {
+  Widget _buildCityDropdown(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 8),
+          padding: EdgeInsets.only(left: 2, bottom: 4),
           child: Text(
-            'PRIMARY OPERATIONAL SECTOR',
+            'City / area',
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF64748B),
-              letterSpacing: 0.8,
             ),
           ),
         ),
@@ -787,50 +878,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
           items: _dubaiCities
               .map((c) => DropdownMenuItem(value: c, child: Text(c)))
               .toList(),
-          decoration: InputDecoration(
-            prefixIcon: Container(
-              margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF667eea).withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.location_on_rounded,
-                color: Color(0xFF667eea),
-                size: 18,
-              ),
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 20,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(
-                color: Color(0xFFE2E8F0),
-                width: 1.5,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(20),
-              borderSide: const BorderSide(color: Color(0xFF667eea), width: 2),
-            ),
+          decoration: _fieldDecoration(
+            isDark: isDark,
+            hint: 'Select area',
+            icon: Icons.location_on_rounded,
           ),
           onChanged: (v) => setState(() => _cityController.text = v!),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1E293B),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
           ),
-          icon: const Icon(
+          icon: Icon(
             Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF64748B),
+            color: isDark ? Colors.white54 : const Color(0xFF64748B),
           ),
-          dropdownColor: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          dropdownColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
         ),
       ],
     );

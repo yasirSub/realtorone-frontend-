@@ -83,6 +83,7 @@ class ApiEndpoints {
   static const String razorpayVerify = '/subscriptions/razorpay/verify';
   static const String paymentSettings = '/subscriptions/payment-settings';
   static const String pricingPreview = '/subscriptions/pricing-preview';
+  static const String pricingQuote = '/subscriptions/pricing-quote';
 
   // ============== PHASE 2: RESULTS TRACKER ==============
   static const String results = '/results';
@@ -129,6 +130,7 @@ class ApiEndpoints {
   // Chat (Reven AI assistant)
   static const String chat = '/chat';
   static const String chatVoiceAudio = '/chat/voice-audio';
+  static const String chatVoiceTranscribe = '/chat/voice-transcribe';
   static const String chatAiQuota = '/chat/ai-quota';
   static const String chatHistory = '/chat/history';
   static String chatHistorySession(int id) => '/chat/history/$id';
@@ -140,9 +142,9 @@ class ApiEndpoints {
   static const String appPasscodeVerify = '/user/app-passcode/verify';
   static const String appPasscodeDisable = '/user/app-passcode/disable';
   static const String appPasscodeForgotPhone = '/user/app-passcode/forgot/phone';
-  static const String appPasscodeForgotResetOtp =
-      '/user/app-passcode/forgot/reset-otp';
+  static const String appPasscodeForgotEmail = '/user/app-passcode/forgot/email';
   static const String appPasscodeResetPhone = '/user/app-passcode/reset/phone';
+  static const String appPasscodeResetEmail = '/user/app-passcode/reset/email';
 
   // Account Deletion
   static const String requestDeletion = '/user/request-deletion';

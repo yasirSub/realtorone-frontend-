@@ -309,6 +309,7 @@ class ApiClient {
     String endpoint, {
     required String filePath,
     String fieldName = 'file',
+    Map<String, String>? fields,
     bool requiresAuth = true,
     Duration timeout = const Duration(seconds: 120),
   }) async {
@@ -321,6 +322,9 @@ class ApiClient {
         if (token != null) {
           request.headers['Authorization'] = 'Bearer $token';
         }
+      }
+      if (fields != null) {
+        request.fields.addAll(fields);
       }
       request.files.add(await http.MultipartFile.fromPath(fieldName, filePath));
       final streamed = await request.send().timeout(timeout);

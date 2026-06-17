@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../api/app_passcode_api.dart';
 import '../../services/app_passcode_service.dart';
+import '../../services/app_preferences_service.dart';
+import '../../services/biometric_auth_service.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../widgets/passcode_pin_input.dart';
 
@@ -74,6 +76,8 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
         AppPasscodeService.instance
           ..hasPasscode = true
           ..unlock();
+        await _maybeEnableBiometric();
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('App passcode saved')),
         );
@@ -90,6 +94,52 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
         _error = 'Connection error. Try again.';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _maybeEnableBiometric() async {
+    await AppPreferencesService.ensureLoaded();
+    if (AppPreferencesService.biometricUnlockEnabled.value) return;
+    if (!await BiometricAuthService.isAvailable()) return;
+
+    final label = await BiometricAuthService.unlockLabel();
+    if (!mounted) return;
+
+    final enable = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: Text('Enable $label?'),
+          content: Text(
+            'Use $label to unlock RealtorOne without entering your passcode each time.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(
+                backgroundColor: RealtorOneBrand.seed,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Enable $label'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (enable != true) return;
+
+    final ok = await BiometricAuthService.authenticate(
+      reason: 'Confirm $label to enable quick unlock',
+    );
+    if (ok) {
+      await AppPreferencesService.setBiometricUnlockEnabled(true);
     }
   }
 
@@ -189,8 +239,8 @@ class _AppPasscodeSetupScreenState extends State<AppPasscodeSetupScreen> {
               const SizedBox(height: 12),
               Text(
                 widget.hasExistingPasscode
-                    ? 'Turn passcode off anytime from Settings → App Passcode.'
-                    : 'You can turn this off later from Settings. Forgot code? Reset with your phone number.',
+                    ? 'Turn passcode off anytime from Passcode & Security in Settings.'
+                    : 'You can turn this off later from Passcode & Security. Forgot code? Reset with your phone number.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

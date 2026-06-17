@@ -36,6 +36,7 @@ import '../screens/system/update_required_page.dart';
 import '../screens/security/app_passcode_lock_screen.dart';
 import '../screens/security/app_passcode_setup_screen.dart';
 import '../screens/security/app_passcode_forgot_screen.dart';
+import '../screens/security/app_passcode_page.dart';
 
 class RouteConfig {
   static Map<String, WidgetBuilder> getRoutes() {
@@ -167,6 +168,7 @@ class RouteConfig {
         );
       },
       AppRoutes.appPasscodeForgot: (context) => const AppPasscodeForgotScreen(),
+      AppRoutes.appPasscodeSettings: (context) => const AppPasscodePage(),
     };
   }
 }

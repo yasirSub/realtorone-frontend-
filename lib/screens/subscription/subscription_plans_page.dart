@@ -42,6 +42,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool _googleIapEnabled = true;
   String _paymentMethod = 'iap';
 
+  double? _serverAedToInrRate;
+  Map<String, dynamic>? _pricingQuote;
+  bool _pricingQuoteLoading = false;
+
   final TextEditingController _couponController = TextEditingController();
   Map<String, dynamic>? _appliedCoupon;
   String? _couponMessage;
@@ -53,6 +57,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       _isIos ? _appleIapEnabled : _googleIapEnabled;
 
   bool get _razorpayAvailable => _razorpayEnabled && _razorpayEligibleForUser;
+
+  bool get _usingRazorpayCheckout =>
+      _paymentMethod == 'razorpay' && _razorpayAvailable;
 
   bool get _showPaymentMethodPicker =>
       _isMobileIap && _razorpayAvailable && _iapEnabledForPlatform;
@@ -259,6 +266,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             _googleIapEnabled = paySettings['google_iap_enabled'] != false;
             final serverRazorpayOn = paySettings['razorpay_enabled'] == true;
             _razorpayEnabled = serverRazorpayOn;
+            final rate = paySettings['aed_to_inr_rate'];
+            if (rate is num) {
+              _serverAedToInrRate = rate.toDouble();
+            }
+          }
+          final rzRate = rzRes['aed_to_inr_rate'];
+          if (rzRate is num) {
+            _serverAedToInrRate = rzRate.toDouble();
           }
           if (profileRes['success'] == true && profileRes['data'] is Map) {
             final mobile = profileRes['data']['mobile']?.toString();
@@ -275,10 +290,48 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           }
           _isLoading = false;
         });
+        if (_razorpayAvailable || _selectedPackageId != null) {
+          await _refreshPricingQuote();
+        }
       }
     } catch (e) {
       debugPrint('Error loading subscription data: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshPricingQuote() async {
+    if (_selectedPackageId == null) {
+      if (mounted) setState(() => _pricingQuote = null);
+      return;
+    }
+
+    setState(() => _pricingQuoteLoading = true);
+    try {
+      final res = await SubscriptionApi.getPricingQuote(
+        packageId: _selectedPackageId!,
+        months: _selectedMonths,
+        couponId: _appliedCouponId,
+        countryCode: SubscriptionPricing.deviceCountryCode(),
+      );
+      if (!mounted) return;
+      if (res['success'] == true && res['data'] is Map) {
+        final data = Map<String, dynamic>.from(res['data'] as Map);
+        final rate = data['aed_to_inr_rate'];
+        setState(() {
+          _pricingQuote = data;
+          if (rate is num) {
+            _serverAedToInrRate = rate.toDouble();
+          }
+        });
+      } else {
+        setState(() => _pricingQuote = null);
+      }
+    } catch (e) {
+      debugPrint('Pricing quote failed: $e');
+      if (mounted) setState(() => _pricingQuote = null);
+    } finally {
+      if (mounted) setState(() => _pricingQuoteLoading = false);
     }
   }
 
@@ -894,6 +947,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
               : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
         });
+        await _refreshPricingQuote();
       } else {
         setState(() {
           _appliedCoupon = null;
@@ -919,6 +973,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       _couponController.clear();
     });
     IapService().pendingCouponId = null;
+    _refreshPricingQuote();
   }
 
   Future<void> _revalidateCouponForSelectedDuration() async {
@@ -942,6 +997,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
               : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
         });
+        await _refreshPricingQuote();
       } else {
         setState(() {
           _appliedCoupon = null;
@@ -958,6 +1014,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   void _onDurationSelected(int months) {
     setState(() => _selectedMonths = months);
     _revalidateCouponForSelectedDuration();
+    _refreshPricingQuote();
   }
 
   double _calculatePrice(Map<String, dynamic> pkg) {
@@ -995,13 +1052,35 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
   }
 
+  double _inrChargeFromAed(double amountAed) {
+    final rate = _serverAedToInrRate ?? SubscriptionPricing.aedToInrRate;
+    return SubscriptionPricing.inrChargeFromAed(amountAed, rate);
+  }
+
   String _getStorePrice(Map<String, dynamic> pkg) {
     final name = pkg['name']?.toString() ?? '';
     final isFree = (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
     if (isFree) return 'FREE';
 
-    final iapProduct = IapService().findProductForTier(name, _selectedMonths);
     final aedTotal = _calculatePrice(pkg);
+
+    // India + Razorpay: show INR (same amount charged at checkout).
+    if (_usingRazorpayCheckout) {
+      final displayAed = _appliedCoupon != null
+          ? _calculatePriceAfterCoupon(pkg)
+          : aedTotal;
+      final selectedId = int.tryParse(pkg['id']?.toString() ?? '');
+      if (selectedId == _selectedPackageId &&
+          _pricingQuote != null &&
+          (_pricingQuote!['amount_inr'] is num)) {
+        return SubscriptionPricing.formatInrLabel(
+          (_pricingQuote!['amount_inr'] as num).toDouble(),
+        );
+      }
+      return SubscriptionPricing.formatInrLabel(_inrChargeFromAed(displayAed));
+    }
+
+    final iapProduct = IapService().findProductForTier(name, _selectedMonths);
 
     // Mobile stores always charge the SKU list price; coupon affects server ledger only.
     final displayAed =
@@ -1014,6 +1093,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       selectedMonths: _selectedMonths,
       aedTotal: displayAed,
       storeProduct: iapProduct,
+      inrRate: _serverAedToInrRate,
     );
   }
 
@@ -1642,6 +1722,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                 _selectedPackageId = isSelected ? null : id;
                 _adjustSelectedDuration(isSelected ? null : id);
               });
+              _refreshPricingQuote();
             },
       child: AnimatedScale(
         scale: isSelected ? 1.01 : 1.0,
@@ -2095,7 +2176,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         child: GestureDetector(
           onTap: _isPurchasing
               ? null
-              : () => setState(() => _paymentMethod = value),
+              : () {
+                  setState(() => _paymentMethod = value);
+                  _refreshPricingQuote();
+                },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -2314,7 +2398,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ),
             ),
           ],
-          if (_appliedCoupon != null && _isMobileIap) ...[
+          if (_appliedCoupon != null && _isMobileIap && !_usingRazorpayCheckout) ...[
             const SizedBox(height: 10),
             Container(
               width: double.infinity,
@@ -2367,7 +2451,30 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final storePrice = _storeListedPrice(pkg);
     final originalAed = _calculatePrice(pkg);
     final discountedAed = _calculatePriceAfterCoupon(pkg);
-    final showIapCouponSplit = hasCoupon && _isMobileIap && storePrice != null;
+    final showIapCouponSplit =
+        hasCoupon && _isMobileIap && !_usingRazorpayCheckout && storePrice != null;
+
+    String razorpayMainPrice() {
+      if (_pricingQuoteLoading) return '…';
+      final quote = _pricingQuote;
+      if (quote != null && quote['amount_inr'] is num) {
+        return SubscriptionPricing.formatInrLabel(
+          (quote['amount_inr'] as num).toDouble(),
+        );
+      }
+      final aed = hasCoupon ? discountedAed : originalAed;
+      return SubscriptionPricing.formatInrLabel(_inrChargeFromAed(aed));
+    }
+
+    double? razorpayAedList() {
+      final quote = _pricingQuote;
+      if (quote != null && quote['amount_aed'] is num) {
+        return (quote['amount_aed'] as num).toDouble();
+      }
+      return hasCoupon ? discountedAed : originalAed;
+    }
+
+    final razorpayAed = razorpayAedList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2422,9 +2529,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             ),
           ),
         ] else ...[
-          if (hasCoupon) ...[
+          if (hasCoupon && !_usingRazorpayCheckout) ...[
             _fittedSingleLineText(
-              SubscriptionPricing.formatAedTotal(originalAed),
+              SubscriptionPricing.formatAedTotal(
+                originalAed,
+                inrRate: _serverAedToInrRate,
+              ),
               alignment: Alignment.centerLeft,
               style: TextStyle(
                 color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
@@ -2438,9 +2548,14 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           _fittedSingleLineText(
             isComingSoon
                 ? 'Coming Soon'
-                : (hasCoupon
-                      ? SubscriptionPricing.formatAedTotal(discountedAed)
-                      : _getStorePrice(pkg)),
+                : (_usingRazorpayCheckout
+                      ? razorpayMainPrice()
+                      : (hasCoupon
+                            ? SubscriptionPricing.formatAedTotal(
+                                discountedAed,
+                                inrRate: _serverAedToInrRate,
+                              )
+                            : _getStorePrice(pkg))),
             alignment: Alignment.centerLeft,
             style: TextStyle(
               color: isDark ? Colors.white : const Color(0xFF1E293B),
@@ -2448,6 +2563,18 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               fontWeight: FontWeight.w900,
             ),
           ),
+          if (_usingRazorpayCheckout && razorpayAed != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'List price: ${SubscriptionPricing.formatAedLabel(razorpayAed)}',
+                style: TextStyle(
+                  color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           if (hasCoupon)
             Padding(
               padding: const EdgeInsets.only(top: 4),

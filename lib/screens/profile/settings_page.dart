@@ -13,11 +13,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../utils/responsive_helper.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../widgets/app_version_details_sheet.dart';
-import '../../services/app_preferences_service.dart';
 import '../../services/app_passcode_service.dart';
+import '../../services/app_preferences_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../theme/realtorone_brand.dart';
-import '../../widgets/app_passcode_settings_tile.dart';
 import '../chatbot/reven_chat_overlay.dart';
 import '../chatbot/reven_feedback_sheet.dart';
 
@@ -35,7 +34,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _emailUpdates = true;
   bool _chatbotEnabled = true;
   bool _savingTaskReminders = false;
-  Map<String, dynamic>? _userData;
   String _appVersionShort = '';
 
   @override
@@ -65,12 +63,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadProfile() async {
     try {
       await PushNotificationService.ensureSettingsLoaded();
-      final response = await UserApi.getProfile();
+      final response = await UserApi.getProfile(useCache: false);
       if (mounted && response['success'] == true) {
         final data = response['data'] as Map<String, dynamic>?;
         AppPasscodeService.instance.configureFromProfile(data);
         setState(() {
-          _userData = data;
           _taskReminders = data?['task_reminders_enabled'] != false;
           _pushNotifications =
               PushNotificationService.notificationsEnabled.value;
@@ -116,198 +113,17 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  void _onPasscodeUpdated() {
-    _loadProfile();
+  Future<void> _onRefresh() async {
+    await Future.wait([
+      _loadProfile(),
+      _loadAppPreferences(),
+    ]);
   }
-
-  bool get _hasAppPasscode =>
-      _userData?['has_app_passcode'] == true ||
-      _userData?['app_passcode_set_at'] != null;
 
   void _openLegalInApp(String slug) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => LegalDocumentWebViewPage(slug: slug),
-      ),
-    );
-  }
-
-  void _showChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    bool isDialogLoading = false;
-    final pageContext = context;
-
-    if (_userData?['email_verified_at'] == null) {
-      RealtorOneDialogScaffold.show<void>(
-        context: context,
-        builder: (d) => RealtorOneDialogScaffold(
-          title: 'Verification Required',
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(d), child: const Text('Cancel')),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(d);
-                Navigator.pushNamed(context, AppRoutes.forgotPassword);
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: RealtorOneBrand.seed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text('Verify Now'),
-            ),
-          ],
-          child: const Text('You need to verify your email first to enable password management.'),
-        ),
-      );
-      return;
-    }
-
-    RealtorOneDialogScaffold.show<void>(
-      context: context,
-      semanticsLabel: 'Change password form',
-      builder: (d) => StatefulBuilder(
-        builder: (_, setDialogState) {
-          final isDark = Theme.of(d).brightness == Brightness.dark;
-          return RealtorOneDialogScaffold(
-            title: 'Change password',
-            actions: [
-              TextButton(
-                onPressed: isDialogLoading ? null : () => Navigator.pop(d),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(
-                    color: isDark ? Colors.white70 : const Color(0xFF64748B),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              if (isDialogLoading)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              else
-                FilledButton(
-                  onPressed: () async {
-                    if (newPasswordController.text !=
-                        confirmPasswordController.text) {
-                      ScaffoldMessenger.of(pageContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('New passwords do not match'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-                    if (newPasswordController.text.length < 6) {
-                      ScaffoldMessenger.of(pageContext).showSnackBar(
-                        const SnackBar(
-                          content: Text('Password must be 6+ chars'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    setDialogState(() => isDialogLoading = true);
-                    try {
-                      final response = await UserApi.changePassword(
-                        currentPasswordController.text,
-                        newPasswordController.text,
-                      );
-                      final ok = response['success'] == true ||
-                          response['status'] == 'ok';
-                      if (d.mounted && ok) {
-                        Navigator.pop(d);
-                      }
-                      if (!pageContext.mounted) return;
-                      if (ok) {
-                        ScaffoldMessenger.of(pageContext).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password updated!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(pageContext).showSnackBar(
-                          SnackBar(
-                            content: Text(response['message'] ?? 'Error'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (!pageContext.mounted) return;
-                      ScaffoldMessenger.of(pageContext).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    } finally {
-                      if (d.mounted) {
-                        setDialogState(() => isDialogLoading = false);
-                      }
-                    }
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: RealtorOneBrand.seed,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text('Update'),
-                ),
-            ],
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: currentPasswordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      labelText: 'Current Password',
-                      hintText: 'Enter your old password',
-                      suffixIcon: TextButton(
-                        onPressed: () {
-                          Navigator.pop(d);
-                          Navigator.pushNamed(context, AppRoutes.forgotPassword);
-                        },
-                        child: const Text('Forgot?', style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: newPasswordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'New Password',
-                      hintText: 'Enter new password',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: confirmPasswordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm New Password',
-                      hintText: 'Re-enter new password',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -546,12 +362,25 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       body: Stack(
         children: [
-          ListView(
-            padding: ResponsiveHelper.contentPadding(context, top: 20, bottom: 40),
-            children: [
-              ResponsiveHelper.constrainWidth(
-                child: Column(
+          RefreshIndicator(
+            onRefresh: _onRefresh,
+            color: RealtorOneBrand.seed,
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: ResponsiveHelper.contentPadding(
+                    context,
+                    top: 16,
+                    bottom: 40,
+                  ),
                   children: [
+                    ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      child: ResponsiveHelper.constrainWidth(
+                        child: Column(
+                          children: [
               _buildSection(l10n.settingsSectionAccountSecurity),
               _buildSettingsCard([
                 _buildSettingsItem(
@@ -562,18 +391,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       Navigator.pushNamed(context, AppRoutes.editProfile),
                 ),
                 _buildSettingsItem(
-                  icon: Icons.lock_outline_rounded,
-                  title: l10n.settingsChangePasswordTitle,
-                  subtitle: l10n.settingsChangePasswordSubtitle,
-                  onTap: _showChangePasswordDialog,
-                ),
-                AppPasscodeSettingsTile(
-                  hasPasscode: _hasAppPasscode,
-                  onUpdated: _onPasscodeUpdated,
-                  showDivider: false,
+                  icon: Icons.lock_rounded,
+                  title: 'Passcode & Security',
+                  subtitle: 'App passcode, biometrics, account password',
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.appPasscodeSettings),
                 ),
               ], isDark),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               _buildSection(l10n.settingsSectionAppPreferences),
               _buildSettingsCard([
                 _buildSettingsItem(
@@ -637,7 +462,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   isDark: isDark,
                 ),
               ], isDark),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               _buildSection(l10n.settingsSectionLegal),
               _buildSettingsCard([
                 _buildSettingsItem(
@@ -670,7 +495,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
               ], isDark),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               TextButton(
                 onPressed: _showDeleteAccountDialog,
                 child: Text(
@@ -678,15 +503,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   style: const TextStyle(
                     color: Colors.red,
                     fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 48,
                 child: TextButton.icon(
                   onPressed: _isLoading ? null : _logout,
                   style: TextButton.styleFrom(
@@ -695,7 +520,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ? const Color(0xFF3F1D1D)
                         : Colors.red[50],
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   icon: _isLoading
@@ -707,33 +532,39 @@ class _SettingsPageState extends State<SettingsPage> {
                             color: Colors.red,
                           ),
                         )
-                      : const Icon(Icons.logout_rounded),
+                      : const Icon(Icons.logout_rounded, size: 20),
                   label: Text(
                     _isLoading
                         ? l10n.settingsLoggingOut
                         : l10n.settingsLogout,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                      fontSize: 14,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
               ),
-                  Center(
-                    child: AppVersionTapLabel(
-                      label: _appVersionShort.isNotEmpty
-                          ? _appVersionShort
-                          : l10n.settingsVersion.replaceAll('Version ', 'v'),
-                      style: TextStyle(
-                        color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
-                        fontSize: 10,
+              const SizedBox(height: 12),
+              Center(
+                child: AppVersionTapLabel(
+                  label: _appVersionShort.isNotEmpty
+                      ? _appVersionShort
+                      : l10n.settingsVersion.replaceAll('Version ', 'v'),
+                  style: TextStyle(
+                    color: isDark ? Colors.white30 : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              ),
-            ],
+                  ],
+                );
+              },
+            ),
           ),
           if (_isLoading)
             Container(
@@ -747,11 +578,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _buildSection(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 12),
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
           color: Theme.of(context).brightness == Brightness.dark
               ? Colors.white70
@@ -766,7 +597,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
@@ -787,27 +618,28 @@ class _SettingsPageState extends State<SettingsPage> {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      visualDensity: VisualDensity.compact,
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: const Color(0xFF667eea).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFF667eea), size: 20),
+        child: Icon(icon, color: const Color(0xFF667eea), size: 18),
       ),
       title: Text(
         title,
         style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
           color: isDark ? Colors.white : const Color(0xFF1E293B),
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: isDark ? Colors.white60 : const Color(0xFF64748B),
         ),
       ),
@@ -829,27 +661,28 @@ class _SettingsPageState extends State<SettingsPage> {
     required bool isDark,
   }) {
     return SwitchListTile.adaptive(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      visualDensity: VisualDensity.compact,
       secondary: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: const Color(0xFF667eea).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFF667eea), size: 20),
+        child: Icon(icon, color: const Color(0xFF667eea), size: 18),
       ),
       title: Text(
         title,
         style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
           color: isDark ? Colors.white : const Color(0xFF1E293B),
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
-          fontSize: 11,
+          fontSize: 10,
           color: isDark ? Colors.white60 : const Color(0xFF64748B),
         ),
       ),

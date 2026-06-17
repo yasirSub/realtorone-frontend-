@@ -14,6 +14,27 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Read app version from pubspec.yaml so Android version stays in sync.
+data class PubspecVersion(val name: String, val code: Int)
+
+fun readPubspecVersion(): PubspecVersion? {
+    val pubspec = rootProject.file("../pubspec.yaml")
+    if (!pubspec.exists()) return null
+    val versionLine = pubspec.readLines()
+        .firstOrNull { it.trim().startsWith("version:") }
+        ?.substringAfter("version:")
+        ?.trim()
+        ?: return null
+
+    val match = Regex("""^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$""").find(versionLine)
+        ?: return null
+    val name = match.groupValues[1]
+    val code = match.groupValues[2].toIntOrNull() ?: return null
+    return PubspecVersion(name = name, code = code)
+}
+
+val pubspecVersion = readPubspecVersion()
+
 android {
     namespace = "com.realtorone.app"
     compileSdk = flutter.compileSdkVersion
@@ -31,8 +52,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = pubspecVersion?.code ?: flutter.versionCode
+        versionName = pubspecVersion?.name ?: flutter.versionName
     }
 
     packaging {

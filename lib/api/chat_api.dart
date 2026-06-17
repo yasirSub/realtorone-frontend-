@@ -70,6 +70,25 @@ class ChatApi {
     );
   }
 
+  /// Cloud Whisper STT — upload a short recording, get transcribed text.
+  static Future<Map<String, dynamic>> transcribeVoice(
+    String filePath, {
+    String? language,
+  }) async {
+    final fields = <String, String>{};
+    if (language != null && language.trim().isNotEmpty) {
+      fields['language'] = language.trim().toLowerCase();
+    }
+    return ApiClient.postMultipartFile(
+      ApiEndpoints.chatVoiceTranscribe,
+      filePath: filePath,
+      fieldName: 'audio',
+      fields: fields.isEmpty ? null : fields,
+      requiresAuth: true,
+      timeout: const Duration(seconds: 90),
+    );
+  }
+
   /// Delete a chat session.
   static Future<Map<String, dynamic>> deleteSession(int sessionId) async {
     return ApiClient.delete(

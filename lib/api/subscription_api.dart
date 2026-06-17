@@ -110,4 +110,20 @@ class SubscriptionApi {
       'razorpay_signature': razorpaySignature,
     }, requiresAuth: true);
   }
+
+  /// Server-side price quote (AED list + location-based INR for Razorpay).
+  static Future<Map<String, dynamic>> getPricingQuote({
+    required int packageId,
+    required int months,
+    int? couponId,
+    String? countryCode,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.pricingQuote, {
+      'package_id': packageId,
+      'months': months,
+      if (couponId != null) 'coupon_id': couponId,
+      if (countryCode != null && countryCode.isNotEmpty)
+        'country_code': countryCode.toUpperCase(),
+    }, requiresAuth: true);
+  }
 }

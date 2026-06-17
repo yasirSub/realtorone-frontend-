@@ -6,12 +6,16 @@ class AppPreferencesService {
 
   static const String weeklyReportsEnabledKey = 'weekly_reports_enabled';
   static const String chatbotEnabledKey = 'chatbot_enabled';
+  static const String biometricUnlockEnabledKey = 'biometric_unlock_enabled';
 
   static final ValueNotifier<bool> weeklyReportsEnabled = ValueNotifier<bool>(
     true,
   );
 
   static final ValueNotifier<bool> chatbotEnabled = ValueNotifier<bool>(true);
+
+  static final ValueNotifier<bool> biometricUnlockEnabled =
+      ValueNotifier<bool>(false);
 
   static bool _loaded = false;
 
@@ -21,6 +25,8 @@ class AppPreferencesService {
     weeklyReportsEnabled.value =
         prefs.getBool(weeklyReportsEnabledKey) ?? true;
     chatbotEnabled.value = prefs.getBool(chatbotEnabledKey) ?? true;
+    biometricUnlockEnabled.value =
+        prefs.getBool(biometricUnlockEnabledKey) ?? false;
     _loaded = true;
   }
 
@@ -34,5 +40,11 @@ class AppPreferencesService {
     chatbotEnabled.value = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(chatbotEnabledKey, enabled);
+  }
+
+  static Future<void> setBiometricUnlockEnabled(bool enabled) async {
+    biometricUnlockEnabled.value = enabled;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(biometricUnlockEnabledKey, enabled);
   }
 }

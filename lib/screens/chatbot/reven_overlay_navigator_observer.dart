@@ -20,6 +20,7 @@ class RevenOverlayNavigatorObserver extends NavigatorObserver {
     AppRoutes.appPasscodeLock,
     AppRoutes.appPasscodeSetup,
     AppRoutes.appPasscodeForgot,
+    AppRoutes.appPasscodeSettings,
   };
 
   void _syncOverlayForRoute(Route<dynamic>? route) {

@@ -99,11 +99,10 @@ jobs:
 
       - name: Build iOS IPA
         run: |
+          # Version name + build number come from pubspec.yaml (single source of truth).
           flutter build ipa \
             --release \
-            --export-options-plist=ios/ExportOptions.plist \
-            --build-name=1.0.10 \
-            --build-number=${{ github.run_number }}
+            --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         env:

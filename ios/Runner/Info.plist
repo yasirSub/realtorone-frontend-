@@ -75,6 +75,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to take a new Profile Picture.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Face ID is used to quickly unlock RealtorOne.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is used for voice messages in Reven AI chat.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

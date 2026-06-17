@@ -9,16 +9,20 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../navigation/app_navigator_key.dart';
+import '../../providers/locale_provider.dart';
+import '../../utils/speech_locale_helper.dart';
 import '../../api/api_client.dart';
 import '../../theme/realtorone_brand.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/chat_api.dart';
 import '../../api/user_api.dart';
 import '../../services/app_runtime_config_service.dart';
+import '../../services/reven_cloud_speech_capture.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/realtor_one_dialog_scaffold.dart';
 import 'data/reven_quick_prompts.dart';
@@ -71,6 +75,7 @@ class _RevenChatPageState extends State<RevenChatPage>
   bool _voiceAutoSend = true;
   bool _voiceReadAloud = true;
   bool _voiceCloudEnabled = true;
+  bool _voiceCloudSttEnabled = true;
   Map<String, bool> _voiceCloudTierAllow = const {
     'Consultant': false,
     'Rainmaker': true,
@@ -98,6 +103,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   final List<_RevenMessage> _messages = [];
   Timer? _handoffPollTimer;
   final stt.SpeechToText _speech = stt.SpeechToText();
+  final RevenCloudSpeechCapture _cloudSpeech = RevenCloudSpeechCapture();
+  bool _cloudCaptureHadSpeech = false;
   final FlutterTts _tts = FlutterTts();
   final AudioPlayer _cloudPlayer = AudioPlayer();
   static const _prefVoiceKey = 'reven_preferred_voice_id';
@@ -385,6 +392,10 @@ class _RevenChatPageState extends State<RevenChatPage>
         );
         _voiceAutoSend = _configFlag(data['voice_auto_send']);
         _voiceReadAloud = _configFlag(data['voice_read_aloud']);
+        _voiceCloudSttEnabled = _configFlag(
+          data['voice_cloud_stt'],
+          defaultValue: true,
+        );
         final cloudFlag = data['voice_cloud_enabled'];
         _voiceCloudEnabled = cloudFlag == null
             ? true
@@ -490,6 +501,8 @@ class _RevenChatPageState extends State<RevenChatPage>
     _cancelVoiceInactivityTimer();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
+    _cloudCaptureHadSpeech = false;
+    await _cloudSpeech.cancel();
     try {
       if (_isListening) {
         await _speech.stop();
@@ -637,6 +650,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (!_voiceCloudEnabled) return false;
     return _voiceCloudTierAllow[_normalizedMembershipTier] == true;
   }
+
+  bool get _effectiveCloudStt =>
+      _voiceCloudSttEnabled &&
+      _voiceInAiChatEnabled &&
+      _effectiveVoiceCloudEnabled;
 
   String get _voicePlaybackLabel {
     if (!_voiceReadAloud) {
@@ -1021,12 +1039,19 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   void _scheduleVoiceUtteranceFinalize() {
     if (_isVoiceInteractionMode && _voiceUserSpeaking) return;
+    if (_effectiveCloudStt && !_cloudCaptureHadSpeech) return;
     _voiceUtteranceTimer?.cancel();
     final delay = _isVoiceInteractionMode
         ? const Duration(milliseconds: 2200)
         : const Duration(milliseconds: 1400);
     _voiceUtteranceTimer = Timer(delay, () {
       if (!_isListening) return;
+      if (_effectiveCloudStt) {
+        if (_cloudCaptureHadSpeech) {
+          unawaited(_finishVoiceSession());
+        }
+        return;
+      }
       if (_voiceTranscript.trim().isNotEmpty) {
         unawaited(_finishVoiceSession());
       }
@@ -1037,6 +1062,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     if (!_isListening || !mounted) return;
 
     final speaking = level > _voiceSoundActiveDb;
+    if (_effectiveCloudStt && _cloudSpeech.isActive && speaking) {
+      _cloudCaptureHadSpeech = true;
+    }
     final changedSpeaking = speaking != _voiceUserSpeaking;
 
     if (changedSpeaking || (speaking && (_voiceSoundLevel - level).abs() > 2)) {
@@ -1064,6 +1092,22 @@ class _RevenChatPageState extends State<RevenChatPage>
         try {
           _speech.changePauseFor(const Duration(seconds: 2));
         } catch (_) {}
+      }
+      return;
+    }
+
+    if (_effectiveCloudStt && _cloudSpeech.isActive) {
+      _voiceSilenceFinalizeTimer?.cancel();
+      if (speaking) {
+        _voiceUtteranceTimer?.cancel();
+        _voiceSilenceFinalizeTimer?.cancel();
+        return;
+      }
+      if (_isVoiceInteractionMode && _cloudCaptureHadSpeech) {
+        _voiceSilenceFinalizeTimer = Timer(_voiceSilenceSendDelay, () {
+          if (!mounted || !_isListening || _voiceUserSpeaking) return;
+          unawaited(_finishVoiceSession());
+        });
       }
       return;
     }
@@ -1116,7 +1160,8 @@ class _RevenChatPageState extends State<RevenChatPage>
           }
           unawaited(_finishVoiceSession());
         },
-        onError: (_) {
+        onError: (err) {
+          debugPrint('Reven STT error: $err');
           if (!mounted) return;
           setState(() => _isListening = false);
           _micPulseController.stop();
@@ -1133,7 +1178,9 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _pauseVoiceInput() async {
     _voiceUtteranceTimer?.cancel();
     _resetVoiceSoundActivity();
-    if (_isListening) {
+    if (_cloudSpeech.isActive) {
+      await _cloudSpeech.cancel();
+    } else if (_isListening) {
       await _speech.stop();
     } else {
       await _speech.cancel();
@@ -1155,8 +1202,11 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceSilenceFinalizeTimer?.cancel();
     _voiceFinalizeInProgress = false;
     _resetVoiceSoundActivity();
+    _cloudCaptureHadSpeech = false;
     try {
-      if (_isListening) {
+      if (_cloudSpeech.isActive) {
+        await _cloudSpeech.cancel();
+      } else if (_isListening) {
         await _speech.stop();
       } else {
         await _speech.cancel();
@@ -1168,8 +1218,13 @@ class _RevenChatPageState extends State<RevenChatPage>
     _micPulseController.stop();
   }
 
-  Future<void> _startVoiceInput() async {
+  Future<void> _startVoiceInput({bool forceDevice = false}) async {
     if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
+
+    if (!forceDevice && _effectiveCloudStt) {
+      await _startCloudVoiceInput();
+      return;
+    }
 
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
@@ -1195,7 +1250,14 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     final locales = await _speech.locales();
-    final localeId = locales.isNotEmpty ? locales.first.localeId : null;
+    final appLang = mounted
+        ? Provider.of<LocaleProvider>(context, listen: false).locale.languageCode
+        : null;
+    final localeId = SpeechLocaleHelper.pickBestLocaleId(
+      locales,
+      languageCode: appLang,
+    );
+    debugPrint('Reven STT using locale: $localeId');
 
     if (!mounted) return;
     setState(() {
@@ -1231,18 +1293,151 @@ class _RevenChatPageState extends State<RevenChatPage>
       },
       onSoundLevelChange: _onVoiceSoundLevel,
       localeId: localeId,
-      listenMode: _isVoiceInteractionMode
-          ? stt.ListenMode.dictation
-          : stt.ListenMode.confirmation,
+      listenMode: stt.ListenMode.dictation,
       cancelOnError: false,
       partialResults: true,
-      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 2 : 2),
-      listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 45),
+      pauseFor: Duration(seconds: _isVoiceInteractionMode ? 3 : 2),
+      listenFor: Duration(seconds: _isVoiceInteractionMode ? 300 : 60),
     );
+  }
+
+  Future<void> _startCloudVoiceInput() async {
+    if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
+
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Microphone permission is required for voice input.'),
+        ),
+      );
+      return;
+    }
+
+    if (!await _cloudSpeech.hasPermission()) {
+      if (!mounted) return;
+      _showVoiceSnack('Microphone access is required for cloud speech.');
+      return;
+    }
+
+    _voiceTranscript = '';
+    _cloudCaptureHadSpeech = false;
+    if (mounted) {
+      setState(() => _lastVoiceCaption = '');
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _isListening = true;
+      _voiceMicPausedByUser = false;
+      _voiceUserSpeaking = false;
+      _voiceSoundLevel = 0;
+    });
+    _micPulseController.stop();
+    _syncOverlayPresentation();
+    _markUserVoiceActivity();
+
+    final started = await _cloudSpeech.start(
+      onAmplitude: (db) {
+        if (!mounted || !_cloudSpeech.isActive) return;
+        _onVoiceSoundLevel(db);
+      },
+    );
+
+    if (!started) {
+      if (mounted) {
+        setState(() => _isListening = false);
+        _showVoiceSnack('Could not start cloud speech capture.');
+      }
+      return;
+    }
+  }
+
+  Future<void> _finishCloudVoiceSession() async {
+    if (!_isListening || _voiceFinalizeInProgress) return;
+    _voiceFinalizeInProgress = true;
+    _voiceUtteranceTimer?.cancel();
+    _voiceSilenceFinalizeTimer?.cancel();
+    _resetVoiceSoundActivity();
+    _micPulseController.stop();
+
+    try {
+      final path = await _cloudSpeech.stop();
+      if (!mounted) return;
+      setState(() => _isListening = false);
+
+      if (path == null || !_cloudCaptureHadSpeech) {
+        if (!_voiceMicPausedByUser) {
+          await _restartVoiceListenIfNeeded();
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _lastVoiceCaption = 'Transcribing…');
+      }
+      _syncOverlayPresentation();
+
+      final appLang = Provider.of<LocaleProvider>(context, listen: false);
+      final lang = appLang.isArabic ? 'ar' : 'en';
+      final res = await ChatApi.transcribeVoice(path, language: lang);
+      await _cloudSpeech.deleteFile(path);
+
+      var text = '';
+      if (res['success'] == true) {
+        text = res['text']?.toString().trim() ?? '';
+      } else {
+        _showVoiceSnack(
+          res['message']?.toString() ??
+              'Cloud speech recognition failed. Using device speech instead.',
+        );
+        if (!_voiceMicPausedByUser) {
+          await _startVoiceInputDeviceOnly();
+        }
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _voiceTranscript = '';
+        if (text.isNotEmpty) _lastVoiceCaption = text;
+      });
+      _syncOverlayPresentation();
+
+      if (text.isEmpty) {
+        if (!_voiceMicPausedByUser) {
+          await _restartVoiceListenIfNeeded();
+        }
+        return;
+      }
+
+      if (_voiceAutoSend) {
+        _markUserVoiceActivity();
+        await _sendToApi(text, fromVoice: true);
+      } else {
+        _messageController.text = text;
+        _messageController.selection = TextSelection.fromPosition(
+          TextPosition(offset: text.length),
+        );
+      }
+    } finally {
+      _voiceFinalizeInProgress = false;
+      _cloudCaptureHadSpeech = false;
+    }
+  }
+
+  /// Device speech_to_text fallback when cloud Whisper fails.
+  Future<void> _startVoiceInputDeviceOnly() async {
+    await _startVoiceInput(forceDevice: true);
   }
 
   Future<void> _finishVoiceSession() async {
     if (!_isListening || _voiceFinalizeInProgress) return;
+    if (_effectiveCloudStt && _cloudSpeech.isActive) {
+      await _finishCloudVoiceSession();
+      return;
+    }
     _voiceFinalizeInProgress = true;
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
@@ -1711,6 +1906,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       _speech.stop();
     }
     _speech.cancel();
+    _cloudSpeech.dispose();
     _tts.stop();
     _cloudPlayer.dispose();
     _messageController.dispose();

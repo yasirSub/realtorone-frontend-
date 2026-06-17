@@ -32,6 +32,7 @@ class RevenGlobalShell extends StatelessWidget {
       AppRoutes.appPasscodeLock,
       AppRoutes.appPasscodeSetup,
       AppRoutes.appPasscodeForgot,
+      AppRoutes.appPasscodeSettings,
     };
     return !hidden.contains(routeName);
   }

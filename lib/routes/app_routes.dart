@@ -32,4 +32,5 @@ class AppRoutes {
   static const String appPasscodeLock = '/app-passcode-lock';
   static const String appPasscodeSetup = '/app-passcode-setup';
   static const String appPasscodeForgot = '/app-passcode-forgot';
+  static const String appPasscodeSettings = '/app-passcode-settings';
 }
