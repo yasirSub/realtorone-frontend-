@@ -1231,7 +1231,8 @@ class _RevenChatPageState extends State<RevenChatPage>
   Future<void> _startVoiceInput({bool forceDevice = false}) async {
     if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
 
-    if (!forceDevice && _effectiveCloudStt && !_isVoiceInteractionMode) {
+    // In voice-call mode we should prefer cloud STT (Whisper) unless forced to device STT.
+    if (!forceDevice && _effectiveCloudStt) {
       await _startCloudVoiceInput();
       return;
     }

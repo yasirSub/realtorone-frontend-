@@ -102,16 +102,18 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
     setState(() => _savingBiometric = true);
 
     if (enable) {
-      final ok = await BiometricAuthService.authenticate(
+      final result = await BiometricAuthService.authenticateWithDetails(
         reason: 'Confirm $_biometricLabel to enable quick unlock',
       );
       if (!mounted) return;
-      if (ok) {
+      if (result.success) {
         await AppPreferencesService.setBiometricUnlockEnabled(true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not enable $_biometricLabel'),
+            content: Text(
+              result.message ?? 'Could not enable $_biometricLabel',
+            ),
             backgroundColor: Colors.red,
           ),
         );
