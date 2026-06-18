@@ -66,6 +66,38 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool get _showPaymentMethodPicker =>
       _isMobileIap && _razorpayAvailable && _iapEnabledForPlatform;
 
+  /// India / INR store: show converted ₹ prices only (hide AED list price).
+  bool get _showInrConvertedPrice =>
+      _razorpayEligibleForUser || SubscriptionPricing.useIndianRupee;
+
+  String _formatLedgerAmount(double aedAmount) {
+    if (_showInrConvertedPrice) {
+      return SubscriptionPricing.formatInrLabel(_inrChargeFromAed(aedAmount));
+    }
+    return SubscriptionPricing.formatAedLabel(aedAmount);
+  }
+
+  String _formatDisplayTotal(double aedAmount) {
+    if (_showInrConvertedPrice) {
+      return SubscriptionPricing.formatInrLabel(_inrChargeFromAed(aedAmount));
+    }
+    return SubscriptionPricing.formatAedTotal(
+      aedAmount,
+      inrRate: _serverAedToInrRate,
+    );
+  }
+
+  String _couponSavingsMessage(num? savedAed) {
+    if (savedAed == null) {
+      return '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+    }
+    if (_showInrConvertedPrice) {
+      final savedInr = _inrChargeFromAed(savedAed.toDouble());
+      return '${_appliedCouponDiscountPercent}% off — saves ${SubscriptionPricing.formatInrLabel(savedInr)} on this plan';
+    }
+    return '${_appliedCouponDiscountPercent}% off — saves AED $savedAed on this plan';
+  }
+
   int? get _appliedCouponId {
     final id = _appliedCoupon?['id'];
     if (id is int) return id;
@@ -292,7 +324,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           }
           _isLoading = false;
         });
-        if (_razorpayAvailable || _selectedPackageId != null) {
+        if ((_showInrConvertedPrice || _razorpayAvailable) &&
+            _selectedPackageId != null) {
           await _refreshPricingQuote();
         }
       }
@@ -713,45 +746,117 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return result;
   }
 
-  String _durationChipLabel(int months) {
+  /// Clarifies that card price is the total for the selected billing period.
+  String _durationPriceContextLabel(int months) {
     switch (months) {
       case 1:
-        return '1 mo';
+        return 'per month';
       case 3:
-        return '3 mo';
+        return 'for 3 months';
       case 6:
-        return '6 mo';
+        return 'for 6 months';
       case 12:
-        return '1 yr';
+        return 'for 1 year';
       default:
-        return '${months}mo';
+        return 'for $months months';
     }
   }
 
-  String _durationSuffixLabel(int months) {
+  String _durationPlanBadgeLabel(int months) {
     switch (months) {
       case 1:
-        return '/mo';
+        return 'MONTHLY';
       case 3:
-        return '/3 mo';
+        return '3-MONTH';
       case 6:
-        return '/6 mo';
+        return '6-MONTH';
       case 12:
-        return '/yr';
+        return 'YEARLY';
       default:
-        return '/$months mo';
+        return '${months}M';
     }
   }
 
-  String? _durationBadgeLabel(int months) {
-    switch (months) {
-      case 3:
-        return 'Most Popular';
-      case 6:
-        return 'Recommended';
-      default:
-        return null;
+  String? _effectiveMonthlyPriceLine(Map<String, dynamic> pkg) {
+    if (_selectedMonths <= 1) return null;
+    if (_isPackageComingSoon(pkg)) return null;
+    final isFree =
+        (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
+    if (isFree) return null;
+
+    if (_showInrConvertedPrice) {
+      final inr = _getDisplayInrAmount(pkg);
+      if (inr != null) {
+        return '≈ ${SubscriptionPricing.formatInrLabel(inr / _selectedMonths)}/mo';
+      }
     }
+
+    final total = _calculatePrice(pkg);
+    return '≈ ${_formatLedgerAmount(total / _selectedMonths)}/mo';
+  }
+
+  Widget _buildBillingPeriodBadge({
+    required int months,
+    required Color accent,
+    required bool isDark,
+    bool compact = false,
+  }) {
+    final savings = _durationSavingsLabel(months);
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 6 : 10,
+          vertical: compact ? 3 : 5,
+        ),
+        decoration: BoxDecoration(
+          color: accent.withOpacity(isDark ? 0.22 : 0.1),
+          borderRadius: BorderRadius.circular(compact ? 8 : 10),
+          border: Border.all(color: accent.withOpacity(0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              months == 1
+                  ? Icons.calendar_today_rounded
+                  : Icons.event_repeat_rounded,
+              size: compact ? 10 : 12,
+              color: accent,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              _durationPlanBadgeLabel(months),
+              style: TextStyle(
+                color: accent,
+                fontSize: compact ? 8 : 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.4,
+              ),
+            ),
+            if (savings != null && !compact) ...[
+              const SizedBox(width: 5),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '-$savings',
+                  style: const TextStyle(
+                    color: Color(0xFF059669),
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   ({List<Color> gradient, IconData icon})? _durationBadgeStyle(int months) {
@@ -772,21 +877,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   }
 
   static const _billingAccent = Color(0xFF667eea);
-
-  String _durationTitle(int months) {
-    switch (months) {
-      case 1:
-        return 'Monthly';
-      case 3:
-        return '3 Months';
-      case 6:
-        return '6 Months';
-      case 12:
-        return '1 Year';
-      default:
-        return '$months Months';
-    }
-  }
 
   String? _durationSavingsLabel(int months) {
     switch (months) {
@@ -829,62 +919,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDurationBadgeChip(int months) {
-    final label = _durationBadgeLabel(months);
-    final style = _durationBadgeStyle(months);
-    if (label != null && style != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: style.gradient),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: style.gradient.first.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(style.icon, size: 12, color: Colors.white),
-            const SizedBox(width: 4),
-            Text(
-              label.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.4,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final savings = _durationSavingsLabel(months);
-    if (savings == null) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$savings OFF',
-        style: const TextStyle(
-          color: Color(0xFF059669),
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
     );
   }
 
@@ -963,8 +997,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         setState(() {
           _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
           _couponMessage = saved != null
-              ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
-              : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+              ? _couponSavingsMessage(
+                  saved is num
+                      ? saved.toDouble()
+                      : double.tryParse(saved.toString()),
+                )
+              : _couponSavingsMessage(null);
         });
         await _refreshPricingQuote();
       } else {
@@ -1013,8 +1051,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         setState(() {
           _appliedCoupon = Map<String, dynamic>.from(res['data'] as Map);
           _couponMessage = saved != null
-              ? '${_appliedCouponDiscountPercent}% off — saves AED $saved on this plan'
-              : '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+              ? _couponSavingsMessage(
+                  saved is num
+                      ? saved.toDouble()
+                      : double.tryParse(saved.toString()),
+                )
+              : _couponSavingsMessage(null);
         });
         await _refreshPricingQuote();
       } else {
@@ -1079,8 +1121,8 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return IapService().findProductForTier(tierName, _selectedMonths);
   }
 
-  /// Razorpay INR display/charge — prefer Google Play SKU when no coupon.
-  double? _razorpayInrAmount(Map<String, dynamic> pkg) {
+  /// INR amount for display/checkout — Play SKU, server quote, or AED×rate.
+  double? _getDisplayInrAmount(Map<String, dynamic> pkg) {
     if (_appliedCoupon == null) {
       final storeInr = SubscriptionPricing.iapInrAmount(_iapProductForPackage(pkg));
       if (storeInr != null) return storeInr;
@@ -1099,6 +1141,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return _inrChargeFromAed(aed);
   }
 
+  double? _razorpayInrAmount(Map<String, dynamic> pkg) =>
+      _getDisplayInrAmount(pkg);
+
   String _getStorePrice(Map<String, dynamic> pkg) {
     final name = pkg['name']?.toString() ?? '';
     final isFree = (double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0) == 0;
@@ -1106,9 +1151,9 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     final aedTotal = _calculatePrice(pkg);
 
-    // India + Razorpay: show INR (same amount charged at checkout).
-    if (_usingRazorpayCheckout) {
-      final inr = _razorpayInrAmount(pkg);
+    // India: show converted ₹ only — no AED list price on cards.
+    if (_showInrConvertedPrice || _usingRazorpayCheckout) {
+      final inr = _getDisplayInrAmount(pkg);
       if (inr != null) {
         return SubscriptionPricing.formatInrLabel(inr);
       }
@@ -1128,6 +1173,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
       aedTotal: displayAed,
       storeProduct: iapProduct,
       inrRate: _serverAedToInrRate,
+      preferAed: !_showInrConvertedPrice,
     );
   }
 
@@ -1571,23 +1617,59 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionLabel('BILLING PERIOD', _billingAccent),
-        const SizedBox(height: 12),
-        ...availableDurations.map(
-          (m) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _buildDurationOption(m, isDark),
+        _buildSectionLabel('CHOOSE BILLING PERIOD', _billingAccent),
+        const SizedBox(height: 4),
+        Text(
+          'Pick how long you want to subscribe — prices update on each plan below.',
+          style: TextStyle(
+            color: isDark ? Colors.white54 : const Color(0xFF64748B),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            height: 1.35,
           ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            for (var i = 0; i < availableDurations.length; i++) ...[
+              if (i > 0) const SizedBox(width: 10),
+              Expanded(
+                child: _buildDurationPill(
+                  availableDurations[i],
+                  isDark,
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.04);
   }
 
-  Widget _buildDurationOption(int months, bool isDark) {
+  String _durationNumberLabel(int months) {
+    switch (months) {
+      case 12:
+        return '1';
+      default:
+        return '$months';
+    }
+  }
+
+  String _durationUnitLabel(int months) {
+    switch (months) {
+      case 1:
+        return 'MONTH';
+      case 12:
+        return 'YEAR';
+      default:
+        return 'MONTHS';
+    }
+  }
+
+  Widget _buildDurationPill(int months, bool isDark) {
     final isSelected = _selectedMonths == months;
     final savings = _durationSavingsLabel(months);
-    final title = _durationTitle(months);
-    final subtitle = _durationChipLabel(months);
+    final badgeStyle = _durationBadgeStyle(months);
 
     return Material(
       color: Colors.transparent,
@@ -1595,12 +1677,22 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         onTap: () => _onDurationSelected(months),
         borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 260),
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
           decoration: BoxDecoration(
+            gradient: isSelected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _billingAccent.withOpacity(isDark ? 0.35 : 0.14),
+                      _billingAccent.withOpacity(isDark ? 0.18 : 0.06),
+                    ],
+                  )
+                : null,
             color: isSelected
-                ? _billingAccent.withOpacity(isDark ? 0.18 : 0.07)
+                ? null
                 : (isDark ? const Color(0xFF1E293B) : Colors.white),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
@@ -1614,69 +1706,81 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             boxShadow: [
               if (isSelected)
                 BoxShadow(
-                  color: _billingAccent.withOpacity(0.2),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                )
-              else
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.12 : 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  color: _billingAccent.withOpacity(0.22),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
                 ),
             ],
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isSelected ? _billingAccent : Colors.transparent,
-                  border: Border.all(
+              if (badgeStyle != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Icon(
+                    badgeStyle.icon,
+                    size: 14,
+                    color: badgeStyle.gradient.first,
+                  ),
+                )
+              else
+                const SizedBox(height: 20),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _durationNumberLabel(months),
+                  style: TextStyle(
                     color: isSelected
                         ? _billingAccent
-                        : (isDark ? Colors.white38 : const Color(0xFFCBD5E1)),
-                    width: 2,
+                        : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
                   ),
                 ),
-                child: isSelected
-                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.white)
-                    : null,
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: isSelected
-                            ? _billingAccent
-                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      savings != null
-                          ? 'Save $savings · billed as $subtitle'
-                          : 'Billed monthly',
-                      style: TextStyle(
-                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _durationUnitLabel(months),
+                  style: TextStyle(
+                    color: isSelected
+                        ? _billingAccent.withOpacity(0.85)
+                        : (isDark ? Colors.white54 : const Color(0xFF64748B)),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
-              _buildDurationBadgeChip(months),
+              if (savings != null) ...[
+                const SizedBox(height: 6),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(
+                        isSelected ? 0.18 : 0.1,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'SAVE $savings',
+                      style: const TextStyle(
+                        color: Color(0xFF059669),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 18),
+              ],
             ],
           ),
         ),
@@ -1913,20 +2017,37 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                 : (isDark
                                       ? Colors.white
                                       : const Color(0xFF1E293B)),
-                            fontSize: isComingSoon ? 13 : 20,
+                            fontSize: isComingSoon ? 13 : 22,
                             fontWeight: FontWeight.w900,
+                            height: 1.05,
                           ),
                         ),
-                        if (!isComingSoon)
+                        if (!isComingSoon) ...[
+                          const SizedBox(height: 4),
                           _fittedSingleLineText(
-                            _durationSuffixLabel(_selectedMonths),
+                            _durationPriceContextLabel(_selectedMonths),
                             alignment: Alignment.centerRight,
-                            style: const TextStyle(
-                              color: Color(0xFF64748B),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                            style: TextStyle(
+                              color: glowColor.withOpacity(0.85),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
+                          if (_effectiveMonthlyPriceLine(pkg) != null) ...[
+                            const SizedBox(height: 2),
+                            _fittedSingleLineText(
+                              _effectiveMonthlyPriceLine(pkg)!,
+                              alignment: Alignment.centerRight,
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.white54
+                                    : const Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
                         if (isComingSoon && isSelected)
                           _fittedSingleLineText(
                             'Not in store yet',
@@ -2086,13 +2207,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     if (pkg.isEmpty) return const SizedBox();
 
     final name = pkg['name']?.toString() ?? 'Plan';
-    final durationText = _selectedMonths == 1
-        ? '1 month'
-        : _selectedMonths == 3
-        ? '3 months'
-        : _selectedMonths == 6
-        ? '6 months'
-        : '1 yearly';
 
     final currentPkgId = int.tryParse(_currentSub?['package_id']?.toString() ?? '');
     final selectedPkgId = int.tryParse(pkg['id']?.toString() ?? '');
@@ -2111,24 +2225,30 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     final isComingSoon = _isPackageComingSoon(pkg);
 
-    String buttonLabel = 'SUBSCRIBE NOW';
+    String buttonLabel = 'Subscribe';
+    String? buttonSubLabel;
     if (isComingSoon) {
-      buttonLabel = 'COMING SOON';
+      buttonLabel = 'Coming soon';
     } else if (_paymentMethod == 'razorpay' && _razorpayAvailable && _isMobileIap) {
-      buttonLabel = isRenewing ? 'RENEW (RAZORPAY)' : 'PAY WITH RAZORPAY';
+      buttonLabel = isRenewing ? 'Renew plan' : 'Pay now';
+      buttonSubLabel = 'Razorpay · UPI & cards';
     } else if (isRenewing) {
-      buttonLabel = 'RENEW NOW';
+      buttonLabel = 'Renew plan';
     } else if (!_isPremium) {
-      buttonLabel = 'GET STARTED';
+      buttonLabel = 'Get started';
     } else if (selectedTierRank > currentTierRank) {
-      buttonLabel = 'UPGRADE NOW';
+      buttonLabel = 'Upgrade';
     } else if (selectedTierRank < currentTierRank) {
-      buttonLabel = 'SWITCH PLAN';
+      buttonLabel = 'Switch plan';
     }
 
     final glowColor = _getGlowForSelectedPackage();
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final useStackedBar = screenWidth < 380;
+    final displayName = name
+        .replaceAll(' - GOLD', '')
+        .replaceAll('- GOLD', '')
+        .replaceAll(' GOLD', '')
+        .replaceAll('GOLD', '')
+        .trim();
 
     return Material(
       color: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -2138,64 +2258,32 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: useStackedBar
-              ? Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildPurchaseBarSummary(
-                      isDark: isDark,
-                      name: name,
-                      durationText: durationText,
-                      isComingSoon: isComingSoon,
-                      pkg: pkg,
-                    ),
-                    if (_showPaymentMethodPicker) ...[
-                      const SizedBox(height: 10),
-                      _buildPaymentMethodSelector(isDark),
-                    ],
-                    const SizedBox(height: 12),
-                    _buildPurchaseActionButton(
-                      label: buttonLabel,
-                      color: glowColor,
-                      enabled: !isComingSoon && !_isPurchasing,
-                      onPressed: _purchasePackage,
-                      fullWidth: true,
-                    ),
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildPurchaseBarSummary(
-                            isDark: isDark,
-                            name: name,
-                            durationText: durationText,
-                            isComingSoon: isComingSoon,
-                            pkg: pkg,
-                          ),
-                          if (_showPaymentMethodPicker) ...[
-                            const SizedBox(height: 8),
-                            _buildPaymentMethodSelector(isDark),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildPurchaseActionButton(
-                      label: buttonLabel,
-                      color: glowColor,
-                      enabled: !isComingSoon && !_isPurchasing,
-                      onPressed: _purchasePackage,
-                      fullWidth: false,
-                    ),
-                  ],
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildPurchaseBarSummary(
+                isDark: isDark,
+                name: displayName,
+                isComingSoon: isComingSoon,
+                pkg: pkg,
+                accent: glowColor,
+              ),
+              if (_showPaymentMethodPicker) ...[
+                const SizedBox(height: 10),
+                _buildPaymentMethodSelector(isDark),
+              ],
+              const SizedBox(height: 12),
+              _buildPurchaseActionButton(
+                label: buttonLabel,
+                subLabel: buttonSubLabel,
+                color: glowColor,
+                enabled: !isComingSoon && !_isPurchasing,
+                onPressed: _purchasePackage,
+                isLoading: _isPurchasing,
+              ),
+            ],
+          ),
         ),
       ),
     ).animate().slideY(begin: 1, duration: 400.ms, curve: Curves.easeOutCubic);
@@ -2272,46 +2360,62 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   Widget _buildPurchaseActionButton({
     required String label,
+    String? subLabel,
     required Color color,
     required bool enabled,
     required VoidCallback onPressed,
-    required bool fullWidth,
+    bool isLoading = false,
   }) {
-    final child = Material(
+    return Material(
       color: enabled ? color : color.withOpacity(0.45),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
+      elevation: enabled ? 4 : 0,
+      shadowColor: color.withOpacity(0.35),
       child: InkWell(
-        onTap: enabled ? onPressed : null,
+        onTap: enabled && !isLoading ? onPressed : null,
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: fullWidth ? 16 : 22,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
-                letterSpacing: 0.5,
-              ),
-            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      if (subLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subLabel,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.88),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
           ),
         ),
       ),
-    );
-
-    if (fullWidth) {
-      return SizedBox(width: double.infinity, child: child);
-    }
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 132, maxWidth: 168),
-      child: child,
     );
   }
 
@@ -2477,110 +2581,143 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Widget _buildPurchaseBarSummary({
     required bool isDark,
     required String name,
-    required String durationText,
     required bool isComingSoon,
     required Map<String, dynamic> pkg,
+    required Color accent,
   }) {
     final hasCoupon = _appliedCoupon != null && !isComingSoon;
     final storePrice = _storeListedPrice(pkg);
     final discountedAed = _calculatePriceAfterCoupon(pkg);
     final showIapCouponSplit =
-        hasCoupon && _isMobileIap && !_usingRazorpayCheckout && storePrice != null;
+        hasCoupon &&
+        _isMobileIap &&
+        !_usingRazorpayCheckout &&
+        storePrice != null &&
+        !_showInrConvertedPrice;
 
-    String razorpayMainPrice() {
-      if (_pricingQuoteLoading && _appliedCoupon != null) return '…';
-      final inr = _razorpayInrAmount(pkg);
-      if (inr != null) {
-        return SubscriptionPricing.formatInrLabel(inr);
+    String mainPrice() {
+      if (_pricingQuoteLoading && (_usingRazorpayCheckout || _showInrConvertedPrice)) {
+        return '…';
       }
-      return '…';
+      if (isComingSoon) return 'Coming soon';
+      if (_usingRazorpayCheckout) {
+        final inr = _razorpayInrAmount(pkg);
+        if (inr != null) return SubscriptionPricing.formatInrLabel(inr);
+        return '…';
+      }
+      if (hasCoupon) return _formatDisplayTotal(discountedAed);
+      return _getStorePrice(pkg);
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$name · $durationText',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: isDark ? Colors.white70 : const Color(0xFF64748B),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 4),
-        if (showIapCouponSplit) ...[
-          _fittedSingleLineText(
-            storePrice,
-            alignment: Alignment.centerLeft,
-            style: TextStyle(
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '$_mobileStoreName charge',
-            style: TextStyle(
-              color: isDark ? Colors.white54 : const Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          _fittedSingleLineText(
-            SubscriptionPricing.formatAedTotal(discountedAed),
-            alignment: Alignment.centerLeft,
-            style: const TextStyle(
-              color: Color(0xFF10B981),
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            'After $_appliedCouponDiscountPercent% coupon (on activation)',
-            style: TextStyle(
-              color: isDark ? Colors.white54 : const Color(0xFF64748B),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ] else ...[
-          _fittedSingleLineText(
-            isComingSoon
-                ? 'Coming Soon'
-                : (_usingRazorpayCheckout
-                      ? razorpayMainPrice()
-                      : (hasCoupon
-                            ? SubscriptionPricing.formatAedTotal(
-                                discountedAed,
-                                inrRate: _serverAedToInrRate,
-                              )
-                            : _getStorePrice(pkg))),
-            alignment: Alignment.centerLeft,
-            style: TextStyle(
-              color: isDark ? Colors.white : const Color(0xFF1E293B),
-              fontSize: isComingSoon ? 18 : 22,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          if (hasCoupon)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                '${_appliedCouponDiscountPercent}% coupon applied',
-                style: const TextStyle(
-                  color: Color(0xFF10B981),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+    final monthlyLine = _effectiveMonthlyPriceLine(pkg);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withOpacity(0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildBillingPeriodBadge(
+                      months: _selectedMonths,
+                      accent: accent,
+                      isDark: isDark,
+                      compact: true,
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _fittedSingleLineText(
+                    mainPrice(),
+                    alignment: Alignment.centerRight,
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: isComingSoon ? 14 : 24,
+                      fontWeight: FontWeight.w900,
+                      height: 1.05,
+                    ),
+                  ),
+                  if (!isComingSoon && monthlyLine != null) ...[
+                    const SizedBox(height: 2),
+                    _fittedSingleLineText(
+                      monthlyLine,
+                      alignment: Alignment.centerRight,
+                      style: TextStyle(
+                        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          if (showIapCouponSplit) ...[
+            const SizedBox(height: 10),
+            Divider(
+              height: 1,
+              color: isDark ? Colors.white12 : const Color(0xFFE2E8F0),
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Store charge: $storePrice',
+              style: TextStyle(
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'After coupon: ${_formatDisplayTotal(discountedAed)} (on activation)',
+              style: const TextStyle(
+                color: Color(0xFF10B981),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ] else if (hasCoupon) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${_appliedCouponDiscountPercent}% coupon applied',
+              style: const TextStyle(
+                color: Color(0xFF10B981),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 
@@ -2589,18 +2726,24 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final body = usingRazorpay
         ? '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
             '• Length: 1 Month, 3 Months, 6 Months, or 1 Year\n'
-            '• Price: Plan prices are listed in AED and charged in INR (₹) via Razorpay using the published AED→INR rate.\n'
+            '• Price: Shown in INR (₹) and charged via Razorpay at checkout.\n'
             '• Region: Razorpay checkout is for India (+91) numbers — UPI and cards.\n\n'
             'Payment is processed by Razorpay. Your subscription period starts after successful payment verification. '
             'This is not an auto-renewing App Store or Google Play subscription.'
-        : '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
-            '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
-            '• Price: $_mobileStoreName shows the product list price. Coupons adjust your RealtorOne subscription ledger after activation.\n'
-            '• Test builds: Play may show "/5 min" — that is a sandbox renewal interval, not production billing.\n\n'
-            'Payment will be charged to your iTunes Account (for iOS) or Google Play Account (for Android) at confirmation of purchase. '
-            'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
-            'Account will be charged for renewal within 24-hours prior to the end of the current period. '
-            'Subscriptions may be managed and auto-renewal may be turned off by going to your App Store or Play Store Account Settings after purchase.';
+        : (_showInrConvertedPrice
+              ? '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
+                  '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
+                  '• Price: Shown in INR (₹) — $_mobileStoreName charges the store price in rupees.\n'
+                  '• Coupons adjust your RealtorOne subscription ledger after activation.\n\n'
+                  'Payment will be charged to your $_mobileStoreName account at confirmation of purchase.'
+              : '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
+                  '• Length: 1 Month, 3 Months, 6 Months, or 1 Year (auto-renewable)\n'
+                  '• Price: $_mobileStoreName shows the product list price. Coupons adjust your RealtorOne subscription ledger after activation.\n'
+                  '• Test builds: Play may show "/5 min" — that is a sandbox renewal interval, not production billing.\n\n'
+                  'Payment will be charged to your iTunes Account (for iOS) or Google Play Account (for Android) at confirmation of purchase. '
+                  'Subscription automatically renews unless auto-renew is turned off at least 24-hours before the end of the current period. '
+                  'Account will be charged for renewal within 24-hours prior to the end of the current period. '
+                  'Subscriptions may be managed and auto-renewal may be turned off by going to your App Store or Play Store Account Settings after purchase.');
 
     return Column(
       children: [

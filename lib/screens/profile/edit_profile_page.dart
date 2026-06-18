@@ -693,10 +693,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 108,
+            Flexible(
+              flex: 2,
               child: DropdownButtonFormField<String>(
                 value: _selectedDialCode,
+                isExpanded: true,
                 decoration: InputDecoration(
                   isDense: true,
                   filled: true,
@@ -716,12 +717,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
                 ),
+                selectedItemBuilder: (context) => PhoneUtils.countryOptions
+                    .map(
+                      (item) => Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          item['label']!,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    )
+                    .toList(),
                 items: PhoneUtils.countryOptions
                     .map(
                       (item) => DropdownMenuItem<String>(
                         value: item['code'],
                         child: Text(
                           item['label']!,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -734,8 +748,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 },
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Expanded(
+              flex: 3,
               child: TextFormField(
                 controller: _mobileController,
                 keyboardType: TextInputType.phone,

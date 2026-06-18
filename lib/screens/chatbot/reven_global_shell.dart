@@ -27,6 +27,8 @@ class RevenGlobalShell extends StatelessWidget {
       AppRoutes.verifyOtp,
       AppRoutes.resetPassword,
       AppRoutes.profileSetup,
+      AppRoutes.editProfile,
+      AppRoutes.subscriptionPlans,
       AppRoutes.diagnosis,
       AppRoutes.diagnosisResult,
       AppRoutes.maintenance,

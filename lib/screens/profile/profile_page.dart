@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../api/api_client.dart';
@@ -866,7 +865,9 @@ class _ProfilePageState extends State<ProfilePage> {
         ClipRRect(
           borderRadius: BorderRadius.circular(99),
           child: LinearProgressIndicator(
-            value: fraction > 0 ? fraction : null,
+            // If value is null, Flutter shows an indeterminate animated bar.
+            // For 0 usage we want a stable 0% fill (no movement).
+            value: fraction.isFinite ? fraction.clamp(0.0, 1.0) : 0.0,
             minHeight: 8,
             backgroundColor: isDark ? Colors.white10 : Colors.black12,
             color: accent,
