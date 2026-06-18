@@ -7,6 +7,10 @@ class AppPreferencesService {
   static const String weeklyReportsEnabledKey = 'weekly_reports_enabled';
   static const String chatbotEnabledKey = 'chatbot_enabled';
   static const String biometricUnlockEnabledKey = 'biometric_unlock_enabled';
+  static const String appPasscodeLockDurationMinutesKey =
+      'app_passcode_lock_duration_minutes';
+  static const String appPasscodeLockDurationLegacyMinutesKey =
+      'app_passcode_lock_timeout_minutes';
 
   static final ValueNotifier<bool> weeklyReportsEnabled = ValueNotifier<bool>(
     true,
@@ -16,6 +20,8 @@ class AppPreferencesService {
 
   static final ValueNotifier<bool> biometricUnlockEnabled =
       ValueNotifier<bool>(false);
+  static final ValueNotifier<Duration> appPasscodeLockDuration =
+      ValueNotifier<Duration>(Duration.zero);
 
   static bool _loaded = false;
 
@@ -27,6 +33,13 @@ class AppPreferencesService {
     chatbotEnabled.value = prefs.getBool(chatbotEnabledKey) ?? true;
     biometricUnlockEnabled.value =
         prefs.getBool(biometricUnlockEnabledKey) ?? false;
+    final durationMinutes =
+        prefs.getInt(appPasscodeLockDurationMinutesKey) ??
+        prefs.getInt(appPasscodeLockDurationLegacyMinutesKey) ??
+        0;
+    appPasscodeLockDuration.value = Duration(
+      minutes: durationMinutes < 0 ? 0 : durationMinutes,
+    );
     _loaded = true;
   }
 
@@ -46,5 +59,12 @@ class AppPreferencesService {
     biometricUnlockEnabled.value = enabled;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(biometricUnlockEnabledKey, enabled);
+  }
+
+  static Future<void> setAppPasscodeLockDuration(Duration duration) async {
+    final clamped = duration.isNegative ? Duration.zero : duration;
+    appPasscodeLockDuration.value = clamped;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(appPasscodeLockDurationMinutesKey, clamped.inMinutes);
   }
 }

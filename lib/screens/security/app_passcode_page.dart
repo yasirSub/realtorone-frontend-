@@ -26,6 +26,8 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
   bool _biometricAvailable = false;
   String _biometricLabel = 'Biometrics';
   bool _savingBiometric = false;
+  bool _savingLockDuration = false;
+  Duration _lockDuration = Duration.zero;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
           _userData = data;
           _biometricAvailable = available;
           _biometricLabel = label;
+          _lockDuration = AppPreferencesService.appPasscodeLockDuration.value;
           _loadingProfile = false;
         });
         return;
@@ -56,6 +59,7 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
       setState(() {
         _biometricAvailable = available;
         _biometricLabel = label;
+        _lockDuration = AppPreferencesService.appPasscodeLockDuration.value;
         _loadingProfile = false;
       });
     }
@@ -134,6 +138,164 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
     if (result == true) await _load();
   }
 
+  Future<void> _onLockDurationTap() async {
+    if (_savingLockDuration || !_hasAppPasscode) return;
+    final selected = await _showLockDurationPicker();
+    if (selected == null || !mounted) return;
+    setState(() => _savingLockDuration = true);
+    try {
+      await AppPreferencesService.setAppPasscodeLockDuration(selected);
+      if (!mounted) return;
+      setState(() => _lockDuration = selected);
+    } finally {
+      if (mounted) {
+        setState(() => _savingLockDuration = false);
+      }
+    }
+  }
+
+  Future<Duration?> _showLockDurationPicker() {
+    final options = <Duration>[
+      Duration.zero,
+      const Duration(hours: 1),
+      const Duration(hours: 4),
+      const Duration(hours: 8),
+      const Duration(hours: 12),
+      const Duration(days: 1),
+      const Duration(days: 2),
+      const Duration(days: 3),
+      const Duration(days: 7),
+    ];
+
+    return showModalBottomSheet<Duration>(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Auto-lock after',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ...options.map((option) {
+                  final selected = option == _lockDuration;
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(_lockDurationLabel(option)),
+                    trailing: selected
+                        ? const Icon(Icons.check_rounded)
+                        : const SizedBox.shrink(),
+                    onTap: () => Navigator.of(sheetContext).pop(option),
+                  );
+                }),
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Custom duration'),
+                  subtitle: const Text('Set value in hours or days'),
+                  trailing: const Icon(Icons.edit_outlined),
+                  onTap: () async {
+                    final custom = await _showCustomDurationDialog(sheetContext);
+                    if (custom == null || !sheetContext.mounted) return;
+                    Navigator.of(sheetContext).pop(custom);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Duration?> _showCustomDurationDialog(BuildContext parentContext) {
+    final amountController = TextEditingController();
+    String unit = 'hours';
+    return showDialog<Duration>(
+      context: parentContext,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Custom auto-lock duration'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Value',
+                      hintText: 'Enter number',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: unit,
+                    items: const [
+                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                      DropdownMenuItem(value: 'days', child: Text('Days')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => unit = value);
+                    },
+                    decoration: const InputDecoration(labelText: 'Unit'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final amount = int.tryParse(amountController.text.trim());
+                    if (amount == null || amount <= 0) return;
+                    final duration = unit == 'days'
+                        ? Duration(days: amount)
+                        : Duration(hours: amount);
+                    Navigator.of(dialogContext).pop(duration);
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _lockDurationLabel(Duration duration) {
+    if (duration <= Duration.zero) {
+      return 'Immediately';
+    }
+    if (duration.inHours > 0 && duration.inHours % 24 == 0) {
+      final days = duration.inHours ~/ 24;
+      return days == 1 ? '1 day' : '$days days';
+    }
+    if (duration.inHours > 0) {
+      final hours = duration.inHours;
+      return hours == 1 ? '1 hour' : '$hours hours';
+    }
+    final minutes = duration.inMinutes;
+    return minutes == 1 ? '1 minute' : '$minutes minutes';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -201,6 +363,16 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
                             subtitle: 'Update your 4-digit app code',
                             onTap: _openChangePasscode,
                           ),
+                          const Divider(height: 1, indent: 60, thickness: 0.5),
+                          _actionTile(
+                            isDark: isDark,
+                            icon: Icons.timer_outlined,
+                            title: 'Auto-lock timer',
+                            subtitle: _savingLockDuration
+                                ? 'Saving...'
+                                : _lockDurationLabel(_lockDuration),
+                            onTap: _onLockDurationTap,
+                          ),
                         ],
                         const Divider(height: 1, indent: 60, thickness: 0.5),
                         _actionTile(
@@ -233,7 +405,7 @@ class _AppPasscodePageState extends State<AppPasscodePage> {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: Text(
                           _hasAppPasscode
-                              ? 'Your app passcode locks RealtorOne when you leave. '
+                              ? 'Your app passcode locks RealtorOne after ${_lockDurationLabel(_lockDuration).toLowerCase()}. '
                                   '${_biometricAvailable ? '$_biometricLabel can be used for quick unlock when enabled.' : ''}'
                               : 'Set a 4-digit passcode to lock the app when you switch away or close it.',
                           style: TextStyle(

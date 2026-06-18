@@ -83,11 +83,16 @@ class SubscriptionApi {
     required int packageId,
     required int months,
     int? couponId,
+    String? iapProductId,
+    int? iapAmountPaise,
   }) async {
     return await ApiClient.post(ApiEndpoints.razorpayCreateOrder, {
       'package_id': packageId,
       'months': months,
       if (couponId != null) 'coupon_id': couponId,
+      if (iapProductId != null && iapProductId.isNotEmpty)
+        'iap_product_id': iapProductId,
+      if (iapAmountPaise != null) 'iap_amount_paise': iapAmountPaise,
     }, requiresAuth: true);
   }
 

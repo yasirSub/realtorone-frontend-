@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -133,6 +133,33 @@ class _RevenChatPageState extends State<RevenChatPage>
   DateTime? _lastUserVoiceActivityAt;
 
   bool _voiceFinalizeInProgress = false;
+  bool _voiceExitIntentInProgress = false;
+  int _deviceNoMatchStreak = 0;
+  static const Set<String> _voiceExitExactIntents = {
+    'bye',
+    'goodbye',
+    'ok bye',
+    'okay bye',
+    'thank you bye',
+    'close chat',
+    'stop chat',
+  };
+  static final RegExp _voiceExitBoundaryIntentPattern = RegExp(
+    r'^(?:ok(?:ay)?\s+)?(?:bye|goodbye|close chat|stop chat|thank you bye)(?:\s+now)?$',
+    caseSensitive: false,
+  );
+
+  void _chatDebug(String event, [Map<String, Object?> extra = const {}]) {
+    if (!kDebugMode) return;
+    final payload = <String, Object?>{
+      'voiceMode': _isVoiceInteractionMode,
+      'listening': _isListening,
+      'speaking': _isSpeaking,
+      'loading': _isLoading,
+      ...extra,
+    };
+    debugPrint('[RevenChat][$event] $payload');
+  }
 
   _VoiceCallStatus get _voiceCallStatus {
     if (_isListening) return _VoiceCallStatus.listening;
@@ -276,6 +303,49 @@ class _RevenChatPageState extends State<RevenChatPage>
       return;
     }
     Navigator.of(context).pop();
+  }
+
+  bool _isVoiceExitIntent(String rawUtterance) {
+    if (rawUtterance.trim().isEmpty) return false;
+    final normalized = rawUtterance
+        .toLowerCase()
+        .replaceAll(RegExp(r"[^a-z0-9\s']"), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.length < 3) return false;
+    return _voiceExitExactIntents.contains(normalized) ||
+        _voiceExitBoundaryIntentPattern.hasMatch(normalized);
+  }
+
+  Future<void> _closeChatFromVoiceExitIntent() async {
+    if (_voiceExitIntentInProgress) return;
+    _voiceExitIntentInProgress = true;
+    try {
+      await _stopAllVoiceActivity();
+      if (!mounted) return;
+      setState(() {
+        _interactionMode = _RevenInteractionMode.text;
+        _lastVoiceCaption = '';
+        _pendingAssistantReply = '';
+        _lastTurnWasVoice = false;
+        _isSpeaking = false;
+        _voiceMicPausedByUser = false;
+      });
+      _syncOverlayPresentation();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Closing chat'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      if (widget.embedded) {
+        RevenChatOverlay.hide();
+      } else if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      _voiceExitIntentInProgress = false;
+    }
   }
 
   void _minimizeChat() {
@@ -663,6 +733,20 @@ class _RevenChatPageState extends State<RevenChatPage>
     return '$_voiceSpeakerFamily · $_voiceModelLabel';
   }
 
+  void _syncVoiceLabelFromResponse(Map<String, dynamic>? payload) {
+    if (payload == null || !mounted) return;
+    final audioLabel = payload['reply_audio_label']?.toString().trim() ?? '';
+    final model = payload['reply_voice_model']?.toString().trim() ?? '';
+    if (audioLabel.isEmpty && model.isEmpty) return;
+    setState(() {
+      if (audioLabel.isNotEmpty) {
+        _voiceModelLabel = audioLabel;
+      } else if (model.isNotEmpty) {
+        _voiceModelLabel = model;
+      }
+    });
+  }
+
   bool _voiceIdsEqual(String a, String b) =>
       a.trim().toLowerCase() == b.trim().toLowerCase();
 
@@ -791,7 +875,8 @@ class _RevenChatPageState extends State<RevenChatPage>
           isSpeakerphoneOn: true,
           stayAwake: true,
           contentType: AndroidContentType.speech,
-          usageType: AndroidUsageType.voiceCommunication,
+          // Route AI replies as media to avoid low-volume call/earpiece output.
+          usageType: AndroidUsageType.media,
           audioFocus: AndroidAudioFocus.gain,
         ),
       );
@@ -813,6 +898,32 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     } catch (e) {
       debugPrint('Reven voice audio session setup failed: $e');
+    }
+  }
+
+  /// Best-effort hard route to loudspeaker/media just before AI playback.
+  ///
+  /// On Android this nudges the system audio route back to the speakerphone /
+  /// media output using the same `AudioContextAndroid` configuration we use
+  /// during initial setup. It is safe to call multiple times and is a no-op
+  /// on non-Android platforms.
+  Future<void> _ensureSpeakerRouteForPlayback() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      final ctx = AudioContext(
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: true,
+          contentType: AndroidContentType.speech,
+          usageType: AndroidUsageType.media,
+          audioFocus: AndroidAudioFocus.gain,
+        ),
+      );
+      await AudioPlayer.global.setAudioContext(ctx);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('ensureSpeakerRouteForPlayback failed: $e');
+      }
     }
   }
 
@@ -880,12 +991,14 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     try {
+      await _ensureSpeakerRouteForPlayback();
       await _cloudPlayer.play(BytesSource(bytes, mimeType: playMime));
       await _cloudPlayer.onPlayerComplete.first;
       return true;
     } catch (_) {
       if (playMime != 'audio/mpeg') {
         try {
+          await _ensureSpeakerRouteForPlayback();
           await _cloudPlayer.play(BytesSource(bytes, mimeType: 'audio/mpeg'));
           await _cloudPlayer.onPlayerComplete.first;
           return true;
@@ -905,6 +1018,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     setState(() => _isSpeaking = true);
     _cancelVoiceInactivityTimer();
     try {
+      await _ensureSpeakerRouteForPlayback();
       await _tts.speak(spoken);
       return true;
     } catch (_) {
@@ -915,6 +1029,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _speakReply(String text, {Map<String, dynamic>? apiRes}) async {
     if (!_voiceReadAloud || _humanHandoffActive) return;
+    _syncVoiceLabelFromResponse(apiRes);
 
     // Cloud AI voice disabled → built-in phone TTS only (no OpenRouter audio).
     if (!_effectiveVoiceCloudEnabled) {
@@ -936,6 +1051,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         text,
         voiceId: _activeVoiceIdForApi,
       );
+      _syncVoiceLabelFromResponse(voiceRes);
       if (!mounted) return;
       if (voiceRes['success'] == true &&
           voiceRes['reply_audio_engine']?.toString() == 'device') {
@@ -1134,7 +1250,9 @@ class _RevenChatPageState extends State<RevenChatPage>
     _voiceUserSpeaking = false;
   }
 
-  Future<void> _restartVoiceListenIfNeeded() async {
+  Future<void> _restartVoiceListenIfNeeded({
+    Duration delay = const Duration(milliseconds: 200),
+  }) async {
     if (!_isVoiceInteractionMode ||
         _humanHandoffActive ||
         !_voiceInAiChatEnabled ||
@@ -1144,7 +1262,7 @@ class _RevenChatPageState extends State<RevenChatPage>
         _isLoading) {
       return;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await Future<void>.delayed(delay);
     if (!mounted) return;
     await _startVoiceInput();
   }
@@ -1157,7 +1275,11 @@ class _RevenChatPageState extends State<RevenChatPage>
           if (!_isListening) return;
           if (_isVoiceInteractionMode) {
             if (_voiceTranscript.trim().isEmpty) {
-              unawaited(_restartVoiceListenIfNeeded());
+              unawaited(
+                _restartVoiceListenIfNeeded(
+                  delay: const Duration(milliseconds: 700),
+                ),
+              );
             } else {
               unawaited(_finishVoiceSession());
             }
@@ -1167,11 +1289,31 @@ class _RevenChatPageState extends State<RevenChatPage>
         },
         onError: (err) {
           debugPrint('Reven STT error: $err');
+          final lower = err.toString().toLowerCase();
+          final noMatch = lower.contains('no_match');
+          if (noMatch) {
+            _deviceNoMatchStreak++;
+          } else {
+            _deviceNoMatchStreak = 0;
+          }
           if (!mounted) return;
           setState(() => _isListening = false);
           _micPulseController.stop();
           if (_isVoiceInteractionMode) {
-            unawaited(_restartVoiceListenIfNeeded());
+            // If device STT keeps failing with no_match, fallback to cloud STT.
+            if (_effectiveCloudStt && _deviceNoMatchStreak >= 2) {
+              _chatDebug('device_stt_no_match_fallback_to_cloud', {
+                'streak': _deviceNoMatchStreak,
+              });
+              _deviceNoMatchStreak = 0;
+              unawaited(_startCloudVoiceInput());
+              return;
+            }
+            unawaited(
+              _restartVoiceListenIfNeeded(
+                delay: const Duration(milliseconds: 900),
+              ),
+            );
           }
         },
       );
@@ -1224,6 +1366,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _startVoiceInput({bool forceDevice = false}) async {
     if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
+    _chatDebug('start_voice_input', {'forceDevice': forceDevice});
 
     // In voice-call mode we should prefer cloud STT (Whisper) unless forced to device STT.
     if (!forceDevice && _effectiveCloudStt) {
@@ -1233,6 +1376,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
+      _chatDebug('start_voice_input_blocked', {'reason': 'mic_permission_denied'});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1282,6 +1426,14 @@ class _RevenChatPageState extends State<RevenChatPage>
       onResult: (result) {
         if (!mounted) return;
         final words = result.recognizedWords.trim();
+        if (_isVoiceInteractionMode &&
+            words.isNotEmpty &&
+            _isVoiceExitIntent(words)) {
+          _voiceSilenceFinalizeTimer?.cancel();
+          _voiceUtteranceTimer?.cancel();
+          unawaited(_closeChatFromVoiceExitIntent());
+          return;
+        }
         if (words.isNotEmpty) {
           setState(() => _voiceTranscript = words);
           _markUserVoiceActivity();
@@ -1311,9 +1463,11 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _startCloudVoiceInput() async {
     if (_isListening || !_voiceInAiChatEnabled || _isLoading) return;
+    _chatDebug('start_cloud_voice_input');
 
     final mic = await Permission.microphone.request();
     if (!mic.isGranted) {
+      _chatDebug('start_cloud_voice_input_blocked', {'reason': 'mic_permission_denied'});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1324,6 +1478,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
 
     if (!await _cloudSpeech.hasPermission()) {
+      _chatDebug('start_cloud_voice_input_blocked', {'reason': 'record_has_permission_false'});
       if (!mounted) return;
       _showVoiceSnack('Microphone access is required for cloud speech.');
       return;
@@ -1353,16 +1508,26 @@ class _RevenChatPageState extends State<RevenChatPage>
     );
 
     if (!started) {
+      _chatDebug('start_cloud_voice_input_failed', {'reason': 'recorder_start_failed'});
       if (mounted) {
         setState(() => _isListening = false);
         _showVoiceSnack('Could not start cloud speech capture.');
       }
       return;
     }
+
+    // Safety fallback: if silence detection misses on some devices, finalize
+    // transcription after a max capture window instead of waiting forever.
+    _voiceUtteranceTimer?.cancel();
+    _voiceUtteranceTimer = Timer(const Duration(seconds: 5), () {
+      if (!mounted || !_isListening || _voiceFinalizeInProgress) return;
+      unawaited(_finishVoiceSession());
+    });
   }
 
   Future<void> _finishCloudVoiceSession() async {
     if (!_isListening || _voiceFinalizeInProgress) return;
+    _chatDebug('finish_cloud_voice_session_begin');
     _voiceFinalizeInProgress = true;
     _voiceUtteranceTimer?.cancel();
     _voiceSilenceFinalizeTimer?.cancel();
@@ -1371,10 +1536,12 @@ class _RevenChatPageState extends State<RevenChatPage>
 
     try {
       final path = await _cloudSpeech.stop();
+      _chatDebug('finish_cloud_voice_session_stop', {'path': path});
       if (!mounted) return;
       setState(() => _isListening = false);
 
       if (path == null) {
+        _chatDebug('finish_cloud_voice_session_skipped', {'reason': 'empty_path'});
         if (!_voiceMicPausedByUser) {
           await _restartVoiceListenIfNeeded();
         }
@@ -1390,6 +1557,11 @@ class _RevenChatPageState extends State<RevenChatPage>
       final lang = appLang.isArabic ? 'ar' : 'en';
       final res = await ChatApi.transcribeVoice(path, language: lang);
       await _cloudSpeech.deleteFile(path);
+      _chatDebug('cloud_transcribe_result', {
+        'success': res['success'] == true,
+        'engine': res['engine']?.toString(),
+        'message': res['message']?.toString(),
+      });
 
       var text = '';
       if (res['success'] == true) {
@@ -1419,6 +1591,11 @@ class _RevenChatPageState extends State<RevenChatPage>
         return;
       }
 
+      if (_isVoiceInteractionMode && _isVoiceExitIntent(text)) {
+        await _closeChatFromVoiceExitIntent();
+        return;
+      }
+
       if (_voiceAutoSend) {
         _markUserVoiceActivity();
         await _sendToApi(text, fromVoice: true);
@@ -1430,6 +1607,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     } finally {
       _voiceFinalizeInProgress = false;
+      _chatDebug('finish_cloud_voice_session_end');
     }
   }
 
@@ -1462,6 +1640,10 @@ class _RevenChatPageState extends State<RevenChatPage>
         if (!_voiceMicPausedByUser) {
           await _restartVoiceListenIfNeeded();
         }
+        return;
+      }
+      if (_isVoiceInteractionMode && _isVoiceExitIntent(text)) {
+        await _closeChatFromVoiceExitIntent();
         return;
       }
       if (_voiceAutoSend) {
@@ -2008,6 +2190,7 @@ class _RevenChatPageState extends State<RevenChatPage>
 
   Future<void> _sendToApi(String text, {bool fromVoice = false}) async {
     if (_isLoading) return;
+    _chatDebug('send_to_api_begin', {'fromVoice': fromVoice, 'chars': text.trim().length});
     await _stopTts();
     if (fromVoice) {
       _lastTurnWasVoice = true;
@@ -2034,13 +2217,38 @@ class _RevenChatPageState extends State<RevenChatPage>
     final voiceTurn = _isVoiceInteractionMode;
     final inlineCloudVoice =
         voiceTurn && _voiceReadAloud && _effectiveVoiceCloudEnabled;
-    final res = await ChatApi.sendMessage(
-      text,
-      sessionId: _sessionId,
-      voiceReply: inlineCloudVoice,
-      voiceMode: voiceTurn,
-      voiceId: _activeVoiceIdForApi,
-    );
+    late final Map<String, dynamic> res;
+    try {
+      res = await ChatApi.sendMessage(
+        text,
+        sessionId: _sessionId,
+        voiceReply: inlineCloudVoice,
+        voiceMode: voiceTurn,
+        voiceId: _activeVoiceIdForApi,
+      );
+      _chatDebug('send_to_api_response', {
+        'success': res['success'] == true,
+        'statusCode': res['statusCode'],
+        'message': res['message']?.toString(),
+      });
+    } catch (e) {
+      _chatDebug('send_to_api_exception', {'error': e.toString()});
+      if (!mounted) return;
+      _stopWaitElapsedTicker();
+      setState(() {
+        _messages.removeLast();
+        _isLoading = false;
+        _messages.add(
+          const _RevenMessage(
+            text:
+                'Network issue while contacting Reven. Please check connection and try again.',
+            isUser: false,
+          ),
+        );
+      });
+      _scrollToBottom();
+      return;
+    }
 
     if (!mounted) return;
     String? ttsReply;
@@ -2210,6 +2418,7 @@ class _RevenChatPageState extends State<RevenChatPage>
       }
     });
     if (res['success'] == true) {
+      _syncVoiceLabelFromResponse(res);
       var speakText = (res['reply'] as String? ?? '').trim();
       if (voiceTurn) {
         speakText = speakText.replaceAll(RegExp(r'\s*\[.*?\]\s*'), '').trim();
@@ -2227,6 +2436,7 @@ class _RevenChatPageState extends State<RevenChatPage>
     }
     _scrollToBottom();
     if (ttsReply != null) {
+      _chatDebug('speak_reply_begin', {'chars': ttsReply.length});
       await _speakReply(ttsReply, apiRes: ttsRes);
       if (mounted) {
         setState(() {
@@ -2247,8 +2457,10 @@ class _RevenChatPageState extends State<RevenChatPage>
         !_voiceMicPausedByUser &&
         !_isSpeaking &&
         !_isListening) {
+      _chatDebug('schedule_listen_after_reply');
       await _scheduleVoiceListenAfterReply();
     }
+    _chatDebug('send_to_api_end');
   }
 
   Future<void> _autoFetchClientsForLastMessage() async {
@@ -3099,9 +3311,7 @@ class _RevenVoiceComposer extends StatelessWidget {
         if (primary != null) return 'Listening…';
         return 'Listening to you…';
       case _VoiceCallStatus.processing:
-        if (processingSince != null) {
-          return 'Thinking… ${_RevenChatTimestamps.waiting(processingSince!)}';
-        }
+        if (processingSince != null) return 'Thinking…';
         return primary != null ? 'Thinking…' : 'Thinking…';
       case _VoiceCallStatus.speaking:
         return primary != null ? 'Speaking…' : 'Speaking… · tap orb or mic to interrupt';
@@ -4470,9 +4680,9 @@ class _RevenChatTimestamps {
     final waitSec = now.difference(started).inMilliseconds / 1000.0;
     if (after != null) {
       final totalSec = now.difference(after).inMilliseconds / 1000.0;
-      return 'Waiting ${waitSec.toStringAsFixed(1)}s (${totalSec.toStringAsFixed(1)}s since you)';
+      return 'Response time: ${waitSec.toStringAsFixed(1)}s (since you: ${totalSec.toStringAsFixed(1)}s)';
     }
-    return 'Waiting ${waitSec.toStringAsFixed(1)}s…';
+    return 'Response time: ${waitSec.toStringAsFixed(1)}s';
   }
 }
 

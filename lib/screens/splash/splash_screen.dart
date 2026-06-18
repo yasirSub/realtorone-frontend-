@@ -26,6 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   int _loadingProgress = 0;
   String _statusMessage = 'INITIALIZING SYSTEM';
+  bool _didNavigate = false;
 
   final List<String> _tacticalMessages = [
     'BOOTING STRATEGIC ENGINE',
@@ -43,6 +44,45 @@ class _SplashScreenState extends State<SplashScreen>
     _animateProgress();
   }
 
+  void _navigateOnce(String routeName, {Object? arguments}) {
+    if (!mounted || _didNavigate) return;
+    _didNavigate = true;
+    Navigator.pushReplacementNamed(
+      context,
+      routeName,
+      arguments: arguments,
+    );
+  }
+
+  Future<void> _navigateFallbackIfNeeded({required String reason}) async {
+    if (!mounted || _didNavigate) return;
+
+    debugPrint('Splash: fallback navigation triggered ($reason)');
+    setState(() {
+      _statusMessage = 'INITIALIZATION STALLED - REDIRECTING';
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted || _didNavigate) return;
+
+      final token = prefs.getString('token');
+      final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
+
+      if (!hasSeenOnboarding) {
+        _navigateOnce(AppRoutes.onboarding);
+      } else if (token == null) {
+        _navigateOnce(AppRoutes.login);
+      } else {
+        _navigateOnce(AppRoutes.main);
+      }
+    } catch (e) {
+      debugPrint('Splash: fallback navigation failed: $e');
+      if (!mounted || _didNavigate) return;
+      _navigateOnce(AppRoutes.main);
+    }
+  }
+
   Future<void> _animateProgress() async {
     for (int i = 0; i <= 100; i++) {
       if (!mounted) return;
@@ -57,6 +97,10 @@ class _SplashScreenState extends State<SplashScreen>
         }
       });
     }
+
+    // If init navigation never happened (e.g. a future hung), redirect so
+    // users never get stuck at 100% loading.
+    await _navigateFallbackIfNeeded(reason: 'progress reached 100%');
   }
 
   Future<void> _checkLoginStatus() async {
@@ -114,11 +158,7 @@ class _SplashScreenState extends State<SplashScreen>
           kind: 'maintenance',
         );
         if (!mounted) return;
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.maintenance,
-          arguments: args,
-        );
+        _navigateOnce(AppRoutes.maintenance, arguments: args);
         return;
       }
 
@@ -130,28 +170,20 @@ class _SplashScreenState extends State<SplashScreen>
           kind: 'unavailable',
         );
         if (!mounted) return;
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.maintenance,
-          arguments: args,
-        );
+        _navigateOnce(AppRoutes.maintenance, arguments: args);
         return;
       }
 
       if (config.requiresUpdate) {
         debugPrint('Splash: update required, redirecting');
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.updateRequired,
-          arguments: {
+        _navigateOnce(AppRoutes.updateRequired, arguments: {
             'minVersion': config.minVersionForPlatform,
             'storeUrl': config.storeUrlForPlatform,
             'apkUrl': config.apkUrl,
             'platformLabel': defaultTargetPlatform == TargetPlatform.iOS
                 ? 'iOS'
                 : 'Android',
-          },
-        );
+          });
         return;
       }
     } catch (e) {
@@ -163,13 +195,13 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!hasSeenOnboarding) {
       debugPrint('Splash: redirecting to onboarding');
-      Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      _navigateOnce(AppRoutes.onboarding);
       return;
     }
 
     if (token == null) {
       debugPrint('Splash: redirecting to login');
-      Navigator.pushReplacementNamed(context, AppRoutes.login);
+      _navigateOnce(AppRoutes.login);
       return;
     }
 
@@ -194,33 +226,34 @@ class _SplashScreenState extends State<SplashScreen>
             final isProfileComplete = userData['is_profile_complete'] == true;
             if (!isProfileComplete) {
               debugPrint('Splash: redirecting to profile setup');
-              Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+              _navigateOnce(AppRoutes.profileSetup);
               return;
             }
 
             final hasDiagnosis = userData['has_completed_diagnosis'] == true;
             if (!hasDiagnosis) {
               debugPrint('Splash: redirecting to diagnosis');
-              Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+              _navigateOnce(AppRoutes.diagnosis);
               return;
             }
 
             AppPasscodeService.instance.configureFromProfile(
               Map<String, dynamic>.from(userData as Map),
             );
+            await AppPasscodeService.instance.lockIfExpired();
             if (AppPasscodeService.instance.needsLock) {
               debugPrint('Splash: redirecting to app passcode lock');
-              Navigator.pushReplacementNamed(context, AppRoutes.appPasscodeLock);
+              _navigateOnce(AppRoutes.appPasscodeLock);
               return;
             }
 
             debugPrint('Splash: redirecting to main');
-            Navigator.pushReplacementNamed(context, AppRoutes.main);
+            _navigateOnce(AppRoutes.main);
             return;
           }
 
           debugPrint('Splash: redirecting to profile setup (no basic profile)');
-          Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+          _navigateOnce(AppRoutes.profileSetup);
         } else {
           final statusCode = response['statusCode'];
           final message = (response['message'] ?? '').toString().toLowerCase();
@@ -234,14 +267,14 @@ class _SplashScreenState extends State<SplashScreen>
             debugPrint('Splash: auth error, clearing token');
             await ApiClient.clearToken();
             if (mounted) {
-              Navigator.pushReplacementNamed(context, AppRoutes.login);
+              _navigateOnce(AppRoutes.login);
             }
             return;
           }
 
           // Non-auth API failures should not force logout.
           debugPrint('Splash: API failure, redirecting to main anyway');
-          Navigator.pushReplacementNamed(context, AppRoutes.main);
+          _navigateOnce(AppRoutes.main);
         }
       }
     } catch (e) {
@@ -258,13 +291,13 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted && isNetworkIssue) {
         debugPrint('Splash: network issue, proceeding to main');
         // Keep signed-in users in app on transient connectivity issues.
-        Navigator.pushReplacementNamed(context, AppRoutes.main);
+        _navigateOnce(AppRoutes.main);
         return;
       }
 
       if (mounted) {
         debugPrint('Splash: generic error, returning to login');
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        _navigateOnce(AppRoutes.login);
       }
     }
   }

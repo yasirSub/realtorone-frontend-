@@ -50,6 +50,26 @@ class SubscriptionPricing {
     return _inrFormat.format(inrAmount.round());
   }
 
+  /// INR charge from a Google Play / App Store SKU (when currency is INR).
+  static double? iapInrAmount(ProductDetails? product) {
+    if (product == null) return null;
+    if (product.currencyCode.toUpperCase() != 'INR') return null;
+    final raw = product.rawPrice;
+    if (raw <= 0) return null;
+    final paise = (raw * 100).round();
+    if (paise < 100) return null;
+    return paise / 100;
+  }
+
+  /// Paise for Razorpay when mirroring the store SKU price.
+  static int? iapAmountPaise(ProductDetails? product) {
+    if (product == null) return null;
+    if (product.currencyCode.toUpperCase() != 'INR') return null;
+    final paise = (product.rawPrice * 100).round();
+    if (paise < 100) return null;
+    return paise;
+  }
+
   /// Same rounding as backend `RazorpayPaymentService::aedToPaise`.
   static double inrChargeFromAed(double amountAed, double rate) {
     final paise = (amountAed * rate * 100).round();

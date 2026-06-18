@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../routes/app_routes.dart';
@@ -37,7 +39,7 @@ class RevenGlobalShell extends StatelessWidget {
     return !hidden.contains(routeName);
   }
 
-  static void handleSystemBack() {
+  static Future<void> handleSystemBack(BuildContext context) async {
     if (!RevenChatOverlay.isVisible) {
       return;
     }
@@ -46,17 +48,15 @@ class RevenGlobalShell extends StatelessWidget {
     }
     if (!RevenChatOverlay.isMinimized) {
       RevenChatOverlay.minimize();
+      return;
     }
+    // If bubble is already minimized, close it on first back before app navigation.
+    RevenChatOverlay.hide();
   }
 
   static bool get canSystemPop {
-    if (!RevenChatOverlay.isVisible) {
-      return true;
-    }
-    if (RevenChatOverlay.isMinimized) {
-      return true;
-    }
-    return false;
+    // While Reven UI is visible (panel or minimized bubble), consume back first.
+    return !RevenChatOverlay.isVisible;
   }
 
   @override
@@ -79,7 +79,7 @@ class RevenGlobalShell extends StatelessWidget {
             if (didPop) {
               return;
             }
-            handleSystemBack();
+            unawaited(handleSystemBack(context));
           },
           child: Stack(
             fit: StackFit.expand,

@@ -6,6 +6,9 @@ import 'package:speech_to_text/speech_to_text.dart';
 class SpeechLocaleHelper {
   SpeechLocaleHelper._();
 
+  static String _normalizeTag(String value) =>
+      value.trim().replaceAll('_', '-').toLowerCase();
+
   static String? pickBestLocaleId(
     List<LocaleName> available, {
     String? languageCode,
@@ -35,18 +38,28 @@ class SpeechLocaleHelper {
     final ids = available.map((l) => l.localeId).toList();
 
     for (final candidate in candidates) {
-      final c = candidate.toLowerCase();
+      final c = _normalizeTag(candidate);
       for (final id in ids) {
-        if (id.toLowerCase() == c) return id;
+        if (_normalizeTag(id) == c) return id;
       }
     }
 
     for (final candidate in candidates) {
       final prefix = candidate.split('-').first.toLowerCase();
       for (final id in ids) {
-        final lower = id.toLowerCase();
+        final lower = _normalizeTag(id);
         if (lower == prefix || lower.startsWith('$prefix-')) return id;
       }
+    }
+
+    // Never default to arbitrary first locale (can be unrelated language like cmn_CN).
+    for (final id in ids) {
+      final n = _normalizeTag(id);
+      if (n.startsWith('en-') || n == 'en') return id;
+    }
+    for (final id in ids) {
+      final n = _normalizeTag(id);
+      if (n.startsWith('ar-') || n == 'ar') return id;
     }
 
     return available.first.localeId;
