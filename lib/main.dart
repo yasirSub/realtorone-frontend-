@@ -18,6 +18,7 @@ import 'services/support_contact_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/iap_service.dart';
+import 'services/meta_app_events_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,6 +70,7 @@ Future<void> main() async {
   }
 
   await AppPreferencesService.ensureLoaded();
+  await MetaAppEventsService.instance.initialize();
   await DeepLinkService.initialize(appNavigatorKey);
   IapService().initialize();
   runApp(

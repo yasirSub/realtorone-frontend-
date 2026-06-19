@@ -5,6 +5,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/api_client.dart';
 import '../../api/auth_api.dart';
 import '../../services/google_auth_service.dart';
+import '../../services/meta_app_events_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/auth/auth_form_ui.dart';
@@ -59,6 +60,11 @@ class _LoginPageState extends State<LoginPage> {
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
         await PushNotificationService.syncTokenWithBackend();
+        final user = response['user'];
+        await MetaAppEventsService.instance.trackLogin(
+          method: _usePhone ? 'phone' : 'email',
+          user: user is Map ? Map<String, dynamic>.from(user) : null,
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name']);
         await prefs.setString('user_email', response['user']['email'] ?? '');
@@ -132,6 +138,11 @@ class _LoginPageState extends State<LoginPage> {
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
         await PushNotificationService.syncTokenWithBackend();
+        final user = response['user'];
+        await MetaAppEventsService.instance.trackLogin(
+          method: 'google',
+          user: user is Map ? Map<String, dynamic>.from(user) : null,
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name'] ?? '');
         await prefs.setString('user_email', response['user']['email'] ?? '');
@@ -208,6 +219,11 @@ class _LoginPageState extends State<LoginPage> {
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
         await PushNotificationService.syncTokenWithBackend();
+        final user = response['user'];
+        await MetaAppEventsService.instance.trackLogin(
+          method: 'apple',
+          user: user is Map ? Map<String, dynamic>.from(user) : null,
+        );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name'] ?? '');
         await prefs.setString('user_email', response['user']['email'] ?? '');

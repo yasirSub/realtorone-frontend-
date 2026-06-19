@@ -9,6 +9,7 @@ import '../../api/app_config.dart';
 import '../../api/subscription_api.dart';
 import '../../api/api_client.dart';
 import '../../services/iap_service.dart';
+import '../../services/meta_app_events_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../widgets/elite_loader.dart';
 import '../../utils/responsive_helper.dart';
@@ -528,6 +529,27 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           if (verify['success'] != true) {
             throw Exception(
               verify['message']?.toString() ?? 'Payment verification failed.',
+            );
+          }
+          final pricing = verify['pricing'];
+          final parsed = MetaAppEventsService.pricingFromActivation(
+            pricing is Map ? Map<String, dynamic>.from(pricing) : null,
+          );
+          if (parsed != null) {
+            await MetaAppEventsService.instance.trackSubscriptionPurchase(
+              orderId: paymentId,
+              amount: parsed.amount,
+              currency: parsed.currency,
+              contentId: _selectedPackageId?.toString(),
+              numItems: 1,
+            );
+          } else {
+            await MetaAppEventsService.instance.trackSubscriptionPurchase(
+              orderId: paymentId,
+              amount: amount / 100,
+              currency: data['currency']?.toString() ?? 'INR',
+              contentId: _selectedPackageId?.toString(),
+              numItems: 1,
             );
           }
           if (mounted) {

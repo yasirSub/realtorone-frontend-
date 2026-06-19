@@ -5,6 +5,7 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../api/auth_api.dart';
 import '../../api/api_client.dart';
 import '../../services/google_auth_service.dart';
+import '../../services/meta_app_events_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/auth/auth_form_ui.dart';
@@ -65,6 +66,9 @@ class _RegisterPageState extends State<RegisterPage> {
       final otpSendFailed = response['otp_send_failed'] == true;
 
       if (response['status'] == 'ok' || otpSendFailed) {
+        await MetaAppEventsService.instance.trackRegistration(
+          method: _usePhone ? 'phone' : 'email',
+        );
         if (otpSendFailed && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -162,6 +166,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
         await PushNotificationService.syncTokenWithBackend();
+        await MetaAppEventsService.instance.trackRegistration(method: 'google');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name'] ?? '');
         await prefs.setString('user_email', response['user']['email'] ?? '');
@@ -238,6 +243,7 @@ class _RegisterPageState extends State<RegisterPage> {
       if (response['status'] == 'ok' && response['token'] != null) {
         await ApiClient.setToken(response['token']);
         await PushNotificationService.syncTokenWithBackend();
+        await MetaAppEventsService.instance.trackRegistration(method: 'apple');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_name', response['user']['name'] ?? '');
         await prefs.setString('user_email', response['user']['email'] ?? '');

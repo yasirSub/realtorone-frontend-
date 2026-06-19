@@ -6,6 +6,7 @@ import '../api/api_client.dart';
 import '../api/subscription_api.dart';
 import 'app_passcode_service.dart';
 import '../utils/api_user_message.dart';
+import 'meta_app_events_service.dart';
 
 class IapService {
   static final IapService _instance = IapService._internal();
@@ -344,6 +345,7 @@ class IapService {
         if (res['success'] == true) {
           _captureActivationPricing(res);
           pendingCouponId = null;
+          await _reportMetaSubscriptionPurchase(paymentId, productId);
           debugPrint('Subscription activated on server for $productId');
           return true;
         }
@@ -386,6 +388,7 @@ class IapService {
         if (res['success'] == true) {
           _captureActivationPricing(res);
           pendingCouponId = null;
+          await _reportMetaSubscriptionPurchase(paymentId, productId);
           return true;
         }
         _lastBackendError =
@@ -409,6 +412,24 @@ class IapService {
       lastActivationPricing = null;
     }
     lastActivationCouponApplied = res['coupon_applied'] == true;
+  }
+
+  Future<void> _reportMetaSubscriptionPurchase(
+    String orderId,
+    String productId,
+  ) async {
+    final parsed = MetaAppEventsService.pricingFromActivation(
+      lastActivationPricing,
+    );
+    if (parsed == null) return;
+
+    await MetaAppEventsService.instance.trackSubscriptionPurchase(
+      orderId: orderId,
+      amount: parsed.amount,
+      currency: parsed.currency,
+      contentId: productId,
+      numItems: 1,
+    );
   }
 
   String _resolvePaymentId(PurchaseDetails purchase) {
