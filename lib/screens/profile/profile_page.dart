@@ -560,6 +560,15 @@ class _ProfilePageState extends State<ProfilePage> {
                                   }
                                 },
                               ),
+                              _MenuItem(
+                                icon: Icons.receipt_long_outlined,
+                                title: 'Payment history',
+                                subtitle: 'View successful and failed payments',
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.paymentHistory,
+                                ),
+                              ),
                             ], isDark),
                             const SizedBox(height: 24),
 

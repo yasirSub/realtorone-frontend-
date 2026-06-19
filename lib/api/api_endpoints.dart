@@ -84,6 +84,8 @@ class ApiEndpoints {
   static const String paymentSettings = '/subscriptions/payment-settings';
   static const String pricingPreview = '/subscriptions/pricing-preview';
   static const String pricingQuote = '/subscriptions/pricing-quote';
+  static const String paymentHistory = '/subscriptions/payment-history';
+  static const String paymentEvents = '/subscriptions/payment-events';
 
   // ============== PHASE 2: RESULTS TRACKER ==============
   static const String results = '/results';

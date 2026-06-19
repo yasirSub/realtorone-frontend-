@@ -16,6 +16,7 @@ class AppRoutes {
   static const String appVersion = '/app-version';
   static const String dashboard = '/dashboard'; // Legacy
   static const String subscriptionPlans = '/subscription-plans';
+  static const String paymentHistory = '/payment-history';
   static const String rewards = '/rewards';
   static const String resultsTracker = '/results-tracker';
   static const String activities = '/activities';

@@ -131,4 +131,44 @@ class SubscriptionApi {
         'country_code': countryCode.toUpperCase(),
     }, requiresAuth: true);
   }
+
+  static Future<Map<String, dynamic>> getPaymentHistory({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return await ApiClient.get(
+      '${ApiEndpoints.paymentHistory}?limit=$limit&offset=$offset',
+      requiresAuth: true,
+      useCache: false,
+    );
+  }
+
+  static Future<Map<String, dynamic>> reportPaymentEvent({
+    required String status,
+    required String paymentMethod,
+    int? packageId,
+    String? tierName,
+    int? months,
+    double? amount,
+    String? currency,
+    String? paymentId,
+    String? externalId,
+    String? productId,
+    String? failureReason,
+  }) async {
+    return await ApiClient.post(ApiEndpoints.paymentEvents, {
+      'status': status,
+      'payment_method': paymentMethod,
+      if (packageId != null) 'package_id': packageId,
+      if (tierName != null && tierName.isNotEmpty) 'tier_name': tierName,
+      if (months != null) 'months': months,
+      if (amount != null) 'amount': amount,
+      if (currency != null && currency.isNotEmpty) 'currency': currency,
+      if (paymentId != null && paymentId.isNotEmpty) 'payment_id': paymentId,
+      if (externalId != null && externalId.isNotEmpty) 'external_id': externalId,
+      if (productId != null && productId.isNotEmpty) 'product_id': productId,
+      if (failureReason != null && failureReason.isNotEmpty)
+        'failure_reason': failureReason,
+    }, requiresAuth: true);
+  }
 }

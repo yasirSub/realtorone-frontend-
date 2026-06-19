@@ -27,6 +27,9 @@ class IapService {
 
   /// Set from subscription UI before checkout; sent to backend after IAP succeeds.
   int? pendingCouponId;
+  int? pendingPackageId;
+  int? pendingMonths;
+  String? pendingTierName;
 
   /// Pricing breakdown from the last successful server activation (for success UI).
   Map<String, dynamic>? lastActivationPricing;
@@ -161,6 +164,9 @@ class IapService {
   Set<String> get lastNotFoundIds => Set.unmodifiable(_lastNotFoundIds);
 
   Future<void> buyByTier(String tierName, int months, int packageId) async {
+    pendingPackageId = packageId;
+    pendingMonths = months;
+    pendingTierName = tierName;
     if (!isAvailable) {
       onPurchaseResult?.call(false, 'Store not available on this device.');
       return;
@@ -261,13 +267,16 @@ class IapService {
           if (purchaseDetails.pendingCompletePurchase) {
             await _inAppPurchase.completePurchase(purchaseDetails);
           }
-          onPurchaseResult?.call(
-            false,
-            ApiUserMessage.sanitize(
-              purchaseDetails.error?.message,
-              fallback: 'Purchase failed',
-            ),
+          final errorMessage = ApiUserMessage.sanitize(
+            purchaseDetails.error?.message,
+            fallback: 'Purchase failed',
           );
+          await _reportClientPaymentEvent(
+            purchaseDetails: purchaseDetails,
+            status: 'failed',
+            failureReason: errorMessage,
+          );
+          onPurchaseResult?.call(false, errorMessage);
           _finishPurchaseFlow();
           break;
 
@@ -276,6 +285,11 @@ class IapService {
           if (purchaseDetails.pendingCompletePurchase) {
             await _inAppPurchase.completePurchase(purchaseDetails);
           }
+          await _reportClientPaymentEvent(
+            purchaseDetails: purchaseDetails,
+            status: 'cancelled',
+            failureReason: 'Purchase cancelled',
+          );
           onPurchaseResult?.call(false, 'Purchase cancelled');
           _finishPurchaseFlow();
           break;
@@ -297,6 +311,12 @@ class IapService {
             onPurchaseResult?.call(true, null);
           } else {
             // Do NOT complete — StoreKit will redeliver until entitlement is granted.
+            await _reportClientPaymentEvent(
+              purchaseDetails: purchaseDetails,
+              status: 'failed',
+              failureReason: _lastBackendError ??
+                  'Subscription could not be activated. Check your connection and tap Restore Purchases.',
+            );
             onPurchaseResult?.call(
               false,
               _lastBackendError ??
@@ -402,6 +422,40 @@ class IapService {
 
     _lastBackendError = 'Unknown product ID: $productId';
     return false;
+  }
+
+  Future<void> _reportClientPaymentEvent({
+    required PurchaseDetails purchaseDetails,
+    required String status,
+    String? failureReason,
+  }) async {
+    try {
+      final tierMap = _parseTierProduct(purchaseDetails.productID);
+      final tierName =
+          tierMap?['tier']?.toString() ?? pendingTierName ?? '';
+      final months = tierMap?['months'] as int? ?? pendingMonths ?? 1;
+      final product = findProductForTier(tierName, months);
+      final rawPrice = product?.rawPrice;
+      final amount = rawPrice != null ? rawPrice.toDouble() : null;
+
+      await SubscriptionApi.reportPaymentEvent(
+        status: status,
+        paymentMethod: Platform.isIOS ? 'apple' : 'google',
+        packageId: pendingPackageId,
+        tierName: tierName.isNotEmpty ? tierName : pendingTierName,
+        months: months,
+        amount: amount,
+        currency: product?.currencyCode ?? 'AED',
+        paymentId: purchaseDetails.purchaseID,
+        externalId: purchaseDetails.purchaseID?.isNotEmpty == true
+            ? 'iap_${purchaseDetails.purchaseID}'
+            : 'iap_${purchaseDetails.productID}_${DateTime.now().millisecondsSinceEpoch}',
+        productId: purchaseDetails.productID,
+        failureReason: failureReason,
+      );
+    } catch (e) {
+      debugPrint('[IAP] payment event report failed: $e');
+    }
   }
 
   void _captureActivationPricing(Map<String, dynamic> res) {

@@ -18,6 +18,7 @@ import '../screens/profile/admin_manage_subscription_page.dart';
 import '../screens/reports/reports_page.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/subscription/subscription_plans_page.dart';
+import '../screens/subscription/payment_history_page.dart';
 import 'app_routes.dart';
 
 import '../screens/rewards/rewards_page.dart';
@@ -89,6 +90,7 @@ class RouteConfig {
       AppRoutes.appVersion: (context) => const AppVersionPage(),
       AppRoutes.dashboard: (context) => const DashboardPage(), // Legacy
       AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),
+      AppRoutes.paymentHistory: (context) => const PaymentHistoryPage(),
       AppRoutes.rewards: (context) => const RewardsPage(),
       AppRoutes.resultsTracker: (context) => const ResultsTrackerPage(),
       AppRoutes.activities: (context) => const ActivitiesPage(),
