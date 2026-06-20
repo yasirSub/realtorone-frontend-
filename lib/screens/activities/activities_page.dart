@@ -985,42 +985,6 @@ class _ActivitiesPageState extends State<ActivitiesPage>
     return widgets;
   }
 
-  Widget _tierAccessBadge(String? minTier) {
-    final tier = (minTier ?? 'Consultant').toString();
-    late final String label;
-    late final Color color;
-    switch (tier.toLowerCase()) {
-      case 'rainmaker':
-        label = 'Rainmaker';
-        color = const Color(0xFF6366F1);
-      case 'titan':
-      case 'titan - gold':
-      case 'titan-gold':
-        label = 'Titan';
-        color = const Color(0xFFF59E0B);
-      default:
-        label = 'Free';
-        color = const Color(0xFF10B981);
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _buildActivityTypeCard(Map<String, dynamic> activityType) {
     final String name = activityType['name'] ?? 'Activity';
     final String category = activityType['category'] ?? '';
@@ -1092,26 +1056,18 @@ class _ActivitiesPageState extends State<ActivitiesPage>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                                color: isInteracted
-                                    ? const Color(0xFF64748B)
-                                    : const Color(0xFF1E293B),
-                                decoration: isCompleted
-                                    ? TextDecoration.lineThrough
-                                    : null,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _tierAccessBadge(activityType['min_tier']?.toString()),
-                        ],
+                      Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          color: isInteracted
+                              ? const Color(0xFF64748B)
+                              : const Color(0xFF1E293B),
+                          decoration: isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(

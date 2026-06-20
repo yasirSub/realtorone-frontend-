@@ -562,16 +562,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                   }
                                 },
                               ),
-                              _MenuItem(
-                                icon: Icons.receipt_long_outlined,
-                                title: 'Payment history',
-                                subtitle: 'View successful and failed payments',
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.subscriptionPlans,
-                                  arguments: const {'initialTab': 1},
-                                ),
-                              ),
                             ], isDark),
                             const SizedBox(height: 24),
 

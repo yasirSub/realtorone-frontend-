@@ -64,7 +64,7 @@
   "growthPotential": "Growth Potential",
   "executionRate": "Execution Rate",
   "tourQuickLabel": "QUICK TOUR",
-  "tourStepCounter": "STEP {current} OF {total}",
+  "tourStepCounter": "Step {current} of {total}",
   "@tourStepCounter": {
     "placeholders": {
       "current": {"type": "int"},
@@ -73,8 +73,8 @@
   },
   "tourSkipTooltip": "Skip tour",
   "tourBack": "← Back",
-  "tourContinue": "CONTINUE",
-  "tourGetStarted": "GET STARTED",
+  "tourContinue": "Continue",
+  "tourGetStarted": "Get started",
   "tourSkipEntire": "Skip entire tour",
   "tourSemantics": "Quick tour, step {current} of {total}: {title}",
   "@tourSemantics": {

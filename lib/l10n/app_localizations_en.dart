@@ -187,7 +187,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String tourStepCounter(int current, int total) {
-    return 'STEP $current OF $total';
+    return 'Step $current of $total';
   }
 
   @override
@@ -197,10 +197,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tourBack => '← Back';
 
   @override
-  String get tourContinue => 'CONTINUE';
+  String get tourContinue => 'Continue';
 
   @override
-  String get tourGetStarted => 'GET STARTED';
+  String get tourGetStarted => 'Get started';
 
   @override
   String get tourSkipEntire => 'Skip entire tour';

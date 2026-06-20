@@ -443,7 +443,7 @@ abstract class AppLocalizations {
   /// No description provided for @tourStepCounter.
   ///
   /// In en, this message translates to:
-  /// **'STEP {current} OF {total}'**
+  /// **'Step {current} of {total}'**
   String tourStepCounter(int current, int total);
 
   /// No description provided for @tourSkipTooltip.
@@ -461,13 +461,13 @@ abstract class AppLocalizations {
   /// No description provided for @tourContinue.
   ///
   /// In en, this message translates to:
-  /// **'CONTINUE'**
+  /// **'Continue'**
   String get tourContinue;
 
   /// No description provided for @tourGetStarted.
   ///
   /// In en, this message translates to:
-  /// **'GET STARTED'**
+  /// **'Get started'**
   String get tourGetStarted;
 
   /// No description provided for @tourSkipEntire.
