@@ -15,10 +15,10 @@ import '../screens/profile/edit_profile_page.dart';
 import '../screens/profile/settings_page.dart';
 import '../screens/profile/app_version_page.dart';
 import '../screens/profile/admin_manage_subscription_page.dart';
+import '../screens/profile/ai_coach_usage_page.dart';
 import '../screens/reports/reports_page.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/subscription/subscription_plans_page.dart';
-import '../screens/subscription/payment_history_page.dart';
 import 'app_routes.dart';
 
 import '../screens/rewards/rewards_page.dart';
@@ -89,8 +89,16 @@ class RouteConfig {
           const AdminManageSubscriptionPage(),
       AppRoutes.appVersion: (context) => const AppVersionPage(),
       AppRoutes.dashboard: (context) => const DashboardPage(), // Legacy
-      AppRoutes.subscriptionPlans: (context) => const SubscriptionPlansPage(),
-      AppRoutes.paymentHistory: (context) => const PaymentHistoryPage(),
+      AppRoutes.subscriptionPlans: (context) {
+        final args = ModalRoute.of(context)?.settings.arguments;
+        final initialTab = args is Map<String, dynamic>
+            ? (args['initialTab'] as int?) ?? 0
+            : 0;
+        return SubscriptionPlansPage(initialTab: initialTab);
+      },
+      AppRoutes.paymentHistory: (context) =>
+          const SubscriptionPlansPage(initialTab: 1),
+      AppRoutes.aiCoachUsage: (context) => const AiCoachUsagePage(),
       AppRoutes.rewards: (context) => const RewardsPage(),
       AppRoutes.resultsTracker: (context) => const ResultsTrackerPage(),
       AppRoutes.activities: (context) => const ActivitiesPage(),

@@ -18,9 +18,13 @@ import '../../utils/phone_utils.dart';
 import '../../utils/subscription_pricing.dart';
 import '../../utils/api_user_message.dart';
 import '../legal/legal_document_webview_page.dart';
+import 'payment_history_page.dart';
 
 class SubscriptionPlansPage extends StatefulWidget {
-  const SubscriptionPlansPage({super.key});
+  const SubscriptionPlansPage({super.key, this.initialTab = 0});
+
+  /// 0 = Subscription, 1 = Payments
+  final int initialTab;
 
   @override
   State<SubscriptionPlansPage> createState() => _SubscriptionPlansPageState();
@@ -53,6 +57,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   Map<String, dynamic>? _appliedCoupon;
   String? _couponMessage;
   bool _isValidatingCoupon = false;
+
+  late TabController _tabController;
+  bool _paymentsTabEnabled = false;
+
+  bool get _onSubscriptionTab => _tabController.index == 0;
 
   bool get _isIos => Theme.of(context).platform == TargetPlatform.iOS;
 
@@ -90,7 +99,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
   String _couponSavingsMessage(num? savedAed) {
     if (savedAed == null) {
-      return '${_appliedCouponDiscountPercent}% off applied to your ${_selectedMonths == 12 ? "1 year" : "$_selectedMonths month"} plan';
+      return '${_appliedCouponDiscountPercent}% off applied to your ${_durationPlanLabel(_selectedMonths)}';
     }
     if (_showInrConvertedPrice) {
       final savedInr = _inrChargeFromAed(savedAed.toDouble());
@@ -246,14 +255,64 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     'Diamond': Color(0xFF7C3AED),
   };
 
+  /// Real app features shown on each plan card (merged with API package features).
+  static const _tierPlanFeatures = {
+    'Consultant': [
+      'Daily tasks & activity log',
+      'Module 1 learning course',
+      'Basic affirmations & visualization',
+      'Results tracker',
+      'AI Coach (limited)',
+      'Leaderboard access',
+    ],
+    'Rainmaker': [
+      'All Consultant features',
+      'Module 2 & 3 courses',
+      'Full affirmation library',
+      'Visualization engine',
+      'Market analytics',
+      'Priority support',
+      'Enhanced AI Coach',
+    ],
+    'Titan': [
+      'All Rainmaker features',
+      'Revenue efficiency score',
+      'Advanced analytics & reports',
+      'Priority AI coaching',
+      'Pro mastermind access',
+      'Dedicated account manager',
+      'Inner circle access',
+      'Personal coaching',
+      'Elite daily tasks',
+    ],
+  };
+
   @override
   void initState() {
     super.initState();
+    final initialTab = widget.initialTab.clamp(0, 1);
+    _paymentsTabEnabled = initialTab == 1;
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: initialTab,
+    );
+    _tabController.addListener(_onTabChanged);
     _loadData();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.index == 1 && !_paymentsTabEnabled) {
+      setState(() => _paymentsTabEnabled = true);
+      return;
+    }
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _couponController.dispose();
     RazorpayService().dispose();
     super.dispose();
@@ -768,35 +827,153 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return result;
   }
 
-  /// Clarifies that card price is the total for the selected billing period.
-  String _durationPriceContextLabel(int months) {
+  String _formatPlanTitle(String name) {
+    final cleaned = name.trim();
+    if (cleaned.isEmpty) return 'Plan';
+    return cleaned
+        .split(RegExp(r'\s+'))
+        .map((word) {
+          if (word.isEmpty) return word;
+          if (word.length == 1) return word.toUpperCase();
+          return '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}';
+        })
+        .join(' ');
+  }
+
+  /// Human-readable billing period for selectors and pills.
+  String _durationLabel(int months) {
     switch (months) {
       case 1:
-        return 'per month';
+        return 'Monthly';
       case 3:
-        return 'for 3 months';
+        return '3 months';
       case 6:
-        return 'for 6 months';
+        return '6 months';
       case 12:
-        return 'for 1 year';
+        return '1 year';
       default:
-        return 'for $months months';
+        return '$months months';
     }
   }
 
-  String _durationPlanBadgeLabel(int months) {
+  /// Plan name for coupons and checkout copy.
+  String _durationPlanLabel(int months) {
     switch (months) {
       case 1:
-        return 'MONTHLY';
+        return 'monthly plan';
       case 3:
-        return '3-MONTH';
+        return '3-month plan';
       case 6:
-        return '6-MONTH';
+        return '6-month plan';
       case 12:
-        return 'YEARLY';
+        return '1-year plan';
       default:
-        return '${months}M';
+        return '$months-month plan';
     }
+  }
+
+  /// Short line under prices and in the checkout summary.
+  String _durationSummaryLine(int months) {
+    final savings = _durationSavingsLabel(months);
+    if (savings == null) return _durationLabel(months);
+    return '${_durationLabel(months)} · Save $savings';
+  }
+
+  /// Clarifies that card price is the total for the selected billing period.
+  String _durationPriceContextLabel(int months) {
+    if (months <= 1) return 'Per month';
+    return '${_durationLabel(months)} total';
+  }
+
+  String _tierKeyForHighlights(String name) {
+    final normalized = _normalizeTierName(name).toLowerCase();
+    if (normalized.contains('titan')) return 'Titan';
+    if (normalized.contains('rainmaker')) return 'Rainmaker';
+    return 'Consultant';
+  }
+
+  List<String> _planFeaturesFor(String name, List<String> apiFeatures) {
+    final key = _tierKeyForHighlights(name);
+    final merged = List<String>.from(
+      _tierPlanFeatures[key] ?? _tierPlanFeatures['Consultant']!,
+    );
+    final seen = merged.map((e) => e.toLowerCase()).toSet();
+
+    for (final raw in apiFeatures) {
+      final feature = raw.trim();
+      if (feature.isEmpty) continue;
+      final keyNorm = feature.toLowerCase();
+      if (seen.contains(keyNorm)) continue;
+      // Skip if already covered by a similar static line.
+      final duplicate = seen.any(
+        (existing) =>
+            existing.contains(keyNorm) || keyNorm.contains(existing),
+      );
+      if (duplicate) continue;
+      seen.add(keyNorm);
+      merged.add(feature);
+    }
+
+    return merged;
+  }
+
+  Widget _buildPlanFeaturesList({
+    required List<String> features,
+    required Color accent,
+    required bool isDark,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withOpacity(0.03)
+            : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "What's included",
+            style: TextStyle(
+              color: isDark ? Colors.white38 : const Color(0xFF94A3B8),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...features.take(8).map(
+                (f) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: accent,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          f,
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.white70
+                                : const Color(0xFF475569),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
   }
 
   String? _effectiveMonthlyPriceLine(Map<String, dynamic> pkg) {
@@ -817,85 +994,20 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return '≈ ${_formatLedgerAmount(total / _selectedMonths)}/mo';
   }
 
-  Widget _buildBillingPeriodBadge({
+  Widget _buildBillingPeriodLine({
     required int months,
-    required Color accent,
     required bool isDark,
-    bool compact = false,
   }) {
-    final savings = _durationSavingsLabel(months);
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerRight,
-      child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 6 : 10,
-          vertical: compact ? 3 : 5,
-        ),
-        decoration: BoxDecoration(
-          color: accent.withOpacity(isDark ? 0.22 : 0.1),
-          borderRadius: BorderRadius.circular(compact ? 8 : 10),
-          border: Border.all(color: accent.withOpacity(0.35)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              months == 1
-                  ? Icons.calendar_today_rounded
-                  : Icons.event_repeat_rounded,
-              size: compact ? 10 : 12,
-              color: accent,
-            ),
-            const SizedBox(width: 3),
-            Text(
-              _durationPlanBadgeLabel(months),
-              style: TextStyle(
-                color: accent,
-                fontSize: compact ? 8 : 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.4,
-              ),
-            ),
-            if (savings != null && !compact) ...[
-              const SizedBox(width: 5),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '-$savings',
-                  style: const TextStyle(
-                    color: Color(0xFF059669),
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+    return Text(
+      _durationSummaryLine(months),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: isDark ? Colors.white54 : const Color(0xFF64748B),
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
       ),
     );
-  }
-
-  ({List<Color> gradient, IconData icon})? _durationBadgeStyle(int months) {
-    switch (months) {
-      case 3:
-        return (
-          gradient: [const Color(0xFFF59E0B), const Color(0xFFD97706)],
-          icon: Icons.local_fire_department_rounded,
-        );
-      case 6:
-        return (
-          gradient: [const Color(0xFF667eea), const Color(0xFF764ba2)],
-          icon: Icons.verified_rounded,
-        );
-      default:
-        return null;
-    }
   }
 
   static const _billingAccent = Color(0xFF667eea);
@@ -919,27 +1031,36 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return available.first;
   }
 
-  Widget _buildSectionLabel(String title, Color accent) {
-    return Row(
+  Widget _buildSectionLabel(
+    String title,
+    Color accent, {
+    String? subtitle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: accent,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
         Text(
           title,
           style: TextStyle(
             color: accent,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.2,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+            height: 1.2,
           ),
         ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: accent.withOpacity(0.55),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1199,192 +1320,308 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     );
   }
 
+  List<Widget> _subscriptionSlivers(bool isDark) {
+    return [
+      if (_isPremium && _currentSub != null)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: ResponsiveHelper.contentPadding(context, top: 20),
+            child: ResponsiveHelper.constrainWidth(
+              child: _buildCurrentPlanBanner(isDark),
+            ),
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: ResponsiveHelper.contentPadding(context, top: 20),
+          child: ResponsiveHelper.constrainWidth(
+            child: _buildDurationSelector(isDark),
+          ),
+        ),
+      ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: ResponsiveHelper.contentPadding(context, top: 8),
+          child: ResponsiveHelper.constrainWidth(
+            child: _buildSectionLabel(
+              'Choose your plan',
+              _getGlowForSelectedPackage(),
+            ),
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: ResponsiveHelper.contentPadding(context, top: 12),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final pkg = _displayPackages[index];
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _buildPackageCard(pkg, isDark, index),
+                ),
+              ),
+            );
+          }, childCount: _displayPackages.length),
+        ),
+      ),
+      if (_showCouponSection)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: ResponsiveHelper.contentPadding(context, top: 16),
+            child: ResponsiveHelper.constrainWidth(
+              child: _buildCouponSection(isDark),
+            ),
+          ),
+        ),
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: ResponsiveHelper.contentPadding(context, top: 40),
+          child: ResponsiveHelper.constrainWidth(
+            child: _buildLegalFooter(isDark),
+          ),
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: 200)),
+    ];
+  }
+
+  Widget _buildBillingTabBar() {
+    return TabBar(
+      controller: _tabController,
+      indicatorColor: const Color(0xFF667eea),
+      indicatorWeight: 3,
+      labelColor: Colors.white,
+      unselectedLabelColor: Colors.white54,
+      labelStyle: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      unselectedLabelStyle: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+      tabs: const [
+        Tab(text: 'Subscription'),
+        Tab(text: 'Payments'),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final showPurchaseBar =
+        _onSubscriptionTab && _selectedPackageId != null && !_isLoading;
+
     return Scaffold(
       backgroundColor: isDark
           ? const Color(0xFF020617)
           : const Color(0xFFF1F5F9),
       body: Stack(
         children: [
-          CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
-            ),
-            slivers: [
-              // App Bar
-              SliverAppBar(
-                expandedHeight: 180,
-                pinned: true,
-                backgroundColor: isDark
-                    ? const Color(0xFF0F172A)
-                    : const Color(0xFF1E293B),
-                leading: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back_ios_rounded,
-                    color: Colors.white,
-                    size: 20,
+          NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) {
+              return [
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(
+                    context,
                   ),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                actions: [
-                  if (Theme.of(context).platform == TargetPlatform.iOS ||
-                      Theme.of(context).platform == TargetPlatform.android)
-                    TextButton(
-                      onPressed: () async {
-                        setState(() => _isPurchasing = true);
-                        try {
-                          // Set up the listener so we can see the result/error
-                          IapService().onPurchaseResult = (success, message) async {
-                            if (mounted) {
-                              setState(() => _isPurchasing = false);
-                              if (success) {
-                                await ApiClient.clearCache();
-                                await _loadData();
+                  sliver: SliverAppBar(
+                    expandedHeight: 180,
+                    pinned: true,
+                    backgroundColor: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFF1E293B),
+                    leading: IconButton(
+                      icon: const Icon(
+                        Icons.arrow_back_ios_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    actions: [
+                      if (_onSubscriptionTab &&
+                          (Theme.of(context).platform == TargetPlatform.iOS ||
+                              Theme.of(context).platform ==
+                                  TargetPlatform.android))
+                        TextButton(
+                          onPressed: () async {
+                            setState(() => _isPurchasing = true);
+                            try {
+                              IapService().onPurchaseResult =
+                                  (success, message) async {
                                 if (mounted) {
-                                  _showSuccessDialog();
+                                  setState(() => _isPurchasing = false);
+                                  if (success) {
+                                    await ApiClient.clearCache();
+                                    await _loadData();
+                                    if (mounted) {
+                                      _showSuccessDialog();
+                                    }
+                                  } else if (message != null) {
+                                    String displayMessage = message;
+                                    if (message.toLowerCase().contains(
+                                      'store not available',
+                                    )) {
+                                      displayMessage =
+                                          'Payment services are not available on this device (Emulator). Please use a physical phone with a logged-in account.';
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(displayMessage),
+                                        backgroundColor: Colors.redAccent,
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
                                 }
-                              } else if (message != null) {
-                                // Provide a more helpful message for common store issues
-                                String displayMessage = message;
-                                if (message.toLowerCase().contains(
-                                  'store not available',
-                                )) {
-                                  displayMessage =
-                                      'Payment services are not available on this device (Emulator). Please use a physical phone with a logged-in account.';
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(displayMessage),
-                                    backgroundColor: Colors.redAccent,
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                              };
+                              await IapService().restorePurchases();
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isPurchasing = false);
                               }
                             }
-                          };
-                          await IapService().restorePurchases();
-                        } finally {
-                          if (mounted) setState(() => _isPurchasing = false);
-                        }
-                      },
-                      child: const Text(
-                        'RESTORE',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Container(
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          },
+                          child: const Text(
+                            'RESTORE',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1,
+                            ),
                           ),
                         ),
-                      ),
-                      // Decorative circles
-                      Positioned(
-                        top: -30,
-                        right: -30,
-                        child: Container(
-                          width: 120,
-                          height: 120,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF667eea).withOpacity(0.08),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 10,
-                        left: -40,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF7C3AED).withOpacity(0.06),
-                          ),
-                        ),
-                      ),
-                      // Content
-                      SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 50, 24, 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _fittedSingleLineText(
-                                      'SUBSCRIPTION',
-                                      alignment: Alignment.centerLeft,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ).animate().fadeIn().slideX(begin: -0.1),
-                                  const SizedBox(width: 8),
-                                  Flexible(
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color:
-                                            (_tierGlow[_currentTier] ??
-                                                    const Color(0xFF64748B))
-                                                .withOpacity(0.15),
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                          color:
-                                              (_tierGlow[_currentTier] ??
-                                                      const Color(0xFF64748B))
-                                                  .withOpacity(0.3),
-                                        ),
-                                      ),
-                                      child: _fittedSingleLineText(
-                                        _currentTier.toUpperCase(),
-                                        alignment: Alignment.center,
-                                        style: TextStyle(
-                                          color:
-                                              _tierGlow[_currentTier] ??
-                                              const Color(0xFF64748B),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                      .animate()
-                                      .fadeIn(delay: 200.ms)
-                                      .scale(begin: const Offset(0.8, 0.8)),
+                      const SizedBox(width: 8),
+                    ],
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFF1E293B),
+                                  Color(0xFF0F172A),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                    _isPremium
-                                        ? 'Your premium plan is active'
-                                        : 'Choose a plan to unlock premium features',
+                            ),
+                          ),
+                          Positioned(
+                            top: -30,
+                            right: -30,
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(
+                                  0xFF667eea,
+                                ).withOpacity(0.08),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 10,
+                            left: -40,
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(
+                                  0xFF7C3AED,
+                                ).withOpacity(0.06),
+                              ),
+                            ),
+                          ),
+                          SafeArea(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                24,
+                                50,
+                                24,
+                                20,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _fittedSingleLineText(
+                                          'Billing',
+                                          alignment: Alignment.centerLeft,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.3,
+                                          ),
+                                        ),
+                                      ).animate().fadeIn().slideX(begin: -0.1),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (_tierGlow[_currentTier] ??
+                                                        const Color(
+                                                          0xFF64748B,
+                                                        ))
+                                                    .withOpacity(0.15),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                            border: Border.all(
+                                              color:
+                                                  (_tierGlow[_currentTier] ??
+                                                          const Color(
+                                                            0xFF64748B,
+                                                          ))
+                                                      .withOpacity(0.3),
+                                            ),
+                                          ),
+                                          child: _fittedSingleLineText(
+                                            _formatPlanTitle(_currentTier),
+                                            alignment: Alignment.center,
+                                            style: TextStyle(
+                                              color:
+                                                  _tierGlow[_currentTier] ??
+                                                  const Color(0xFF64748B),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                          .animate()
+                                          .fadeIn(delay: 200.ms)
+                                          .scale(
+                                            begin: const Offset(0.8, 0.8),
+                                          ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _onSubscriptionTab
+                                        ? (_isPremium
+                                            ? 'Your premium plan is active'
+                                            : 'Choose a plan to unlock premium features')
+                                        : 'View your subscription payments',
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
@@ -1392,102 +1629,64 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                       fontSize: 13,
                                     ),
                                   )
-                                  .animate()
-                                  .fadeIn(delay: 300.ms)
-                                  .slideX(begin: -0.05),
-                            ],
+                                      .animate()
+                                      .fadeIn(delay: 300.ms)
+                                      .slideX(begin: -0.05),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    bottom: PreferredSize(
+                      preferredSize: const Size.fromHeight(48),
+                      child: ColoredBox(
+                        color: isDark
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFF1E293B),
+                        child: _buildBillingTabBar(),
+                      ),
+                    ),
+                  ),
+                ),
+              ];
+            },
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                Builder(
+                  builder: (context) {
+                    return CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      slivers: [
+                        SliverOverlapInjector(
+                          handle:
+                              NestedScrollView.sliverOverlapAbsorberHandleFor(
+                            context,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Current Plan Banner (if premium)
-              if (_isPremium && _currentSub != null)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: ResponsiveHelper.contentPadding(context, top: 20),
-                    child: ResponsiveHelper.constrainWidth(
-                      child: _buildCurrentPlanBanner(isDark),
-                    ),
-                  ),
-                ),
-
-              // Duration Selector
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: ResponsiveHelper.contentPadding(context, top: 20),
-                  child: ResponsiveHelper.constrainWidth(
-                    child: _buildDurationSelector(isDark),
-                  ),
-                ),
-              ),
-              // Package Cards (deduplicated by tier; when subscribed, only one card per tier)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: ResponsiveHelper.contentPadding(context, top: 8),
-                  child: ResponsiveHelper.constrainWidth(
-                    child: _buildSectionLabel(
-                      'CHOOSE YOUR PLAN',
-                      _getGlowForSelectedPackage(),
-                    ),
-                  ),
-                ),
-              ),
-              SliverPadding(
-                padding: ResponsiveHelper.contentPadding(context, top: 12),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final pkg = _displayPackages[index];
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 700),
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: _buildPackageCard(pkg, isDark, index),
-                        ),
-                      ),
+                        ..._subscriptionSlivers(isDark),
+                      ],
                     );
-                  }, childCount: _displayPackages.length),
+                  },
                 ),
-              ),
-
-              if (_showCouponSection)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: ResponsiveHelper.contentPadding(context, top: 16),
-                    child: ResponsiveHelper.constrainWidth(
-                      child: _buildCouponSection(isDark),
-                    ),
-                  ),
+                PaymentHistoryContent(
+                  enabled: _paymentsTabEnabled,
+                  embedded: true,
                 ),
-
-              // Legal footer with required subscription info
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: ResponsiveHelper.contentPadding(context, top: 40),
-                  child: ResponsiveHelper.constrainWidth(
-                    child: _buildLegalFooter(isDark),
-                  ),
-                ),
-              ),
-
-              // Bottom spacer - increased to ensure legal text can be scrolled above the purchase bar
-              const SliverToBoxAdapter(child: SizedBox(height: 200)),
-            ],
+              ],
+            ),
           ),
-
-          // Bottom Purchase Bar
-          if (_selectedPackageId != null && !_isLoading)
+          if (showPurchaseBar)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
               child: _buildPurchaseBar(isDark),
             ),
-
           if (_isLoading || _isPurchasing) EliteLoader.top(),
         ],
       ),
@@ -1536,11 +1735,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$_currentTier Plan',
+                  '${_formatPlanTitle(_currentTier)} plan',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1570,12 +1770,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    'ACTIVE',
+                    'Active',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1639,18 +1838,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionLabel('CHOOSE BILLING PERIOD', _billingAccent),
-        const SizedBox(height: 4),
-        Text(
-          'Pick how long you want to subscribe — prices update on each plan below.',
-          style: TextStyle(
-            color: isDark ? Colors.white54 : const Color(0xFF64748B),
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            height: 1.35,
-          ),
+        _buildSectionLabel(
+          'Billing period',
+          _billingAccent,
+          subtitle: 'Tap to change how long you pay for.',
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Row(
           children: [
             for (var i = 0; i < availableDurations.length; i++) ...[
@@ -1668,141 +1861,74 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.04);
   }
 
-  String _durationNumberLabel(int months) {
-    switch (months) {
-      case 12:
-        return '1';
-      default:
-        return '$months';
-    }
-  }
-
-  String _durationUnitLabel(int months) {
-    switch (months) {
-      case 1:
-        return 'MONTH';
-      case 12:
-        return 'YEAR';
-      default:
-        return 'MONTHS';
-    }
-  }
-
   Widget _buildDurationPill(int months, bool isDark) {
     final isSelected = _selectedMonths == months;
     final savings = _durationSavingsLabel(months);
-    final badgeStyle = _durationBadgeStyle(months);
+    final label = _durationLabel(months);
+    const secondLineHeight = 14.0;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => _onDurationSelected(months),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
+          constraints: const BoxConstraints(minHeight: 52),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
           decoration: BoxDecoration(
-            gradient: isSelected
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      _billingAccent.withOpacity(isDark ? 0.35 : 0.14),
-                      _billingAccent.withOpacity(isDark ? 0.18 : 0.06),
-                    ],
-                  )
-                : null,
             color: isSelected
-                ? null
+                ? _billingAccent
                 : (isDark ? const Color(0xFF1E293B) : Colors.white),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? _billingAccent
                   : (isDark
                         ? Colors.white.withOpacity(0.08)
                         : const Color(0xFFE2E8F0)),
-              width: isSelected ? 2 : 1,
+              width: isSelected ? 1.5 : 1,
             ),
-            boxShadow: [
-              if (isSelected)
-                BoxShadow(
-                  color: _billingAccent.withOpacity(0.22),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-            ],
           ),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (badgeStyle != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Icon(
-                    badgeStyle.icon,
-                    size: 14,
-                    color: badgeStyle.gradient.first,
-                  ),
-                )
-              else
-                const SizedBox(height: 20),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  _durationNumberLabel(months),
-                  style: TextStyle(
-                    color: isSelected
-                        ? _billingAccent
-                        : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
                 ),
               ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  _durationUnitLabel(months),
-                  style: TextStyle(
-                    color: isSelected
-                        ? _billingAccent.withOpacity(0.85)
-                        : (isDark ? Colors.white54 : const Color(0xFF64748B)),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
+              SizedBox(
+                height: secondLineHeight,
+                child: Center(
+                  child: savings != null
+                      ? Text(
+                          'Save $savings',
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white.withOpacity(0.9)
+                                : const Color(0xFF059669),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ),
-              if (savings != null) ...[
-                const SizedBox(height: 6),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF10B981).withOpacity(
-                        isSelected ? 0.18 : 0.1,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'SAVE $savings',
-                      style: const TextStyle(
-                        color: Color(0xFF059669),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: 18),
-              ],
             ],
           ),
         ),
@@ -1823,6 +1949,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
     final priceMonthly =
         double.tryParse(pkg['price_monthly']?.toString() ?? '0') ?? 0;
     final features = (pkg['features'] as List?)?.cast<String>() ?? [];
+    final planFeatures = _planFeaturesFor(name, features);
     final description = pkg['description']?.toString() ?? '';
     final isSelected = _selectedPackageId == id;
     final isCurrentTier = name == _currentTier;
@@ -1960,7 +2087,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           Text(
-                            displayName.toUpperCase(),
+                            _formatPlanTitle(displayName),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1971,9 +2098,10 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                   : (isDark
                                         ? Colors.white
                                         : const Color(0xFF1E293B)),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.3,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                              height: 1.15,
                             ),
                           ),
                           if (isCurrentTier)
@@ -1987,12 +2115,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Text(
-                                'CURRENT',
+                                'Current',
                                 style: TextStyle(
                                   color: Color(0xFF10B981),
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.5,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
@@ -2050,9 +2177,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                             _durationPriceContextLabel(_selectedMonths),
                             alignment: Alignment.centerRight,
                             style: TextStyle(
-                              color: glowColor.withOpacity(0.85),
+                              color: isDark
+                                  ? Colors.white54
+                                  : const Color(0xFF64748B),
                               fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           if (_effectiveMonthlyPriceLine(pkg) != null) ...[
@@ -2088,51 +2217,13 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
               ],
             ),
 
-            // Features
-            if (features.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.white.withOpacity(0.03)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  children: features
-                      .take(5)
-                      .map(
-                        (f) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                color: glowColor,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  f,
-                                  style: TextStyle(
-                                    color: isDark
-                                        ? Colors.white70
-                                        : const Color(0xFF475569),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ],
+            // Plan features
+            const SizedBox(height: 12),
+            _buildPlanFeaturesList(
+              features: planFeatures,
+              accent: glowColor,
+              isDark: isDark,
+            ),
 
             // Select action
             if (!isFree) ...[
@@ -2146,12 +2237,12 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       ? expDate.difference(DateTime.now()).inDays
                       : 0;
 
-                  String label = 'SELECT PLAN';
+                  String label = 'Select plan';
                   if (isCurrentTier) {
                     label =
-                        '${daysLeft > 0 ? "$daysLeft DAYS LEFT - " : ""}ADD MORE';
+                        '${daysLeft > 0 ? "$daysLeft days left · " : ""}Extend plan';
                   } else if (isSelected) {
-                    label = '✓ SELECTED';
+                    label = 'Selected';
                   }
 
                   final isActive = isSelected || isCurrentTier;
@@ -2286,7 +2377,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
             children: [
               _buildPurchaseBarSummary(
                 isDark: isDark,
-                name: displayName,
+                name: _formatPlanTitle(displayName),
                 isComingSoon: isComingSoon,
                 pkg: pkg,
                 accent: glowColor,
@@ -2658,17 +2749,15 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.2,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    _buildBillingPeriodBadge(
+                    const SizedBox(height: 4),
+                    _buildBillingPeriodLine(
                       months: _selectedMonths,
-                      accent: accent,
                       isDark: isDark,
-                      compact: true,
                     ),
                   ],
                 ),

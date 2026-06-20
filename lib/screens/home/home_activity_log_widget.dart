@@ -87,19 +87,18 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         ? const Color(0xFF334155)
         : const Color(0xFFE2E8F0);
     final bodyColor = isDark ? Colors.white60 : const Color(0xFF64748B);
-    final ctaAccent = isDark
-        ? const Color(0xFFA78BFA)
-        : const Color(0xFF7C3AED);
-    final ctaSurface = ctaAccent.withValues(alpha: isDark ? 0.2 : 0.1);
-    final ctaBorder = ctaAccent.withValues(alpha: isDark ? 0.42 : 0.25);
-    final ctaText = isDark ? const Color(0xFFEDE9FE) : ctaAccent;
+    final titleColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    const accent = Color(0xFF667EEA);
     final visibleActivities = _todayActivities.take(3).toList();
+    final completedCount = _todayActivities.where((activity) {
+      return activity['is_completed'] == true || activity['is_completed'] == 1;
+    }).length;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: surfaceColor,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
@@ -113,92 +112,90 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  color: Color(0xFF10B981),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatChip(
-                      label: l10n.activityLogPoints,
-                      value: '$_todayPoints',
-                      color: const Color(0xFF10B981),
+                    Text(
+                      '$_todayPoints points today',
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      completedCount == 0
+                          ? l10n.activityLogEmpty
+                          : '$completedCount activit${completedCount == 1 ? 'y' : 'ies'} logged',
+                      style: TextStyle(
+                        color: bodyColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _openActivities,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Ink(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 9,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: ctaSurface,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: ctaBorder),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          l10n.activityLogOpen,
-                          style: TextStyle(
-                            color: ctaText,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.15,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          width: 18,
-                          height: 18,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: ctaAccent.withValues(
-                              alpha: isDark ? 0.3 : 0.18,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 12,
-                            color: ctaText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           if (_isLoading)
-            const SizedBox(height: 84, child: Center(child: EliteLoader()))
+            const SizedBox(height: 88, child: Center(child: EliteLoader()))
           else if (visibleActivities.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               decoration: BoxDecoration(
                 color: isDark
                     ? const Color(0xFF0F172A)
                     : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Text(
-                l10n.activityLogEmpty,
-                style: TextStyle(
-                  color: bodyColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFE2E8F0),
                 ),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.task_alt_rounded,
+                    size: 28,
+                    color: bodyColor.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    l10n.activityLogEmpty,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: bodyColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
               ),
             )
           else
@@ -212,43 +209,27 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
                   )
                   .toList(),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatChip({
-    required String label,
-    required String value,
-    required Color color,
-  }) {
-    final compactLabel = label.length > 8 ? '${label.substring(0, 8)}.' : label;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            compactLabel,
-            style: TextStyle(
-              color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openActivities,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accent,
+                side: BorderSide(color: accent.withValues(alpha: 0.35)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+              label: Text(
+                l10n.activityLogOpen,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ),
         ],
@@ -267,6 +248,8 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
         subtitle.trim().toLowerCase() != 'activity' &&
         subtitle.trim().toLowerCase() != title.trim().toLowerCase();
     final points = (activity['points'] ?? 0).toString();
+    final statusColor =
+        isCompleted ? const Color(0xFF10B981) : const Color(0xFF667eea);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -283,18 +266,12 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color:
-                  (isCompleted
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFF667eea))
-                      .withValues(alpha: 0.14),
+              color: statusColor.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               isCompleted ? Icons.check_rounded : Icons.schedule_rounded,
-              color: isCompleted
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF667eea),
+              color: statusColor,
               size: 20,
             ),
           ),
@@ -331,9 +308,7 @@ class _HomeActivityLogWidgetState extends State<HomeActivityLogWidget> {
           Text(
             '+$points',
             style: TextStyle(
-              color: isCompleted
-                  ? const Color(0xFF10B981)
-                  : const Color(0xFF667eea),
+              color: statusColor,
               fontSize: 13,
               fontWeight: FontWeight.w900,
             ),

@@ -21,6 +21,7 @@ import '../../utils/phone_otp_debug_log.dart';
 import '../../utils/phone_otp_user_message.dart';
 import '../../widgets/app_version_details_sheet.dart';
 import '../../theme/realtorone_brand.dart';
+import '../../widgets/ai_coach_usage_widgets.dart';
 import '../chatbot/reven_feedback_sheet.dart';
 import '../../services/app_passcode_service.dart';
 
@@ -36,6 +37,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _aiQuota;
   bool _isLoading = true;
   bool _showCompletenessLabel = true;
+  bool _aiCoachExpanded = false;
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   String _verificationDialCode = '+971';
   String _appVersionLabel = '';
@@ -566,7 +568,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 subtitle: 'View successful and failed payments',
                                 onTap: () => Navigator.pushNamed(
                                   context,
-                                  AppRoutes.paymentHistory,
+                                  AppRoutes.subscriptionPlans,
+                                  arguments: const {'initialTab': 1},
                                 ),
                               ),
                             ], isDark),
@@ -689,200 +692,161 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildAiUsageCard(bool isDark) {
     final q = _aiQuota!;
-    int _int(dynamic v) => v is int ? v : int.tryParse('$v') ?? 0;
-    final todayUsed = _int(q['tokens_today']);
-    final monthUsed = _int(q['tokens_month']);
-    final dailyLimit = _int(q['daily_limit']);
-    final monthlyLimit = _int(q['monthly_limit']);
+    final todayUsed = aiCoachInt(q['tokens_today']);
+    final monthUsed = aiCoachInt(q['tokens_month']);
+    final dailyLimit = aiCoachInt(q['daily_limit']);
+    final monthlyLimit = aiCoachInt(q['monthly_limit']);
     final remainDay = q['remaining_daily'];
     final remainMonth = q['remaining_monthly'];
-    String fmtLimit(int n) => n <= 0 ? 'Unlimited' : n.toString();
-    double barFrac(int used, int limit) {
-      if (limit <= 0) return used > 0 ? 0.12 : 0;
-      return (used / limit).clamp(0.0, 1.0);
-    }
-
-    final sessions = q['recent_sessions'];
-    final List<Map<String, dynamic>> recent = sessions is List
-        ? sessions
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList()
-        : [];
+    final recent = aiCoachRecentSessions(q);
+    final tier =
+        (q['tier'] ?? _userData?['membership_tier'] ?? 'Consultant').toString();
 
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: RealtorOneBrand.accentIndigo.withValues(alpha: 0.25),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.12 : 0.04),
-            blurRadius: 16,
-          ),
-        ],
-      ),
+      decoration: aiCoachCardDecoration(isDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                color: RealtorOneBrand.accentIndigo,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'AI Coach usage',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${q['tier'] ?? _userData?['membership_tier'] ?? 'Consultant'} plan limits',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? Colors.white54 : Colors.black54,
-            ),
-          ),
-          if (q['exceeded'] != null && '$q[exceeded]'.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Limit reached — resets ${q['exceeded'] == 'monthly' ? 'next month' : 'tomorrow'}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.amber,
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          _aiUsageMeter(
-            label: 'Today',
-            used: todayUsed,
-            limitLabel: fmtLimit(dailyLimit),
-            remaining: remainDay is int
-                ? remainDay
-                : int.tryParse('$remainDay'),
-            fraction: barFrac(todayUsed, dailyLimit),
-            isDark: isDark,
-          ),
-          const SizedBox(height: 12),
-          _aiUsageMeter(
-            label: 'This month',
-            used: monthUsed,
-            limitLabel: fmtLimit(monthlyLimit),
-            remaining: remainMonth is int
-                ? remainMonth
-                : int.tryParse('$remainMonth'),
-            fraction: barFrac(monthUsed, monthlyLimit),
-            isDark: isDark,
-            accent: Colors.amber,
-          ),
-          if (recent.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            Text(
-              'Recent chats',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-                color: isDark ? Colors.white38 : Colors.black38,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...recent.take(5).map((s) {
-              final title = (s['title'] ?? 'Chat').toString();
-              final tokens = _int(s['tokens']);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+          InkWell(
+            onTap: () => setState(() => _aiCoachExpanded = !_aiCoachExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome,
+                    color: RealtorOneBrand.accentIndigo,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'AI Coach usage',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _aiCoachExpanded
+                              ? '$tier plan limits'
+                              : 'Today $todayUsed / ${aiCoachFmtLimit(dailyLimit)} · Month $monthUsed / ${aiCoachFmtLimit(monthlyLimit)}',
+                          maxLines: _aiCoachExpanded ? 1 : 2,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  Icon(
+                    _aiCoachExpanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!_aiCoachExpanded && q['exceeded'] != null && '$q[exceeded]'.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: aiCoachExceededBanner(q),
+            ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (q['exceeded'] != null && '$q[exceeded]'.isNotEmpty)
+                    aiCoachExceededBanner(q),
+                  if (q['exceeded'] != null && '$q[exceeded]'.isNotEmpty)
+                    const SizedBox(height: 12),
+                  aiCoachUsageMeter(
+                    label: 'Today',
+                    used: todayUsed,
+                    limitLabel: aiCoachFmtLimit(dailyLimit),
+                    remaining: remainDay is int
+                        ? remainDay
+                        : int.tryParse('$remainDay'),
+                    fraction: aiCoachBarFrac(todayUsed, dailyLimit),
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 12),
+                  aiCoachUsageMeter(
+                    label: 'This month',
+                    used: monthUsed,
+                    limitLabel: aiCoachFmtLimit(monthlyLimit),
+                    remaining: remainMonth is int
+                        ? remainMonth
+                        : int.tryParse('$remainMonth'),
+                    fraction: aiCoachBarFrac(monthUsed, monthlyLimit),
+                    isDark: isDark,
+                    accent: Colors.amber,
+                  ),
+                  if (recent.isNotEmpty) ...[
+                    const SizedBox(height: 12),
                     Text(
-                      '$tokens TK',
+                      recent.first['title']?.toString() ?? 'Recent chat',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: RealtorOneBrand.accentIndigo,
+                        color: isDark ? Colors.white54 : Colors.black54,
                       ),
                     ),
                   ],
-                ),
-              );
-            }),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _aiUsageMeter({
-    required String label,
-    required int used,
-    required String limitLabel,
-    required int? remaining,
-    required double fraction,
-    required bool isDark,
-    Color accent = const Color(0xFF6366F1),
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            ),
-            Text(
-              '$used / $limitLabel TK${remaining != null ? ' · $remaining left' : ''}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white70 : Colors.black54,
+                ],
               ),
             ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            // If value is null, Flutter shows an indeterminate animated bar.
-            // For 0 usage we want a stable 0% fill (no movement).
-            value: fraction.isFinite ? fraction.clamp(0.0, 1.0) : 0.0,
-            minHeight: 8,
-            backgroundColor: isDark ? Colors.white10 : Colors.black12,
-            color: accent,
+            crossFadeState: _aiCoachExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
           ),
-        ),
-      ],
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white10 : Colors.black12,
+          ),
+          InkWell(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.aiCoachUsage),
+            borderRadius:
+                const BorderRadius.vertical(bottom: Radius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Text(
+                    recent.isEmpty
+                        ? 'View usage details'
+                        : 'View all ${recent.length} chats',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: RealtorOneBrand.accentIndigo,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: RealtorOneBrand.accentIndigo,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

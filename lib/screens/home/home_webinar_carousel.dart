@@ -46,7 +46,7 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
                 .where((w) => w.isActive)
                 .toList();
           });
-          // Refresh countdown every minute
+          _countdownTimer?.cancel();
           _countdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
             if (mounted) setState(() {});
           });
@@ -62,17 +62,20 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
   String _formatCountdown(DateTime scheduledAtUtc) {
     final scheduled = scheduledAtUtc.toLocal();
     final now = DateTime.now();
-
     final diff = scheduled.difference(now);
 
     if (diff.isNegative) {
       final elapsed = now.difference(scheduled);
-      if (elapsed.inHours < 24) return 'Live / Just started';
+      if (elapsed.inHours < 24) return 'Live now';
       return 'Session ended';
     }
-    if (diff.inDays > 0) return 'In ${diff.inDays}d ${diff.inHours.remainder(24)}h';
-    if (diff.inHours > 0) return 'In ${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
-    return 'Starting in ${diff.inMinutes}m';
+    if (diff.inDays > 0) {
+      return 'Starts in ${diff.inDays}d ${diff.inHours.remainder(24)}h';
+    }
+    if (diff.inHours > 0) {
+      return 'Starts in ${diff.inHours}h ${diff.inMinutes.remainder(60)}m';
+    }
+    return 'Starts in ${diff.inMinutes}m';
   }
 
   Future<void> _openLink(String? link) async {
@@ -88,55 +91,73 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
     if (_isLoading || _webinars.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final singleWebinar = _webinars.length == 1;
+    final carouselCardWidth = (screenWidth * 0.86).clamp(300.0, 420.0);
+
+    final Widget webinarBody = singleWebinar
+        ? _WebinarCard(
+            webinar: _webinars.first,
+            isDark: isDark,
+            fullWidth: true,
+            countdownText: _webinars.first.scheduledAt != null
+                ? _formatCountdown(_webinars.first.scheduledAt!)
+                : null,
+            localTimeLabel: _webinars.first.localScheduleLabel(),
+            onJoin: () => _openLink(_webinars.first.zoomLink),
+          )
+        : SizedBox(
+            height: 280,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              itemCount: _webinars.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (context, index) {
+                final w = _webinars[index];
+                return SizedBox(
+                  width: carouselCardWidth,
+                  child: _WebinarCard(
+                    webinar: w,
+                    isDark: isDark,
+                    fullWidth: false,
+                    countdownText: w.scheduledAt != null
+                        ? _formatCountdown(w.scheduledAt!)
+                        : null,
+                    localTimeLabel: w.localScheduleLabel(),
+                    onJoin: () => _openLink(w.zoomLink),
+                  ),
+                );
+              },
+            ),
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.only(left: 4, bottom: 12),
           child: Row(
             children: [
-              Container(
-                width: 4,
-                height: 18,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+              Icon(
+                Icons.videocam_rounded,
+                size: 18,
+                color: isDark ? Colors.white70 : const Color(0xFF475569),
               ),
-              const SizedBox(width: 10),
-              const Text(
-                'UPCOMING WEBINARS',
+              const SizedBox(width: 8),
+              Text(
+                singleWebinar ? 'Upcoming webinar' : 'Upcoming webinars',
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.5,
-                  color: Color(0xFF6366F1),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
                 ),
               ),
             ],
           ),
         ).animate().fadeIn(delay: 200.ms),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 200,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            itemCount: _webinars.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 16),
-            itemBuilder: (context, index) {
-              final w = _webinars[index];
-              return _WebinarCard(
-                webinar: w,
-                isDark: isDark,
-                countdownText: w.scheduledAt != null ? _formatCountdown(w.scheduledAt!) : null,
-                localTimeLabel: w.localScheduleLabel(),
-                onJoin: () => _openLink(w.zoomLink),
-              ).animate().fadeIn(delay: Duration(milliseconds: 300 + index * 80)).slideX(begin: 0.2);
-            },
-          ),
-        ),
+        webinarBody.animate().fadeIn(delay: 260.ms).slideY(begin: 0.06),
       ],
     );
   }
@@ -145,6 +166,7 @@ class _HomeWebinarCarouselState extends State<HomeWebinarCarousel> {
 class _WebinarCard extends StatelessWidget {
   final Webinar webinar;
   final bool isDark;
+  final bool fullWidth;
   final String? countdownText;
   final String? localTimeLabel;
   final VoidCallback onJoin;
@@ -152,206 +174,253 @@ class _WebinarCard extends StatelessWidget {
   const _WebinarCard({
     required this.webinar,
     required this.isDark,
+    required this.fullWidth,
     required this.countdownText,
     this.localTimeLabel,
     required this.onJoin,
   });
 
-  Color _tierColor() {
+  Color _accentColor() {
+    if (webinar.isPromotional) return const Color(0xFFF59E0B);
     switch (webinar.targetTier) {
-      case 'Titan': return const Color(0xFF8B5CF6);
-      case 'Rainmaker': return const Color(0xFF3B82F6);
-      default: return const Color(0xFF6366F1);
+      case 'Titan':
+        return const Color(0xFF8B5CF6);
+      case 'Rainmaker':
+        return const Color(0xFF3B82F6);
+      default:
+        return const Color(0xFF6366F1);
     }
   }
 
+  bool get _isLive =>
+      countdownText != null &&
+      (countdownText!.toLowerCase().contains('live') ||
+          countdownText!.toLowerCase().contains('started'));
+
   @override
   Widget build(BuildContext context) {
-    final accent = webinar.isPromotional ? const Color(0xFFF59E0B) : _tierColor();
+    final accent = _accentColor();
+    final hasImage = webinar.imageUrl != null && webinar.imageUrl!.trim().isNotEmpty;
 
-    return GestureDetector(
-      onTap: webinar.zoomLink != null ? onJoin : null,
-      child: Container(
-        width: 290,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              accent.withValues(alpha: 0.85),
-              accent.withValues(alpha: 0.6),
-              const Color(0xFF0F172A),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: webinar.zoomLink != null ? onJoin : null,
+        borderRadius: BorderRadius.circular(22),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                accent.withValues(alpha: 0.95),
+                accent.withValues(alpha: 0.72),
+                const Color(0xFF0F172A),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: accent.withValues(alpha: 0.28),
+                blurRadius: 24,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: accent.withValues(alpha: 0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            // Background thumbnail if provided
-            if (webinar.imageUrl != null)
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Image.network(
-                    webinar.imageUrl!,
-                    fit: BoxFit.cover,
-                    color: Colors.black.withValues(alpha: 0.55),
-                    colorBlendMode: BlendMode.darken,
-                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  ),
-                ),
-              ),
-
-            // Gradient overlay
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.75),
-                    ],
-                    stops: const [0.3, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      if (webinar.isPromotional)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF59E0B),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'PROMO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                        ),
-                      const Spacer(),
-                      if (countdownText != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.schedule_rounded, size: 10, color: Colors.white),
-                              const SizedBox(width: 4),
-                              Text(
-                                countdownText!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    webinar.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      height: 1.25,
-                    ),
-                  ),
-                  if (webinar.description != null && webinar.description!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      webinar.description!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                  if (localTimeLabel != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hasImage)
+                  SizedBox(
+                    height: fullWidth ? 120 : 96,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
                       children: [
-                        Icon(Icons.public_rounded, size: 12, color: Colors.white.withValues(alpha: 0.75)),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            localTimeLabel!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
+                        Image.network(
+                          webinar.imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.55),
+                              ],
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: webinar.zoomLink != null ? onJoin : null,
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: accent,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: Text(
-                        webinar.zoomLink != null ? 'JOIN NOW' : 'DETAILS',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
                   ),
-                ],
-              ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    fullWidth ? 20 : 18,
+                    hasImage ? 16 : 18,
+                    fullWidth ? 20 : 18,
+                    fullWidth ? 20 : 18,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (webinar.isPromotional)
+                            _badge('Promo', const Color(0xFFF59E0B)),
+                          if (webinar.targetTier != null &&
+                              webinar.targetTier!.isNotEmpty &&
+                              webinar.targetTier != 'Consultant')
+                            _badge(webinar.targetTier!, accent),
+                          if (countdownText != null)
+                            _badge(
+                              countdownText!,
+                              _isLive
+                                  ? const Color(0xFF10B981)
+                                  : Colors.white.withValues(alpha: 0.16),
+                              textColor: Colors.white,
+                              icon: _isLive
+                                  ? Icons.circle
+                                  : Icons.schedule_rounded,
+                              iconSize: _isLive ? 8 : 12,
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: fullWidth ? 14 : 12),
+                      Text(
+                        webinar.title,
+                        maxLines: fullWidth ? 4 : 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: fullWidth ? 19 : 17,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      if (webinar.description != null &&
+                          webinar.description!.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          webinar.description!.trim(),
+                          maxLines: fullWidth ? 2 : 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.78),
+                            fontSize: 13,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                      if (localTimeLabel != null) ...[
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.event_rounded,
+                              size: 15,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                localTimeLabel!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      SizedBox(height: fullWidth ? 16 : 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: webinar.zoomLink != null ? onJoin : null,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: accent,
+                            disabledBackgroundColor:
+                                Colors.white.withValues(alpha: 0.35),
+                            padding: EdgeInsets.symmetric(
+                              vertical: fullWidth ? 14 : 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: Icon(
+                            webinar.zoomLink != null
+                                ? Icons.videocam_rounded
+                                : Icons.info_outline_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            webinar.zoomLink != null ? 'Join webinar' : 'Details',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _badge(
+    String label,
+    Color color, {
+    Color textColor = Colors.white,
+    IconData? icon,
+    double iconSize = 12,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: iconSize, color: textColor),
+            const SizedBox(width: 5),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

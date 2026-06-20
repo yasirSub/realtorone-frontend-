@@ -5,22 +5,44 @@ import 'package:intl/intl.dart';
 import '../../api/subscription_api.dart';
 import '../../widgets/elite_loader.dart';
 
-class PaymentHistoryPage extends StatefulWidget {
-  const PaymentHistoryPage({super.key});
+/// Reusable payment history list (standalone page or billing tab).
+class PaymentHistoryContent extends StatefulWidget {
+  const PaymentHistoryContent({
+    super.key,
+    this.enabled = true,
+    this.embedded = false,
+  });
+
+  /// When false, skips loading until enabled becomes true.
+  final bool enabled;
+
+  /// Lighter padding when shown inside the billing tab.
+  final bool embedded;
 
   @override
-  State<PaymentHistoryPage> createState() => _PaymentHistoryPageState();
+  State<PaymentHistoryContent> createState() => _PaymentHistoryContentState();
 }
 
-class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
-  bool _isLoading = true;
+class _PaymentHistoryContentState extends State<PaymentHistoryContent> {
+  bool _isLoading = false;
+  bool _hasLoaded = false;
   String? _error;
   List<Map<String, dynamic>> _items = [];
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    if (widget.enabled) {
+      _loadHistory();
+    }
+  }
+
+  @override
+  void didUpdateWidget(PaymentHistoryContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.enabled && !oldWidget.enabled && !_hasLoaded) {
+      _loadHistory();
+    }
   }
 
   Future<void> _loadHistory() async {
@@ -43,19 +65,22 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
                   .toList()
               : [];
           _isLoading = false;
+          _hasLoaded = true;
         });
       } else {
         setState(() {
           _error = response['message']?.toString() ??
               'Could not load payment history.';
           _isLoading = false;
+          _hasLoaded = true;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _error = 'Could not load payment history. Check your connection.';
         _isLoading = false;
+        _hasLoaded = true;
       });
     }
   }
@@ -64,98 +89,125 @@ class _PaymentHistoryPageState extends State<PaymentHistoryPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF1F5F9),
-      appBar: AppBar(
-        title: const Text('Payment History'),
-        centerTitle: true,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _loadHistory,
-        child: _isLoading
-            ? const Center(child: EliteLoader())
-            : _error != null
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 120),
-                      Icon(
-                        Icons.receipt_long_outlined,
-                        size: 48,
-                        color: isDark ? Colors.white38 : Colors.black26,
-                      ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: isDark ? Colors.white70 : Colors.black54,
-                          ),
+    if (!widget.enabled && !_hasLoaded) {
+      return const SizedBox.shrink();
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadHistory,
+      child: _isLoading
+          ? const Center(child: EliteLoader())
+          : _error != null
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    const SizedBox(height: 120),
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 48,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: isDark ? Colors.white70 : Colors.black54,
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Center(
-                        child: TextButton(onPressed: _loadHistory, child: const Text('Retry')),
+                    ),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: TextButton(
+                        onPressed: _loadHistory,
+                        child: const Text('Retry'),
                       ),
-                    ],
-                  )
-                : _items.isEmpty
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          const SizedBox(height: 120),
-                          Icon(
-                            Icons.receipt_long_outlined,
-                            size: 56,
-                            color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ],
+                )
+              : _items.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 120),
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 56,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.24)
+                              : Colors.black26,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No payments yet',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : const Color(0xFF1E293B),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No payments yet',
+                        ),
+                        const SizedBox(height: 8),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
+                          child: Text(
+                            'Successful, failed, and pending subscription payments will appear here.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : const Color(0xFF1E293B),
+                              color: isDark ? Colors.white54 : Colors.black45,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 40),
-                            child: Text(
-                              'Successful, failed, and pending subscription payments will appear here.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: isDark ? Colors.white54 : Colors.black45,
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView.separated(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          return _PaymentHistoryCard(
-                            item: _items[index],
-                            isDark: isDark,
-                          )
-                              .animate()
-                              .fadeIn(duration: 280.ms, delay: (40 * index).ms)
-                              .slideY(begin: 0.04, end: 0);
-                        },
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        widget.embedded ? 8 : 16,
+                        16,
+                        widget.embedded ? 24 : 32,
                       ),
-      ),
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return PaymentHistoryCard(
+                          item: _items[index],
+                          isDark: isDark,
+                        )
+                            .animate()
+                            .fadeIn(duration: 280.ms, delay: (40 * index).ms)
+                            .slideY(begin: 0.04, end: 0);
+                      },
+                    ),
     );
   }
 }
 
-class _PaymentHistoryCard extends StatelessWidget {
-  const _PaymentHistoryCard({
+class PaymentHistoryPage extends StatelessWidget {
+  const PaymentHistoryPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      backgroundColor:
+          isDark ? const Color(0xFF020617) : const Color(0xFFF1F5F9),
+      appBar: AppBar(
+        title: const Text('Payment History'),
+        centerTitle: true,
+      ),
+      body: const PaymentHistoryContent(),
+    );
+  }
+}
+
+class PaymentHistoryCard extends StatelessWidget {
+  const PaymentHistoryCard({
+    super.key,
     required this.item,
     required this.isDark,
   });
@@ -213,21 +265,21 @@ class _PaymentHistoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _StatusChip(status: status),
+              PaymentStatusChip(status: status),
             ],
           ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: _InfoTile(
+                child: PaymentInfoTile(
                   label: 'Amount',
                   value: _formatAmount(amount, currency),
                   isDark: isDark,
                 ),
               ),
               Expanded(
-                child: _InfoTile(
+                child: PaymentInfoTile(
                   label: 'Method',
                   value: method,
                   isDark: isDark,
@@ -297,8 +349,8 @@ class _PaymentHistoryCard extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.status});
+class PaymentStatusChip extends StatelessWidget {
+  const PaymentStatusChip({super.key, required this.status});
 
   final String status;
 
@@ -329,8 +381,9 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
+class PaymentInfoTile extends StatelessWidget {
+  const PaymentInfoTile({
+    super.key,
     required this.label,
     required this.value,
     required this.isDark,
