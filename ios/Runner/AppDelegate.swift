@@ -4,6 +4,7 @@ import FirebaseMessaging
 import Flutter
 import UIKit
 import UserNotifications
+import AVFoundation
 
 private final class TokenWaitBox {
   var responded = false
@@ -51,6 +52,8 @@ private final class TokenWaitBox {
       FirebaseApp.configure()
     }
 
+    configurePlaybackAudioSession()
+
     // Let FlutterAppDelegate + Firebase proxy own UNUserNotificationCenter first.
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     Messaging.messaging().delegate = self
@@ -78,6 +81,21 @@ private final class TokenWaitBox {
 
     DispatchQueue.main.async { [weak self] in
       self?.requestNotificationsAndRegister(UIApplication.shared)
+    }
+  }
+
+  private func configurePlaybackAudioSession() {
+    do {
+      let session = AVAudioSession.sharedInstance()
+      try session.setCategory(
+        .playback,
+        mode: .default,
+        options: [.duckOthers, .defaultToSpeaker]
+      )
+      try session.setActive(true)
+      NSLog("[Audio] AVAudioSession playback category active")
+    } catch {
+      NSLog("[Audio] AVAudioSession setup failed: %@", error.localizedDescription)
     }
   }
 
@@ -458,7 +476,7 @@ private final class TokenWaitBox {
     if userInfo["gcm.message_id"] != nil {
       Messaging.messaging().appDidReceiveMessage(userInfo)
     }
-    super.application(application, didReceiveRemoteNotification: userInfo)
+    super.				        application(application, didReceiveRemoteNotification: userInfo)
   }
 
   override func application(

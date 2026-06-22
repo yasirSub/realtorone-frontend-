@@ -24,6 +24,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  static const String _installMarkerPrefsKey = 'app_install_marker_v1';
+  static const String _installMarkerFileName = 'install_marker_v1.txt';
   int _loadingProgress = 0;
   String _statusMessage = 'INITIALIZING SYSTEM';
   bool _didNavigate = false;
@@ -52,6 +54,39 @@ class _SplashScreenState extends State<SplashScreen>
       routeName,
       arguments: arguments,
     );
+  }
+
+  Future<void> _syncInstallMarker(SharedPreferences prefs) async {
+    try {
+      final supportDir = await getApplicationSupportDirectory();
+      final markerFile = File('${supportDir.path}/$_installMarkerFileName');
+      final hasFileMarker = await markerFile.exists();
+      final hasPrefsMarker = prefs.getBool(_installMarkerPrefsKey) ?? false;
+
+      if (!hasFileMarker && !hasPrefsMarker) {
+        if (prefs.getString('token') != null) {
+          debugPrint(
+            'Splash: Reinstall detected with restored session — clearing stale token.',
+          );
+          await ApiClient.clearToken();
+          await prefs.clear();
+        }
+        await markerFile.parent.create(recursive: true);
+        await markerFile.writeAsString('1');
+        await prefs.setBool(_installMarkerPrefsKey, true);
+        return;
+      }
+
+      if (!hasFileMarker) {
+        await markerFile.parent.create(recursive: true);
+        await markerFile.writeAsString('1');
+      }
+      if (!hasPrefsMarker) {
+        await prefs.setBool(_installMarkerPrefsKey, true);
+      }
+    } catch (e) {
+      debugPrint('Splash: install marker sync failed: $e');
+    }
   }
 
   Future<void> _navigateFallbackIfNeeded({required String reason}) async {
@@ -112,25 +147,10 @@ class _SplashScreenState extends State<SplashScreen>
       await _prepareIosNotificationPermission();
     }
 
-    // --- Fresh Install Detection ---
-    // On iOS, SharedPreferences can be restored from iCloud backup after reinstall.
-    // To ensure a clean session on fresh install, we check a file in the temporary directory
-    // which is NOT backed up and is cleared on uninstall.
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final installFlagFile = File('${tempDir.path}/install_flag.txt');
-      if (!await installFlagFile.exists()) {
-        debugPrint(
-          'Splash: Fresh install detected (or cache cleared). Cleaning session.',
-        );
-        await ApiClient.clearToken();
-        await prefs.clear();
-        await installFlagFile.create();
-      }
-    } catch (e) {
-      debugPrint('Splash: Error checking install flag: $e');
-    }
-
+    // --- Fresh install / reinstall detection ---
+    // iOS can restore SharedPreferences from iCloud after reinstall, but must not
+    // treat a normal tmp-directory purge as a fresh install (that was logging users out).
+    await _syncInstallMarker(prefs);
 
     final token = prefs.getString('token');
     final hasSeenOnboarding = prefs.getBool('hasSeenOnboarding') ?? false;
@@ -211,11 +231,30 @@ class _SplashScreenState extends State<SplashScreen>
 
     try {
       debugPrint('Splash: fetching user profile...');
-      final response = await ApiClient.get('/user/profile', requiresAuth: true);
+      var response = await ApiClient.get('/user/profile', requiresAuth: true);
       debugPrint('Splash: profile fetched: $response');
       if (mounted) {
-        final isSuccess =
+        var isSuccess =
             response['success'] == true || response['status'] == 'ok';
+
+        if (!isSuccess) {
+          final statusCode = response['statusCode'];
+          final message = (response['message'] ?? '').toString().toLowerCase();
+          final isAuthError =
+              statusCode == 401 ||
+              message.contains('unauthorized') ||
+              message.contains('token') ||
+              message.contains('forbidden');
+
+          if (isAuthError) {
+            final refreshed = await ApiClient.tryRefreshSession();
+            if (refreshed) {
+              response = await ApiClient.get('/user/profile', requiresAuth: true);
+              isSuccess =
+                  response['success'] == true || response['status'] == 'ok';
+            }
+          }
+        }
 
         if (isSuccess) {
           final userData = response['data'] ?? response['user'] ?? response;

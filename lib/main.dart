@@ -14,6 +14,7 @@ import 'screens/chatbot/reven_overlay_navigator_observer.dart';
 import 'api/api_endpoints.dart';
 import 'api/api_client.dart';
 import 'services/app_preferences_service.dart';
+import 'services/media_playback_session.dart';
 import 'services/support_contact_service.dart';
 import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
@@ -22,6 +23,7 @@ import 'services/meta_app_events_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await MediaPlaybackSession.ensureConfigured();
   ApiClient.beforeClearToken = () async {
     RevenChatOverlay.hide();
     await PushNotificationService.unregisterBackendToken();
@@ -57,7 +59,16 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final token = prefs.getString('token');
   if (token != null && token.isNotEmpty) {
-    await ApiClient.setToken(token);
+    await ApiClient.getToken();
+    final issuedMs = prefs.getInt(ApiClient.sessionIssuedAtKey);
+    final shouldRefresh = issuedMs == null ||
+        DateTime.now().difference(
+              DateTime.fromMillisecondsSinceEpoch(issuedMs),
+            ) >
+            const Duration(days: 7);
+    if (shouldRefresh) {
+      await ApiClient.tryRefreshSession();
+    }
     final res = await ApiClient.post(
       ApiEndpoints.userAppOpen,
       const {},

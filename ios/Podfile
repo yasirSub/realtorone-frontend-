@@ -127,6 +127,29 @@ post_install do |installer|
           user_project_target.build_phases.delete(phase)
         end
       end
+
+      # Prebuilt Razorpay xcframeworks ship dSYMs inside the pod but Xcode does not
+      # copy them into the archive — causes "Upload Symbols Failed" on TestFlight upload.
+      razorpay_dsym_phase = user_project_target.shell_script_build_phases.find do |p|
+        p.name == 'Copy Razorpay dSYMs'
+      end
+      unless razorpay_dsym_phase
+        razorpay_dsym_phase = user_project_target.project.new(Xcodeproj::Project::Object::PBXShellScriptBuildPhase)
+        razorpay_dsym_phase.name = 'Copy Razorpay dSYMs'
+        user_project_target.build_phases << razorpay_dsym_phase
+      end
+      razorpay_dsym_phase.always_out_of_date = '1'
+      razorpay_dsym_phase.shell_script = <<~'SCRIPT'
+        if [ -n "$DWARF_DSYM_FOLDER_PATH" ] && [ -d "${PODS_ROOT}/razorpay-pod" ]; then
+          for FW in RazorpayCore RazorpayStandard Razorpay; do
+            DSYM=$(find "${PODS_ROOT}/razorpay-pod" -path "*/ios-arm64/dSYMs/${FW}.framework.dSYM" 2>/dev/null | head -1)
+            if [ -d "$DSYM" ]; then
+              echo "Copying ${FW} dSYM to ${DWARF_DSYM_FOLDER_PATH}"
+              rsync -a "$DSYM" "${DWARF_DSYM_FOLDER_PATH}/"
+            fi
+          done
+        fi
+      SCRIPT
     end
     agg_target.user_project.save
   end

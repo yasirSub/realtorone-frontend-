@@ -24,7 +24,10 @@ class ApiClient {
     'hasSeenAppTourV2',
     'hasSeenAppTourV1',
     'hasAddedDealRoomClient',
+    'app_install_marker_v1',
   };
+
+  static const String sessionIssuedAtKey = 'auth_session_issued_at_ms';
 
   /// Optional hook (e.g. remove FCM token from backend before clearing session).
   static Future<void> Function()? beforeClearToken;
@@ -42,6 +45,10 @@ class ApiClient {
     _token = token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
+    await prefs.setInt(
+      sessionIssuedAtKey,
+      DateTime.now().millisecondsSinceEpoch,
+    );
   }
 
   // Clear token
@@ -414,6 +421,39 @@ class ApiClient {
     }
   }
 
+  /// Rotate the mobile session token while the current bearer token is still valid.
+  static Future<bool> tryRefreshSession() async {
+    try {
+      final token = await getToken();
+      if (token == null || token.isEmpty) return false;
+
+      final headers = await _buildHeaders(includeAuth: true);
+      final response = await http
+          .post(
+            Uri.parse('${ApiEndpoints.baseUrl}/auth/session/refresh'),
+            headers: headers,
+            body: jsonEncode({}),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (response.statusCode == 401) return false;
+
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        final next = data['token']?.toString();
+        if (next != null && next.isNotEmpty) {
+          await setToken(next);
+          return true;
+        }
+        return data['status'] == 'ok' || data['success'] == true;
+      }
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      debugPrint('Session refresh failed: $e');
+      return false;
+    }
+  }
+
   // DELETE request
   static Future<Map<String, dynamic>> delete(
     String endpoint, {
@@ -524,6 +564,8 @@ class ApiClient {
 
   static void _triggerSessionExpired() {
     if (_handlingSessionExpiry) return;
+    // Background cache revalidation should not sign the user out.
+    if (_backgroundFetchDepth > 0) return;
     _handlingSessionExpiry = true;
     Future<void>(() async {
       try {

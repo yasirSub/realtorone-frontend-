@@ -1,5 +1,8 @@
 // ignore_for_file: unnecessary_brace_in_string_interps, unnecessary_to_list_in_spreads, unnecessary_underscores, curly_braces_in_flow_control_structures, unused_element, duplicate_ignore
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../api/learning_api.dart';
 import '../../models/learning_model.dart';
@@ -20,7 +23,6 @@ import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
 
 class CourseCurriculumPage extends StatefulWidget {
   final int courseId;
@@ -56,7 +58,8 @@ class _CourseProgressStats {
       : 0;
 }
 
-class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
+class _CourseCurriculumPageState extends State<CourseCurriculumPage>
+    with WidgetsBindingObserver {
   bool _isLoading = true;
   CourseModel? _course;
   final Map<int, bool> _expandedModules = {};
@@ -74,10 +77,12 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   final Map<int, String> _localFiles = {}; // materialId -> localPath
 
   Map<String, dynamic>? _certificate;
+  bool _keepScreenAwake = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLocalContentInfo();
     _loadCourseDetails();
     _loadCertificate();
@@ -152,11 +157,45 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveCurrentProgress(); // CRITICAL: Save on exit
-    WakelockPlus.disable();
+    unawaited(_syncWakelock(enabled: false));
     _chewieController?.dispose(); // Dispose Chewie first
     _videoPlayerController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _syncWakelock({bool? enabled}) async {
+    final shouldEnable = enabled ?? (_keepScreenAwake && _playingMaterial != null);
+    try {
+      if (shouldEnable) {
+        await WakelockPlus.enable();
+      } else {
+        await WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('Course wakelock failed: $e');
+    }
+  }
+
+  void _toggleKeepScreenAwake() {
+    setState(() => _keepScreenAwake = !_keepScreenAwake);
+    unawaited(_syncWakelock());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Do not pause course playback when the screen locks or app is minimized.
+    if (state == AppLifecycleState.resumed &&
+        _videoPlayerController != null &&
+        _playingMaterial != null) {
+      if (!_videoPlayerController!.value.isPlaying &&
+          _videoPlayerController!.value.isInitialized &&
+          _videoPlayerController!.value.position <
+              _videoPlayerController!.value.duration) {
+        unawaited(_videoPlayerController!.play());
+      }
+    }
   }
 
   Future<void> _saveCurrentProgress() async {
@@ -399,6 +438,21 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
             onPressed: () {
               Navigator.pop(context);
             },
+          ),
+        ),
+        Positioned(
+          top: MediaQuery.of(context).padding.top,
+          right: 56,
+          child: IconButton(
+            tooltip: 'Keep screen awake',
+            icon: Icon(
+              _keepScreenAwake
+                  ? Icons.wb_sunny_rounded
+                  : Icons.wb_sunny_outlined,
+              color: _keepScreenAwake ? const Color(0xFF4ECDC4) : Colors.white,
+              size: 22,
+            ),
+            onPressed: _toggleKeepScreenAwake,
           ),
         ),
         Positioned(
@@ -1581,7 +1635,7 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage> {
   }
 
   Future<void> _playVideo(MaterialItem material) async {
-    WakelockPlus.enable();
+    await _syncWakelock(enabled: _keepScreenAwake);
 
     // Dispose previous before starting new
     _chewieController?.dispose();

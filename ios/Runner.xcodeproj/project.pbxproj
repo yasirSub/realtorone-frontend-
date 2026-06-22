@@ -212,6 +212,8 @@
 				AE26A9E17E93A02BF042DA89 /* [CP] Copy Pods Resources */,
 				C0PYG00G1E5F12345678902 /* Copy GoogleService-Info */,
 				A9C886789870D036DEC3CC7A /* Remove Problematic Frameworks */,
+				C43E92EC67036386427C23AA /* [CP] Embed Pods Frameworks */,
+				8439926BD301628151D61D07 /* Copy Razorpay dSYMs */,
 			);
 			buildRules = (
 			);
@@ -310,6 +312,25 @@
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" embed_and_thin";
 		};
+		8439926BD301628151D61D07 /* Copy Razorpay dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy Razorpay dSYMs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ -n \"$DWARF_DSYM_FOLDER_PATH\" ] && [ -d \"${PODS_ROOT}/razorpay-pod\" ]; then\n  for FW in RazorpayCore RazorpayStandard Razorpay; do\n    DSYM=$(find \"${PODS_ROOT}/razorpay-pod\" -path \"*/ios-arm64/dSYMs/${FW}.framework.dSYM\" 2>/dev/null | head -1)\n    if [ -d \"$DSYM\" ]; then\n      echo \"Copying ${FW} dSYM to ${DWARF_DSYM_FOLDER_PATH}\"\n      rsync -a \"$DSYM\" \"${DWARF_DSYM_FOLDER_PATH}/\"\n    fi\n  done\nfi\n";
+		};
 		9740EEB61CF901F6004384FC /* Run Script */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -377,6 +398,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "cp \"${SRCROOT}/Runner/GoogleService-Info.plist\" \"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\n";
+			showEnvVarsInLog = 0;
+		};
+		C43E92EC67036386427C23AA /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		DAF874BBA798EC3B7206F2FE /* [CP] Check Pods Manifest.lock */ = {

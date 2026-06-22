@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../services/media_playback_session.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/app_config.dart';
@@ -1637,6 +1638,9 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _isDisposed = false;
+  bool _keepScreenAwake = false;
+  bool _userPaused = false;
+  bool _wasPlayingBeforeBackground = false;
   bool _playbackAwake = false;
   bool _hasStartedPlayback =
       false; // Only show timer/progress after user taps play
@@ -1743,34 +1747,16 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
 
   Future<void> _configureAudioSession() async {
     if (_isDisposed) return;
-    try {
-      await _player.setPlayerMode(PlayerMode.mediaPlayer);
-      await _player.setReleaseMode(ReleaseMode.stop);
-      await _player.setAudioContext(
-        AudioContext(
-          iOS: AudioContextIOS(
-            category: AVAudioSessionCategory.playback,
-            options: {AVAudioSessionOptions.mixWithOthers},
-          ),
-          android: AudioContextAndroid(
-            isSpeakerphoneOn: false,
-            stayAwake: true,
-            contentType: AndroidContentType.music,
-            usageType: AndroidUsageType.media,
-            audioFocus: AndroidAudioFocus.gain,
-          ),
-        ),
-      );
-    } catch (e) {
-      debugPrint('Task audio session setup failed: $e');
-    }
+    await MediaPlaybackSession.configurePlayer(_player);
   }
 
-  Future<void> _setPlaybackAwake(bool awake) async {
-    if (_playbackAwake == awake) return;
-    _playbackAwake = awake;
+  Future<void> _syncWakelock() async {
+    final shouldAwake =
+        _keepScreenAwake && _playerState == PlayerState.playing;
+    if (_playbackAwake == shouldAwake) return;
+    _playbackAwake = shouldAwake;
     try {
-      if (awake) {
+      if (shouldAwake) {
         await WakelockPlus.enable();
       } else {
         await WakelockPlus.disable();
@@ -1780,11 +1766,38 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
     }
   }
 
+  void _toggleKeepScreenAwake() {
+    setState(() => _keepScreenAwake = !_keepScreenAwake);
+    unawaited(_syncWakelock());
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (_isDisposed || !mounted) return;
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      if (_playerState == PlayerState.playing) {
+        _wasPlayingBeforeBackground = true;
+      }
+      return;
+    }
     if (state == AppLifecycleState.resumed) {
       unawaited(_syncProgressFromPlayer());
+      if (_wasPlayingBeforeBackground &&
+          !_userPaused &&
+          _playerState != PlayerState.playing) {
+        _wasPlayingBeforeBackground = false;
+        unawaited(_resumeAfterBackground());
+      }
+    }
+  }
+
+  Future<void> _resumeAfterBackground() async {
+    try {
+      await _configureAudioSession();
+      await _player.resume();
+    } catch (e) {
+      debugPrint('Task audio resume after background failed: $e');
     }
   }
 
@@ -1798,13 +1811,15 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
       setState(() => _playerState = state);
       if (state == PlayerState.playing) {
         _startProgressPolling();
-        unawaited(_setPlaybackAwake(true));
+        _userPaused = false;
+        unawaited(_syncWakelock());
       } else {
         _stopProgressPolling();
-        if (state == PlayerState.paused ||
-            state == PlayerState.stopped ||
-            state == PlayerState.completed) {
-          unawaited(_setPlaybackAwake(false));
+        if (state == PlayerState.stopped || state == PlayerState.completed) {
+          _userPaused = false;
+          unawaited(_syncWakelock());
+        } else if (state == PlayerState.paused && _userPaused) {
+          unawaited(_syncWakelock());
         }
       }
     });
@@ -1839,17 +1854,19 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
     _isDisposed = true;
     WidgetsBinding.instance.removeObserver(this);
     _progressPollTimer?.cancel();
-    unawaited(_setPlaybackAwake(false));
+    unawaited(_syncWakelock());
     _player.dispose();
     super.dispose();
   }
 
   Future<void> _togglePlay() async {
     if (_playerState == PlayerState.playing) {
+      _userPaused = true;
       await _player.pause();
     } else {
       await _configureAudioSession();
       setState(() => _hasStartedPlayback = true);
+      _userPaused = false;
       await _player.setPlaybackRate(_playbackRate);
       await _player.play(UrlSource(widget.audioUrl));
       for (final delay in [
@@ -1978,6 +1995,53 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
                       ),
                     ),
                   ),
+                  GestureDetector(
+                    onTap: _toggleKeepScreenAwake,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _keepScreenAwake
+                            ? const Color(0xFF667eea).withValues(alpha: 0.3)
+                            : (widget.isDark
+                                  ? Colors.white12
+                                  : const Color(0xFFE2E8F0)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _keepScreenAwake
+                                ? Icons.wb_sunny_rounded
+                                : Icons.wb_sunny_outlined,
+                            size: 14,
+                            color: _keepScreenAwake
+                                ? const Color(0xFF667eea)
+                                : (widget.isDark
+                                      ? Colors.white60
+                                      : const Color(0xFF64748B)),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Awake',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _keepScreenAwake
+                                  ? const Color(0xFF667eea)
+                                  : (widget.isDark
+                                        ? Colors.white60
+                                        : const Color(0xFF64748B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   GestureDetector(
                     onTap: _toggle2x,
                     child: Container(

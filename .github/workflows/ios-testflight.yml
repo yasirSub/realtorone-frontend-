@@ -27,6 +27,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Disable Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Flutter Pub Get
         run: flutter pub get
 
