@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../api/api_client.dart';
 import '../../api/api_endpoints.dart';
 import '../../api/app_config.dart';
@@ -1629,12 +1630,14 @@ class _TaskAudioPlayer extends StatefulWidget {
   State<_TaskAudioPlayer> createState() => _TaskAudioPlayerState();
 }
 
-class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
+class _TaskAudioPlayerState extends State<_TaskAudioPlayer>
+    with WidgetsBindingObserver {
   final AudioPlayer _player = AudioPlayer();
   PlayerState _playerState = PlayerState.stopped;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   bool _isDisposed = false;
+  bool _playbackAwake = false;
   bool _hasStartedPlayback =
       false; // Only show timer/progress after user taps play
   double _playbackRate = 1.0;
@@ -1738,16 +1741,71 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
     unawaited(_syncProgressFromPlayer());
   }
 
+  Future<void> _configureAudioSession() async {
+    if (_isDisposed) return;
+    try {
+      await _player.setPlayerMode(PlayerMode.mediaPlayer);
+      await _player.setReleaseMode(ReleaseMode.stop);
+      await _player.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {AVAudioSessionOptions.mixWithOthers},
+          ),
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Task audio session setup failed: $e');
+    }
+  }
+
+  Future<void> _setPlaybackAwake(bool awake) async {
+    if (_playbackAwake == awake) return;
+    _playbackAwake = awake;
+    try {
+      if (awake) {
+        await WakelockPlus.enable();
+      } else {
+        await WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('Task audio wakelock failed: $e');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_isDisposed || !mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_syncProgressFromPlayer());
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_configureAudioSession());
     _player.onPlayerStateChanged.listen((state) {
       if (_isDisposed || !mounted) return;
       setState(() => _playerState = state);
       if (state == PlayerState.playing) {
         _startProgressPolling();
+        unawaited(_setPlaybackAwake(true));
       } else {
         _stopProgressPolling();
+        if (state == PlayerState.paused ||
+            state == PlayerState.stopped ||
+            state == PlayerState.completed) {
+          unawaited(_setPlaybackAwake(false));
+        }
       }
     });
     _player.onDurationChanged.listen((d) {
@@ -1779,7 +1837,9 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
   @override
   void dispose() {
     _isDisposed = true;
+    WidgetsBinding.instance.removeObserver(this);
     _progressPollTimer?.cancel();
+    unawaited(_setPlaybackAwake(false));
     _player.dispose();
     super.dispose();
   }
@@ -1788,6 +1848,7 @@ class _TaskAudioPlayerState extends State<_TaskAudioPlayer> {
     if (_playerState == PlayerState.playing) {
       await _player.pause();
     } else {
+      await _configureAudioSession();
       setState(() => _hasStartedPlayback = true);
       await _player.setPlaybackRate(_playbackRate);
       await _player.play(UrlSource(widget.audioUrl));
