@@ -11,12 +11,14 @@ class UpdateRequiredPage extends StatelessWidget {
   const UpdateRequiredPage({
     super.key,
     required this.minVersion,
+    required this.maxVersion,
     required this.storeUrl,
     required this.apkUrl,
     required this.platformLabel,
   });
 
   final String minVersion;
+  final String maxVersion;
   final String storeUrl;
   final String apkUrl;
   final String platformLabel;
@@ -28,6 +30,25 @@ class UpdateRequiredPage extends StatelessWidget {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  static String _versionRangeLabel({
+    required String currentVersion,
+    required String minVersion,
+    required String maxVersion,
+    required AppLocalizations l10n,
+  }) {
+    final current = currentVersion.isEmpty ? '-' : currentVersion;
+    if (minVersion.isNotEmpty && maxVersion.isNotEmpty) {
+      return 'Your version: $current · Allowed: $minVersion – $maxVersion';
+    }
+    if (minVersion.isNotEmpty) {
+      return l10n.updateVersionDetails(current, minVersion);
+    }
+    if (maxVersion.isNotEmpty) {
+      return 'Your version: $current · Maximum allowed: $maxVersion';
+    }
+    return 'Your version: $current';
   }
 
   @override
@@ -93,11 +114,15 @@ class UpdateRequiredPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  if (currentVersion.isNotEmpty || minVersion.isNotEmpty)
+                  if (currentVersion.isNotEmpty ||
+                      minVersion.isNotEmpty ||
+                      maxVersion.isNotEmpty)
                     Text(
-                      l10n.updateVersionDetails(
-                        currentVersion.isEmpty ? '-' : currentVersion,
-                        minVersion.isEmpty ? '-' : minVersion,
+                      _versionRangeLabel(
+                        currentVersion: currentVersion,
+                        minVersion: minVersion,
+                        maxVersion: maxVersion,
+                        l10n: l10n,
                       ),
                       textAlign: TextAlign.center,
                       style: const TextStyle(

@@ -11,6 +11,7 @@ class AppVersionInfo {
     required this.currentVersion,
     required this.buildNumber,
     required this.minVersionForPlatform,
+    required this.maxVersionForPlatform,
     required this.storeUrl,
     required this.apkUrl,
     required this.releaseNotes,
@@ -21,6 +22,7 @@ class AppVersionInfo {
   final String currentVersion;
   final String buildNumber;
   final String minVersionForPlatform;
+  final String maxVersionForPlatform;
   final String storeUrl;
   final String apkUrl;
   final String releaseNotes;
@@ -46,6 +48,8 @@ class AppVersionService {
 
     var minAndroid = '';
     var minIos = '';
+    var maxAndroid = '';
+    var maxIos = '';
     var androidStore = '';
     var iosStore = '';
     var apkUrl = '';
@@ -70,6 +74,8 @@ class AppVersionService {
         );
         minAndroid = data['min_android_version']?.toString().trim() ?? '';
         minIos = data['min_ios_version']?.toString().trim() ?? '';
+        maxAndroid = data['max_android_version']?.toString().trim() ?? '';
+        maxIos = data['max_ios_version']?.toString().trim() ?? '';
         androidStore = data['android_store_url']?.toString().trim() ?? '';
         iosStore = data['ios_store_url']?.toString().trim() ?? '';
         apkUrl = data['apk_url']?.toString().trim() ?? '';
@@ -106,20 +112,29 @@ class AppVersionService {
         : isIos
             ? minIos
             : '';
+    final maxForPlatform = isAndroid
+        ? maxAndroid
+        : isIos
+            ? maxIos
+            : '';
     final storeForPlatform = isAndroid
         ? androidStore
         : isIos
             ? iosStore
             : '';
 
-    final updateRequired = versionControlEnabled &&
-        minForPlatform.isNotEmpty &&
-        compareSemanticVersions(package.version, minForPlatform) < 0;
+    final updateRequired = isVersionUpdateRequired(
+      versionControlEnabled: versionControlEnabled,
+      currentVersion: package.version,
+      minVersion: minForPlatform,
+      maxVersion: maxForPlatform,
+    );
 
     return AppVersionInfo(
       currentVersion: package.version,
       buildNumber: package.buildNumber,
       minVersionForPlatform: minForPlatform,
+      maxVersionForPlatform: maxForPlatform,
       storeUrl: storeForPlatform,
       apkUrl: apkUrl,
       releaseNotes: releaseNotes,

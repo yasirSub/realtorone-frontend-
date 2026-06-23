@@ -133,6 +133,7 @@ class RouteConfig {
             <String, dynamic>{};
         return UpdateRequiredPage(
           minVersion: (args['minVersion'] as String?) ?? '',
+          maxVersion: (args['maxVersion'] as String?) ?? '',
           storeUrl: (args['storeUrl'] as String?) ?? '',
           apkUrl: (args['apkUrl'] as String?) ?? '',
           platformLabel: (args['platformLabel'] as String?) ?? 'mobile',

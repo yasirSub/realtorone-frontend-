@@ -25,3 +25,35 @@ int compareSemanticVersions(String a, String b) {
   }
   return 0;
 }
+
+/// True when [current] is below [min] or above [max] (empty bound = ignored).
+bool isVersionOutsideAllowedRange(
+  String current, {
+  required String min,
+  required String max,
+}) {
+  final normalized = current.trim();
+  if (normalized.isEmpty) return false;
+  if (min.isNotEmpty && compareSemanticVersions(normalized, min) < 0) {
+    return true;
+  }
+  if (max.isNotEmpty && compareSemanticVersions(normalized, max) > 0) {
+    return true;
+  }
+  return false;
+}
+
+bool isVersionUpdateRequired({
+  required bool versionControlEnabled,
+  required String currentVersion,
+  required String minVersion,
+  required String maxVersion,
+}) {
+  if (!versionControlEnabled) return false;
+  if (minVersion.isEmpty && maxVersion.isEmpty) return false;
+  return isVersionOutsideAllowedRange(
+    currentVersion,
+    min: minVersion,
+    max: maxVersion,
+  );
+}

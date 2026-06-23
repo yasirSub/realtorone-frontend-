@@ -221,6 +221,7 @@ class _SplashScreenState extends State<SplashScreen>
         debugPrint('Splash: update required, redirecting');
         _navigateOnce(AppRoutes.updateRequired, arguments: {
             'minVersion': config.minVersionForPlatform,
+            'maxVersion': config.maxVersionForPlatform,
             'storeUrl': config.storeUrlForPlatform,
             'apkUrl': config.apkUrl,
             'platformLabel': defaultTargetPlatform == TargetPlatform.iOS
@@ -428,6 +429,8 @@ class _SplashScreenState extends State<SplashScreen>
       final maintenanceMessage = (data['maintenance_message'] as String?) ?? '';
       final minAndroid = (data['min_android_version'] as String?)?.trim() ?? '';
       final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
+      final maxAndroid = (data['max_android_version'] as String?)?.trim() ?? '';
+      final maxIos = (data['max_ios_version'] as String?)?.trim() ?? '';
       final androidStore = (data['android_store_url'] as String?)?.trim() ?? '';
       final iosStore = (data['ios_store_url'] as String?)?.trim() ?? '';
       final apkUrl = (data['apk_url'] as String?)?.trim() ?? '';
@@ -443,6 +446,11 @@ class _SplashScreenState extends State<SplashScreen>
           : isIos
           ? minIos
           : '';
+      final String maxForPlatform = isAndroid
+          ? maxAndroid
+          : isIos
+          ? maxIos
+          : '';
       final String storeForPlatform = isAndroid
           ? androidStore
           : isIos
@@ -450,9 +458,12 @@ class _SplashScreenState extends State<SplashScreen>
           : '';
 
       final versionControlEnabled = _versionControlEnabledForPlatform(data);
-      final requiresUpdate = versionControlEnabled &&
-          minForPlatform.isNotEmpty &&
-          compareSemanticVersions(currentVersion, minForPlatform) < 0;
+      final requiresUpdate = isVersionUpdateRequired(
+        versionControlEnabled: versionControlEnabled,
+        currentVersion: currentVersion,
+        minVersion: minForPlatform,
+        maxVersion: maxForPlatform,
+      );
 
       return _AppRuntimeConfig(
         maintenanceEnabled: maintenanceEnabled,
@@ -460,11 +471,14 @@ class _SplashScreenState extends State<SplashScreen>
         serviceUnavailable: false,
         minAndroidVersion: minAndroid,
         minIosVersion: minIos,
+        maxAndroidVersion: maxAndroid,
+        maxIosVersion: maxIos,
         androidStoreUrl: androidStore,
         iosStoreUrl: iosStore,
         currentVersion: currentVersion,
         requiresUpdate: requiresUpdate,
         minVersionForPlatform: minForPlatform,
+        maxVersionForPlatform: maxForPlatform,
         storeUrlForPlatform: storeForPlatform,
         apkUrl: apkUrl,
       );
@@ -481,11 +495,14 @@ class _SplashScreenState extends State<SplashScreen>
       serviceUnavailable: false,
       minAndroidVersion: '',
       minIosVersion: '',
+      maxAndroidVersion: '',
+      maxIosVersion: '',
       androidStoreUrl: '',
       iosStoreUrl: '',
       currentVersion: info.version,
       requiresUpdate: false,
       minVersionForPlatform: '',
+      maxVersionForPlatform: '',
       storeUrlForPlatform: '',
       apkUrl: '',
     );
@@ -790,11 +807,14 @@ class _AppRuntimeConfig {
     required this.serviceUnavailable,
     required this.minAndroidVersion,
     required this.minIosVersion,
+    required this.maxAndroidVersion,
+    required this.maxIosVersion,
     required this.androidStoreUrl,
     required this.iosStoreUrl,
     required this.currentVersion,
     required this.requiresUpdate,
     required this.minVersionForPlatform,
+    required this.maxVersionForPlatform,
     required this.storeUrlForPlatform,
     required this.apkUrl,
   });
@@ -806,11 +826,14 @@ class _AppRuntimeConfig {
       serviceUnavailable: true,
       minAndroidVersion: '',
       minIosVersion: '',
+      maxAndroidVersion: '',
+      maxIosVersion: '',
       androidStoreUrl: '',
       iosStoreUrl: '',
       currentVersion: '',
       requiresUpdate: false,
       minVersionForPlatform: '',
+      maxVersionForPlatform: '',
       storeUrlForPlatform: '',
       apkUrl: '',
     );
@@ -821,11 +844,14 @@ class _AppRuntimeConfig {
   final bool serviceUnavailable;
   final String minAndroidVersion;
   final String minIosVersion;
+  final String maxAndroidVersion;
+  final String maxIosVersion;
   final String androidStoreUrl;
   final String iosStoreUrl;
   final String currentVersion;
   final bool requiresUpdate;
   final String minVersionForPlatform;
+  final String maxVersionForPlatform;
   final String storeUrlForPlatform;
   final String apkUrl;
 }

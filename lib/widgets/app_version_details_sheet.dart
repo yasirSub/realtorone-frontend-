@@ -166,8 +166,14 @@ class _AppVersionSheetBodyState extends State<_AppVersionSheetBody> {
                                   ),
                                   if (info.minVersionForPlatform.isNotEmpty)
                                     _detailTile(
-                                      'Required version',
+                                      'Minimum version',
                                       info.minVersionForPlatform,
+                                      isDark,
+                                    ),
+                                  if (info.maxVersionForPlatform.isNotEmpty)
+                                    _detailTile(
+                                      'Maximum version',
+                                      info.maxVersionForPlatform,
                                       isDark,
                                     ),
                                   if (info.updatedAt.isNotEmpty)
