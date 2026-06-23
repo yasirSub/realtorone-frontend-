@@ -49,6 +49,8 @@ class PushNotificationService {
 
   static const String _storeKey = 'notification_history_v1';
   static const String _globalTopic = 'all_users';
+  static const String _androidTopic = 'android_users';
+  static const String _iosTopic = 'ios_users';
 
   static bool _firebaseReady = false;
   // Tracks whether initializeApp() was ever called, regardless of success.
@@ -629,7 +631,7 @@ class PushNotificationService {
         syncRes['success'] == true ? 'ok' : syncRes.toString(),
       );
       try {
-        await _messaging.subscribeToTopic(_globalTopic);
+        await _subscribeBroadcastTopics(platform);
       } catch (e) {
         debugPrint('PushNotificationService: subscribe topic failed: $e');
       }
@@ -639,7 +641,7 @@ class PushNotificationService {
         FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
           await ApiClient.post('/user/push-token', {'token': newToken, 'platform': platform}, requiresAuth: true);
           try {
-            await _messaging.subscribeToTopic(_globalTopic);
+            await _subscribeBroadcastTopics(platform);
           } catch (e) {
             debugPrint('PushNotificationService: topic resubscribe failed: $e');
           }
@@ -656,10 +658,28 @@ class PushNotificationService {
     try {
       await ApiClient.delete('/user/push-token', requiresAuth: true);
       try {
-        await _messaging.unsubscribeFromTopic(_globalTopic);
+        await _unsubscribeBroadcastTopics();
       } catch (_) {}
       await _messaging.deleteToken();
     } catch (_) {}
+  }
+
+  static Future<void> _subscribeBroadcastTopics(String platform) async {
+    await _messaging.subscribeToTopic(_globalTopic);
+    final platformTopic = platform == 'ios' ? _iosTopic : _androidTopic;
+    await _messaging.subscribeToTopic(platformTopic);
+  }
+
+  static Future<void> _unsubscribeBroadcastTopics() async {
+    await _messaging.unsubscribeFromTopic(_globalTopic);
+    if (!kIsWeb && Platform.isIOS) {
+      await _messaging.unsubscribeFromTopic(_iosTopic);
+    } else if (!kIsWeb && Platform.isAndroid) {
+      await _messaging.unsubscribeFromTopic(_androidTopic);
+    } else {
+      await _messaging.unsubscribeFromTopic(_androidTopic);
+      await _messaging.unsubscribeFromTopic(_iosTopic);
+    }
   }
 
   static String _applyGreetingIfNeeded(String recurrenceType, String title) {
