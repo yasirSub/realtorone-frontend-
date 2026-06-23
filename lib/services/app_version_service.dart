@@ -32,6 +32,12 @@ class AppVersionInfo {
 }
 
 class AppVersionService {
+  static bool _configFlag(Map data, String key, {required bool fallback}) {
+    if (!data.containsKey(key)) return fallback;
+    final value = data[key];
+    return value != false && value != 0 && value?.toString() != 'false';
+  }
+
   static Future<AppVersionInfo> load({bool bustCache = true}) async {
     final package = await PackageInfo.fromPlatform();
     final endpoint = bustCache
@@ -51,16 +57,40 @@ class AppVersionService {
       final response = await ApiClient.getPublic(endpoint);
       final data = response['data'];
       if (data is Map) {
-        versionControlEnabled = data['version_control_enabled'] != false &&
-            data['version_control_enabled'] != 0 &&
-            data['version_control_enabled']?.toString() != 'false';
+        final legacyControl = _configFlag(data, 'version_control_enabled', fallback: true);
+        final androidControl = _configFlag(
+          data,
+          'version_control_android_enabled',
+          fallback: legacyControl,
+        );
+        final iosControl = _configFlag(
+          data,
+          'version_control_ios_enabled',
+          fallback: legacyControl,
+        );
         minAndroid = data['min_android_version']?.toString().trim() ?? '';
         minIos = data['min_ios_version']?.toString().trim() ?? '';
         androidStore = data['android_store_url']?.toString().trim() ?? '';
         iosStore = data['ios_store_url']?.toString().trim() ?? '';
         apkUrl = data['apk_url']?.toString().trim() ?? '';
-        releaseNotes = data['release_notes']?.toString().trim() ?? '';
+        final legacyNotes = data['release_notes']?.toString().trim() ?? '';
+        final androidNotes =
+            data['android_release_notes']?.toString().trim() ?? '';
+        final iosNotes = data['ios_release_notes']?.toString().trim() ?? '';
         updatedAt = data['updated_at']?.toString().trim() ?? '';
+
+        final isAndroid = !kIsWeb && Platform.isAndroid;
+        final isIos = !kIsWeb && Platform.isIOS;
+        versionControlEnabled = isAndroid
+            ? androidControl
+            : isIos
+                ? iosControl
+                : legacyControl;
+        releaseNotes = isAndroid
+            ? (androidNotes.isNotEmpty ? androidNotes : legacyNotes)
+            : isIos
+                ? (iosNotes.isNotEmpty ? iosNotes : legacyNotes)
+                : legacyNotes;
       }
     } catch (e) {
       if (kDebugMode) {

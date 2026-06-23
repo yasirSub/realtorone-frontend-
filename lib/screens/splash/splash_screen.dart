@@ -15,6 +15,29 @@ import '../../services/support_contact_service.dart';
 import '../../utils/version_utils.dart';
 import '../../services/app_passcode_service.dart';
 
+bool _configFlag(Map<dynamic, dynamic> data, String key, {required bool fallback}) {
+  if (!data.containsKey(key)) return fallback;
+  final value = data[key];
+  return value != false && value != 0 && value?.toString() != 'false';
+}
+
+bool _versionControlEnabledForPlatform(Map<dynamic, dynamic> data) {
+  final legacy = _configFlag(data, 'version_control_enabled', fallback: true);
+  final android = _configFlag(
+    data,
+    'version_control_android_enabled',
+    fallback: legacy,
+  );
+  final ios = _configFlag(
+    data,
+    'version_control_ios_enabled',
+    fallback: legacy,
+  );
+  if (defaultTargetPlatform == TargetPlatform.android) return android;
+  if (defaultTargetPlatform == TargetPlatform.iOS) return ios;
+  return legacy;
+}
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -426,9 +449,7 @@ class _SplashScreenState extends State<SplashScreen>
           ? iosStore
           : '';
 
-      final versionControlEnabled = data['version_control_enabled'] != false &&
-          data['version_control_enabled'] != 0 &&
-          data['version_control_enabled']?.toString() != 'false';
+      final versionControlEnabled = _versionControlEnabledForPlatform(data);
       final requiresUpdate = versionControlEnabled &&
           minForPlatform.isNotEmpty &&
           compareSemanticVersions(currentVersion, minForPlatform) < 0;
