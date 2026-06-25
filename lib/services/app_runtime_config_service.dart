@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../api/api_client.dart';
+import 'app_version_gate_service.dart';
 import 'support_contact_service.dart';
 
 /// Shared `/app-config` payload so home refresh and Reven chat use the same flags.
@@ -32,7 +33,10 @@ class AppRuntimeConfigService {
     return defaultValue;
   }
 
-  static Future<Map<String, dynamic>?> refresh({bool force = false}) async {
+  static Future<Map<String, dynamic>?> refresh({
+    bool force = false,
+    bool enforceVersionGate = true,
+  }) async {
     if (_refreshing && !force) {
       return config.value;
     }
@@ -51,6 +55,9 @@ class AppRuntimeConfigService {
         final data = Map<String, dynamic>.from(raw);
         config.value = data;
         await SupportContactService.cacheFromAppConfig(data);
+        if (enforceVersionGate) {
+          await AppVersionGate.enforceIfRequired(config: data);
+        }
         return data;
       }
     } catch (e) {

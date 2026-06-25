@@ -1,4 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,6 +22,7 @@ import 'services/push_notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/iap_service.dart';
 import 'services/meta_app_events_service.dart';
+import 'services/app_version_gate_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,8 +98,32 @@ Future<void> main() async {
   );
 }
 
-class RealtorOneApp extends StatelessWidget {
+class RealtorOneApp extends StatefulWidget {
   const RealtorOneApp({super.key});
+
+  @override
+  State<RealtorOneApp> createState() => _RealtorOneAppState();
+}
+
+class _RealtorOneAppState extends State<RealtorOneApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(AppVersionGate.enforceIfRequired(forceRefresh: true));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

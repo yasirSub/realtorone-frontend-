@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -13,6 +14,7 @@ import '../firebase_options.dart';
 import '../routes/app_routes.dart';
 import '../screens/chatbot/reven_chat_page.dart';
 import '../utils/phone_otp_debug_log.dart';
+import 'app_version_gate_service.dart';
 import 'ios_phone_auth_apns_bridge.dart';
 import 'ios_push_diagnostics.dart';
 
@@ -131,11 +133,15 @@ class PushNotificationService {
         AppRoutes.main,
         (_) => false,
       );
+      unawaited(AppVersionGate.enforceIfRequired(forceRefresh: true));
       return;
     }
 
     if (kind == 'app_version' || deepLink.contains('app-version')) {
-      _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+      final blocked = await AppVersionGate.enforceIfRequired(forceRefresh: true);
+      if (!blocked) {
+        _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+      }
       return;
     }
 
@@ -156,7 +162,10 @@ class PushNotificationService {
         return;
       }
       if (uri.host == 'app-version' || uri.path.contains('app-version')) {
-        _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+        final blocked = await AppVersionGate.enforceIfRequired(forceRefresh: true);
+        if (!blocked) {
+          _navigatorKey?.currentState?.pushNamed(AppRoutes.appVersion);
+        }
         return;
       }
       if (uri.host == 'home' ||
@@ -197,6 +206,7 @@ class PushNotificationService {
         if (revenueSubTab != null) 'revenueSubTab': revenueSubTab,
       },
     );
+    unawaited(AppVersionGate.enforceIfRequired(forceRefresh: true));
   }
 
   static Future<void> openFromStoredNotification(

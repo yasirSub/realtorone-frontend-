@@ -15,6 +15,7 @@ import '../../theme/realtorone_brand.dart';
 import '../../widgets/marquee_text.dart';
 import '../../services/app_preferences_service.dart';
 import '../../services/app_runtime_config_service.dart';
+import '../../services/app_version_gate_service.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key, this.onOpenActivitiesTab});
 
@@ -97,6 +98,8 @@ class _HomePageState extends State<HomePage> {
       final tasksRes = results[2] as Map<String, dynamic>;
       final hotLeadRes = results[3] as Map<String, dynamic>;
       final configData = results[4];
+
+      if (!mounted || AppVersionGate.isBlocking) return;
 
       String? bannerMessage;
       String bannerType = 'info';

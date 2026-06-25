@@ -379,5 +379,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get updateButtonLabel => 'GO TO STORE';
 
   @override
+  String get updateRetryLabel => 'CHECK AGAIN';
+
+  @override
+  String get updateStillRequired =>
+      'This version is still not allowed. Update from the store, then check again.';
+
+  @override
+  String get updateRetryFailed =>
+      'Could not reach RealtorOne. Check your connection and try again.';
+
+  @override
   String get updateContinueLabel => 'Continue without updating';
 }

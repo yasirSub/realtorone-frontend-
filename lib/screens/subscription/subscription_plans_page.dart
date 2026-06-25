@@ -13,8 +13,6 @@ import '../../services/meta_app_events_service.dart';
 import '../../services/razorpay_service.dart';
 import '../../widgets/elite_loader.dart';
 import '../../utils/responsive_helper.dart';
-import '../../api/user_api.dart';
-import '../../utils/phone_utils.dart';
 import '../../utils/subscription_pricing.dart';
 import '../../utils/api_user_message.dart';
 import '../legal/legal_document_webview_page.dart';
@@ -76,7 +74,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
   bool get _showPaymentMethodPicker =>
       _isMobileIap && _razorpayAvailable && _iapEnabledForPlatform;
 
-  /// India / INR store: show converted ₹ prices only (hide AED list price).
+  /// Show converted ₹ prices when Razorpay is available for this user.
   bool get _showInrConvertedPrice =>
       _razorpayEligibleForUser || SubscriptionPricing.useIndianRupee;
 
@@ -329,13 +327,11 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         SubscriptionApi.getMySubscription(),
         IapService().fetchProducts(IapService.allProductIds),
         SubscriptionApi.getRazorpayConfig(),
-        UserApi.getProfile(useCache: false),
       ]);
 
       final packagesRes = results[0] as Map<String, dynamic>;
       final subRes = results[1] as Map<String, dynamic>;
       final rzRes = results[3] as Map<String, dynamic>;
-      final profileRes = results[4] as Map<String, dynamic>;
 
       if (mounted) {
         setState(() {
@@ -369,10 +365,6 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           final rzRate = rzRes['aed_to_inr_rate'];
           if (rzRate is num) {
             _serverAedToInrRate = rzRate.toDouble();
-          }
-          if (profileRes['success'] == true && profileRes['data'] is Map) {
-            final mobile = profileRes['data']['mobile']?.toString();
-            _razorpayEligibleForUser = PhoneUtils.isIndiaMobile(mobile);
           }
           if (_isMobileIap) {
             if (!_iapEnabledForPlatform && _razorpayAvailable) {
@@ -1385,7 +1377,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
 
     final aedTotal = _calculatePrice(pkg);
 
-    // India: show converted ₹ only — no AED list price on cards.
+    // Razorpay flow: show converted ₹ only — no AED list price on cards.
     if (_showInrConvertedPrice || _usingRazorpayCheckout) {
       final inr = _getDisplayInrAmount(pkg);
       if (inr != null) {
@@ -2537,7 +2529,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
           if (_razorpayAvailable) const SizedBox(width: 8),
         ],
         if (_razorpayAvailable)
-          chip('razorpay', 'Razorpay (IN)', Icons.account_balance_wallet_outlined),
+          chip('razorpay', 'Razorpay', Icons.account_balance_wallet_outlined),
       ],
     );
   }
@@ -2926,7 +2918,7 @@ class _SubscriptionPlansPageState extends State<SubscriptionPlansPage>
         ? '• Title: RealtorOne Premium (Consultant, Rainmaker, or Titan tiers)\n'
             '• Length: 1 Month, 3 Months, 6 Months, or 1 Year\n'
             '• Price: Shown in INR (₹) and charged via Razorpay at checkout.\n'
-            '• Region: Razorpay checkout is for India (+91) numbers — UPI and cards.\n\n'
+            '• Region: Razorpay checkout is available globally — UPI/cards/wallets as supported by Razorpay.\n\n'
             'Payment is processed by Razorpay. Your subscription period starts after successful payment verification. '
             'This is not an auto-renewing App Store or Google Play subscription.'
         : (_showInrConvertedPrice

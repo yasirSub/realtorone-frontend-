@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../api/diagnosis_api.dart';
 import '../../models/diagnosis_model.dart';
 import '../../routes/app_routes.dart';
+import '../../services/app_version_gate_service.dart';
 import '../../widgets/elite_loader.dart';
 
 class DiagnosisResultPage extends StatefulWidget {
@@ -444,8 +445,11 @@ class _DiagnosisResultPageState extends State<DiagnosisResultPage> {
       width: double.infinity,
       height: 64,
       child: ElevatedButton(
-        onPressed: () =>
-            Navigator.pushReplacementNamed(context, AppRoutes.main),
+        onPressed: () async {
+          if (await AppVersionGate.blockEntryIfRequired()) return;
+          if (!context.mounted) return;
+          Navigator.pushReplacementNamed(context, AppRoutes.main);
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF1E293B),
           foregroundColor: Colors.white,

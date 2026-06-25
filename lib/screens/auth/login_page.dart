@@ -8,6 +8,7 @@ import '../../services/google_auth_service.dart';
 import '../../services/meta_app_events_service.dart';
 import '../../services/push_notification_service.dart';
 import '../../routes/app_routes.dart';
+import '../../services/app_version_gate_service.dart';
 import '../../widgets/auth/auth_form_ui.dart';
 import '../../utils/phone_utils.dart';
 
@@ -40,6 +41,25 @@ class _LoginPageState extends State<LoginPage> {
   String _loginIdentifier() => _usePhone
       ? PhoneUtils.composeE164(_selectedDialCode, _phoneController.text)
       : _emailController.text.trim().toLowerCase();
+
+  Future<void> _navigateAfterAuth(Map<String, dynamic>? userData) async {
+    if (!mounted) return;
+    if (await AppVersionGate.blockEntryIfRequired()) return;
+    if (!mounted) return;
+
+    if (userData != null) {
+      if (userData['is_profile_complete'] != true) {
+        Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
+      } else if (userData['has_completed_diagnosis'] != true) {
+        Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
+      } else {
+        Navigator.pushReplacementNamed(context, AppRoutes.main);
+      }
+      return;
+    }
+
+    Navigator.pushReplacementNamed(context, AppRoutes.main);
+  }
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -91,16 +111,11 @@ class _LoginPageState extends State<LoginPage> {
 
         if (mounted) {
           if (profile['success'] == true) {
-            final userData = profile['data'];
-            if (userData['is_profile_complete'] != true) {
-              Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
-            } else if (userData['has_completed_diagnosis'] != true) {
-              Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
-            } else {
-              Navigator.pushReplacementNamed(context, AppRoutes.main);
-            }
+            await _navigateAfterAuth(
+              Map<String, dynamic>.from(profile['data'] as Map),
+            );
           } else {
-            Navigator.pushReplacementNamed(context, AppRoutes.main);
+            await _navigateAfterAuth(null);
           }
         }
       } else {
@@ -152,16 +167,11 @@ class _LoginPageState extends State<LoginPage> {
         final profile = await ApiClient.get('/user/profile', requiresAuth: true);
         if (!mounted) return;
         if (profile['success'] == true) {
-          final userData = profile['data'];
-          if (userData['is_profile_complete'] != true) {
-            Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
-          } else if (userData['has_completed_diagnosis'] != true) {
-            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
-          } else {
-            Navigator.pushReplacementNamed(context, AppRoutes.main);
-          }
+          await _navigateAfterAuth(
+            Map<String, dynamic>.from(profile['data'] as Map),
+          );
         } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.main);
+          await _navigateAfterAuth(null);
         }
       } else {
         setState(() {
@@ -233,16 +243,11 @@ class _LoginPageState extends State<LoginPage> {
         final profile = await ApiClient.get('/user/profile', requiresAuth: true);
         if (!mounted) return;
         if (profile['success'] == true) {
-          final userData = profile['data'];
-          if (userData['is_profile_complete'] != true) {
-            Navigator.pushReplacementNamed(context, AppRoutes.profileSetup);
-          } else if (userData['has_completed_diagnosis'] != true) {
-            Navigator.pushReplacementNamed(context, AppRoutes.diagnosis);
-          } else {
-            Navigator.pushReplacementNamed(context, AppRoutes.main);
-          }
+          await _navigateAfterAuth(
+            Map<String, dynamic>.from(profile['data'] as Map),
+          );
         } else {
-          Navigator.pushReplacementNamed(context, AppRoutes.main);
+          await _navigateAfterAuth(null);
         }
       } else {
         setState(() {

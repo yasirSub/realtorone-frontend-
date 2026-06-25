@@ -160,5 +160,8 @@
     }
   },
   "updateButtonLabel": "GO TO STORE",
+  "updateRetryLabel": "CHECK AGAIN",
+  "updateStillRequired": "This version is still not allowed. Update from the store, then check again.",
+  "updateRetryFailed": "Could not reach RealtorOne. Check your connection and try again.",
   "updateContinueLabel": "Continue without updating"
 }

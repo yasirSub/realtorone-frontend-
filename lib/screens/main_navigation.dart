@@ -17,6 +17,7 @@ import 'chatbot/reven_chat_overlay.dart';
 import 'chatbot/reven_route_tracker.dart';
 import '../routes/app_routes.dart';
 import '../services/app_passcode_service.dart';
+import '../services/app_version_gate_service.dart';
 import '../services/push_notification_service.dart';
 
 class _TourStepConfig {
@@ -159,10 +160,10 @@ class _MainNavigationState extends State<MainNavigation>
     // (Razorpay / Play Store / App Store sheets use inactive without leaving).
     if (state == AppLifecycleState.paused) {
       unawaited(AppPasscodeService.instance.noteBackgroundedNow());
-    } else if (state == AppLifecycleState.resumed &&
-        AppPasscodeService.instance.hasPasscode &&
-        !AppPasscodeService.instance.isLockSuppressed &&
-        mounted) {
+    } else if (state == AppLifecycleState.resumed && mounted) {
+      unawaited(AppVersionGate.enforceIfRequired(forceRefresh: true));
+      if (AppPasscodeService.instance.hasPasscode &&
+          !AppPasscodeService.instance.isLockSuppressed) {
       // Brief delay so payment sheets can call endSuppressLock first.
       Future<void>.delayed(const Duration(milliseconds: 350), () async {
         if (!mounted) return;
@@ -178,6 +179,7 @@ class _MainNavigationState extends State<MainNavigation>
           arguments: const {'popOnSuccess': true},
         );
       });
+      }
     }
   }
 

@@ -782,6 +782,24 @@ abstract class AppLocalizations {
   /// **'GO TO STORE'**
   String get updateButtonLabel;
 
+  /// No description provided for @updateRetryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'CHECK AGAIN'**
+  String get updateRetryLabel;
+
+  /// No description provided for @updateStillRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'This version is still not allowed. Update from the store, then check again.'**
+  String get updateStillRequired;
+
+  /// No description provided for @updateRetryFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach RealtorOne. Check your connection and try again.'**
+  String get updateRetryFailed;
+
   /// No description provided for @updateContinueLabel.
   ///
   /// In en, this message translates to:

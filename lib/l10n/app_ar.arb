@@ -114,5 +114,8 @@
   "updateBody": "لضمان الأمان والحصول على أحدث المزايا في تطبيق {platform}، يرجى التحديث إلى آخر إصدار.",
   "updateVersionDetails": "الحالي: {current} • المطلوب: {required}",
   "updateButtonLabel": "الانتقال إلى المتجر",
+  "updateRetryLabel": "تحقق مرة أخرى",
+  "updateStillRequired": "لا يزال هذا الإصدار غير مسموح. حدّث من المتجر ثم اضغط تحقق مرة أخرى.",
+  "updateRetryFailed": "تعذّر الاتصال بـ RealtorOne. تحقق من الشبكة وحاول مرة أخرى.",
   "updateContinueLabel": "المتابعة بدون تحديث"
 }

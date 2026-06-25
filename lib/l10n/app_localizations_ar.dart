@@ -377,5 +377,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get updateButtonLabel => 'الانتقال إلى المتجر';
 
   @override
+  String get updateRetryLabel => 'تحقق مرة أخرى';
+
+  @override
+  String get updateStillRequired =>
+      'لا يزال هذا الإصدار غير مسموح. حدّث من المتجر ثم اضغط تحقق مرة أخرى.';
+
+  @override
+  String get updateRetryFailed =>
+      'تعذّر الاتصال بـ RealtorOne. تحقق من الشبكة وحاول مرة أخرى.';
+
+  @override
   String get updateContinueLabel => 'المتابعة بدون تحديث';
 }
