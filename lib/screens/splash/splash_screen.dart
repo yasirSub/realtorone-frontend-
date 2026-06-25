@@ -79,6 +79,44 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
+  Future<bool> _canBypassMaintenance(
+    String? token, {
+    List<String> testerIdentifiers = const [],
+  }) async {
+    if (token == null || token.isEmpty) return false;
+    try {
+      final response = await ApiClient.get('/user/profile', requiresAuth: true);
+      final isSuccess = response['success'] == true || response['status'] == 'ok';
+      if (!isSuccess) return false;
+      final userData = response['data'] ?? response['user'] ?? response;
+      if (userData is! Map) return false;
+      final isAdmin = userData['is_admin'] == true;
+      final isTestUser = userData['is_test_user'] == true;
+      if (isAdmin || isTestUser) return true;
+
+      final normalizedAllowList = testerIdentifiers
+          .map((v) => v.trim().toLowerCase())
+          .where((v) => v.isNotEmpty)
+          .toSet();
+      if (normalizedAllowList.isEmpty) return false;
+
+      final email = (userData['email'] ?? '').toString().trim().toLowerCase();
+      final mobile = (userData['mobile'] ?? '').toString().trim().toLowerCase();
+      final phone = (userData['phone_number'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      final userId = (userData['id'] ?? '').toString().trim().toLowerCase();
+
+      return normalizedAllowList.contains(email) ||
+          normalizedAllowList.contains(mobile) ||
+          normalizedAllowList.contains(phone) ||
+          normalizedAllowList.contains(userId);
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _syncInstallMarker(SharedPreferences prefs) async {
     try {
       final supportDir = await getApplicationSupportDirectory();
@@ -195,14 +233,22 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       if (config.maintenanceEnabled) {
-        debugPrint('Splash: maintenance enabled, redirecting');
-        final args = await SupportContactService.maintenanceRouteArgs(
-          message: config.maintenanceMessage,
-          kind: 'maintenance',
+        final bypass = await _canBypassMaintenance(
+          token,
+          testerIdentifiers: config.maintenanceTesterIdentifiers,
         );
         if (!mounted) return;
-        _navigateOnce(AppRoutes.maintenance, arguments: args);
-        return;
+        if (!bypass) {
+          debugPrint('Splash: maintenance enabled, redirecting');
+          final args = await SupportContactService.maintenanceRouteArgs(
+            message: config.maintenanceMessage,
+            kind: 'maintenance',
+          );
+          if (!mounted) return;
+          _navigateOnce(AppRoutes.maintenance, arguments: args);
+          return;
+        }
+        debugPrint('Splash: maintenance enabled, bypass granted for tester/admin');
       }
 
       if (config.serviceUnavailable) {
@@ -427,6 +473,13 @@ class _SplashScreenState extends State<SplashScreen>
           data['maintenance_enabled'] == 1 ||
           data['maintenance_enabled']?.toString() == 'true';
       final maintenanceMessage = (data['maintenance_message'] as String?) ?? '';
+      final maintenanceTesterIdentifiers =
+          data['maintenance_tester_identifiers'] is List
+          ? (data['maintenance_tester_identifiers'] as List)
+                .map((v) => v.toString().trim().toLowerCase())
+                .where((v) => v.isNotEmpty)
+                .toList()
+          : const <String>[];
       final minAndroid = (data['min_android_version'] as String?)?.trim() ?? '';
       final minIos = (data['min_ios_version'] as String?)?.trim() ?? '';
       final maxAndroid = (data['max_android_version'] as String?)?.trim() ?? '';
@@ -468,6 +521,7 @@ class _SplashScreenState extends State<SplashScreen>
       return _AppRuntimeConfig(
         maintenanceEnabled: maintenanceEnabled,
         maintenanceMessage: maintenanceMessage,
+        maintenanceTesterIdentifiers: maintenanceTesterIdentifiers,
         serviceUnavailable: false,
         minAndroidVersion: minAndroid,
         minIosVersion: minIos,
@@ -492,6 +546,7 @@ class _SplashScreenState extends State<SplashScreen>
     return _AppRuntimeConfig(
       maintenanceEnabled: false,
       maintenanceMessage: '',
+      maintenanceTesterIdentifiers: const [],
       serviceUnavailable: false,
       minAndroidVersion: '',
       minIosVersion: '',
@@ -804,6 +859,7 @@ class _AppRuntimeConfig {
   _AppRuntimeConfig({
     required this.maintenanceEnabled,
     required this.maintenanceMessage,
+    required this.maintenanceTesterIdentifiers,
     required this.serviceUnavailable,
     required this.minAndroidVersion,
     required this.minIosVersion,
@@ -823,6 +879,7 @@ class _AppRuntimeConfig {
     return _AppRuntimeConfig(
       maintenanceEnabled: false,
       maintenanceMessage: '',
+      maintenanceTesterIdentifiers: const [],
       serviceUnavailable: true,
       minAndroidVersion: '',
       minIosVersion: '',
@@ -841,6 +898,7 @@ class _AppRuntimeConfig {
 
   final bool maintenanceEnabled;
   final String maintenanceMessage;
+  final List<String> maintenanceTesterIdentifiers;
   final bool serviceUnavailable;
   final String minAndroidVersion;
   final String minIosVersion;
