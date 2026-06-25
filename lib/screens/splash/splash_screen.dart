@@ -452,8 +452,11 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<_AppRuntimeConfig> _fetchAppConfig() async {
     try {
+      await ApiClient.invalidateEndpointCache('/app-config');
       final response = await ApiClient.getPublic(
         '/app-config?_=${DateTime.now().millisecondsSinceEpoch}',
+        useCache: false,
+        revalidateInBackground: false,
       );
       final statusCode = response['statusCode'] as int? ?? 0;
       final serviceUnavailable = response['service_unavailable'] == true ||
