@@ -476,7 +476,7 @@ private final class TokenWaitBox {
     if userInfo["gcm.message_id"] != nil {
       Messaging.messaging().appDidReceiveMessage(userInfo)
     }
-    super.				        application(application, didReceiveRemoteNotification: userInfo)
+    super.application(application, didReceiveRemoteNotification: userInfo)
   }
 
   override func application(
