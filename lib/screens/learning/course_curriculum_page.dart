@@ -1659,12 +1659,16 @@ class _CourseCurriculumPageState extends State<CourseCurriculumPage>
         final token = await ApiClient.getToken();
         final bool isStreamRoute = videoUrl.contains('/api/stream/');
 
-        // Use headers only for the specialized internal stream route to avoid Nginx conflicts
+        String finalUrl = videoUrl;
+        if (token != null && isStreamRoute) {
+          final uri = Uri.parse(finalUrl);
+          final queryParams = Map<String, String>.from(uri.queryParameters);
+          queryParams['token'] = token;
+          finalUrl = uri.replace(queryParameters: queryParams).toString();
+        }
+
         _videoPlayerController = VideoPlayerController.networkUrl(
-          Uri.parse(videoUrl),
-          httpHeaders: (token != null && isStreamRoute)
-              ? {'Authorization': 'Bearer $token'}
-              : {},
+          Uri.parse(finalUrl),
         );
       }
       // Automatic progress tracking & completion

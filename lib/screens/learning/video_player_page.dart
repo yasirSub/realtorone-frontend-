@@ -37,9 +37,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
   Future<void> _initializePlayer() async {
     try {
       final token = await ApiClient.getToken();
+      
+      String finalUrl = widget.videoUrl;
+      final bool isStreamRoute = finalUrl.contains('/api/stream/');
+      if (token != null && isStreamRoute) {
+        final uri = Uri.parse(finalUrl);
+        final queryParams = Map<String, String>.from(uri.queryParameters);
+        queryParams['token'] = token;
+        finalUrl = uri.replace(queryParameters: queryParams).toString();
+      }
+
       _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
-        httpHeaders: token != null ? {'Authorization': 'Bearer $token'} : {},
+        Uri.parse(finalUrl),
       );
 
       
